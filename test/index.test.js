@@ -147,4 +147,22 @@ describe('index.js', () => {
                 });
         });
     });
+    describe('/model/:id GET', () => {
+        it('should return an item by id.', () => {
+            return request(app)
+                .get('/test/1')
+                .expect(200)
+                .then(response => {
+                    expect(response.body.result.id).to.equal(1);
+                });
+        });
+        it('should only return the specified attributes.', () => {
+            return request(app)
+                .get('/test/1?a=value1')
+                .expect(200)
+                .then(response => {
+                    expect(response.body).to.deep.equal({ result: { value1: 'test0' } });
+                });
+        });
+    });
 });

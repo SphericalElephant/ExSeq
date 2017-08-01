@@ -70,21 +70,29 @@ module.exports = (model, opts) => {
 
         if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
             ((offset && (isNaN(offsetInt))) || offsetInt < 1))
-            return attachReply(400, undefined, 'p or i must be integers larger than 1!');
+            return attachErrorReply(400, undefined, 'p or i must be integers larger than 1!');
 
         const order = sortField ? [[sortField, sortOrder]] : undefined;
         model
             .findAll({ limit: limitInt, offset: limitInt * offsetInt, attributes, order })
             .then(modelInstances => {
                 const result = modelInstances.map(instance => instance.get({ plain: true }));
-                attachErrorReply(200, result);
+                attachReply(200, result);
             }).catch(err => {
                 attachErrorReply(500, err);
             });
     });
 
     router.get('/:id', (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
 
+        const attributes = req.query.a ? req.query.a.split('|') : undefined;
+        model.findOne({ where: { id: req.params.id }, attributes }).then(modelInstance => {
+            attachReply(200, modelInstance);
+        }).catch(err => {
+            attachErrorReply(500, err);
+        });
     });
 
     router.put('/:id', (req, res, next) => {
