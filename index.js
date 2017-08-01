@@ -7,7 +7,7 @@ const _ = require('lodash');
 module.exports = (model, opts) => {
     if (!model) throw new Error('model must be set!');
     opts = opts || {};
-    
+
     const router = express.Router();
     const route = opts.route || model.name;
 
@@ -53,20 +53,31 @@ module.exports = (model, opts) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
 
-        const limit = req.query.p;
-        const offset = req.query.i;
-        const attributes = (req.query.a || '').split('|');
-        const order = [(req.query.s || '').split('|')];
+        const limit = req.query.i;
+        const offset = req.query.p;
+        const attributes = req.query.a ? req.query.a.split('|') : undefined;
+        const sortField = req.query.f;
+        const sortOrder = req.query.o || 'DESC';
+
+        if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
+            return attachReply(400, undefined, 'invalid sort order, must be DESC or ASC');
 
         if ((!limit || !offset) && limit !== offset)
             return attachReply(400, undefined, 'p or i must be both undefined or both defined.');
 
-        if ((limit && isNaN(parseInt(limit))) || (offset && isNaN(parseInt(offset))))
-            return attachReply(400, undefined, 'p or i are not a number!');
+        const limitInt = parseInt(limit);
+        const offsetInt = parseInt(offset);
 
+        if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
+            ((offset && (isNaN(offsetInt))) || offsetInt < 1))
+            return attachReply(400, undefined, 'p or i must be integers larger than 1!');
+
+        const order = sortField ? [[sortField, sortOrder]] : undefined;
         model
-            .findAll({ limit, offset, attributes, order })
+            .findAll({ limit: limitInt, offset: limitInt * offsetInt, attributes, order })
             .then(modelInstances => {
+                const result = modelInstances.map(instance => instance.get({ plain: true }));
+                attachErrorReply(200, result);
             }).catch(err => {
                 attachErrorReply(500, err);
             });

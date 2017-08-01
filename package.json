@@ -9,6 +9,7 @@
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
   "license": "BSD-3-Clause",
   "dependencies": {
+    "bluebird": "^3.5.0",
     "express": "^4.15.3",
     "lodash": "^4.17.4",
     "sequelize": "^4.4.2"

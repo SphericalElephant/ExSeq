@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         value2: {
             type: DataTypes.INTEGER,
-            validate: { min: 0, max: 10 }
+            validate: { min: 0, max: 100 }
         },
     });
     return TestModel;
