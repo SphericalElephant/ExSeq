@@ -6,8 +6,9 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING
         },
         value2: {
-            type: DataTypes.INTEGER
-        }
+            type: DataTypes.INTEGER,
+            validate: { min: 0, max: 10 }
+        },
     });
     return TestModel;
 };

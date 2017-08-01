@@ -22,7 +22,7 @@ describe('index.js', () => {
         });
         // simple error handler
         app.use((err, req, res, next) => {
-            res.status(err.statusCode).send({result: err.result});
+            res.status(err.statusCode).send({ result: err.result });
         });
         done();
     });
@@ -41,9 +41,18 @@ describe('index.js', () => {
             .send({ value1: 'test1', value2: 1 })
             .expect(201)
             .then(response => {
-                console.log(response.body)
                 expect(response.body.result.value1).to.equal('test1');
                 expect(response.body.result.value2).to.equal(1);
+            });
+    });
+
+    it('/model POST - should create a validation error', () => {
+        return request(app)
+            .post('/test')
+            .send({ value1: 'test1', value2: 50 })
+            .expect(400)
+            .then(response => {
+                expect(response.body.result).to.deep.equal([{ type: 'Validation error', path: 'value2', value: 50 }]);
             });
     });
 });

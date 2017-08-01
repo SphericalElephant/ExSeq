@@ -1,6 +1,8 @@
 'use strict';
 
 const express = require('express');
+const sequelize = require('sequelize');
+const _ = require('lodash');
 
 module.exports = (model, opts) => {
     if (!model) throw new Error('model must be set!');
@@ -27,6 +29,12 @@ module.exports = (model, opts) => {
         });
     };
 
+    const _formatValidationError = (err) => {
+        return err.errors.map(error => {
+            return _.pick(error, ['type', 'path', 'value']);
+        });
+    };
+
     router.post('/', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
@@ -36,8 +44,8 @@ module.exports = (model, opts) => {
             .then(modelInstance => {
                 attachReply(201, modelInstance.get({ plain: true }));
             }).catch(err => {
-                // TODO: validation errors cause different exception
-                attachErrorReply(500, err);
+                if (err instanceof sequelize.ValidationError) return attachErrorReply(400, _formatValidationError(err));
+                return attachErrorReply(500, err);
             });
     });
 
