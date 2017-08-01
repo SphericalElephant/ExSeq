@@ -1,0 +1,17 @@
+{
+  "name": "express-sequelize-generator",
+  "version": "1.0.0",
+  "description": "CRUD route generator for Sequelize models",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "express": "^4.15.3"
+  },
+  "devDependencies": {
+    "sequelize": "^4.4.2"
+  }
+}
