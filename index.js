@@ -70,7 +70,7 @@ module.exports = (model, opts) => {
 
         if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
             ((offset && (isNaN(offsetInt))) || offsetInt < 1))
-            return attachErrorReply(400, undefined, 'p or i must be integers larger than 1!');
+            return attachReply(400, undefined, 'p or i must be integers larger than 1!');
 
         const order = sortField ? [[sortField, sortOrder]] : undefined;
         model
@@ -104,7 +104,14 @@ module.exports = (model, opts) => {
     });
 
     router.delete('/:id', (req, res, next) => {
-
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        model.destroy({ where: { id: req.params.id } }).then(affectedRows => {
+            if (affectedRows === 0) return attachReply(404);
+            return attachReply(204);
+        }).catch(err => {
+            return attachErrorReply(500, err);
+        });
     });
 
     return router;

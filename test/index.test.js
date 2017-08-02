@@ -43,7 +43,7 @@ describe('index.js', () => {
     });
 
     describe('/model POST', () => {
-        it('should create an instance', () => {
+        it('should create an instance.', () => {
             return request(app)
                 .post('/test')
                 .send({ value1: 'test1', value2: 1 })
@@ -54,7 +54,7 @@ describe('index.js', () => {
                 });
         });
 
-        it('should create a validation error', () => {
+        it('should create a validation error.', () => {
             return request(app)
                 .post('/test')
                 .send({ value1: 'test1', value2: 101 })
@@ -66,7 +66,7 @@ describe('index.js', () => {
     });
 
     describe('/model GET', () => {
-        it('should validate that offset and limit are both set if one is set', () => {
+        it('should validate that offset and limit are both set if one is set.', () => {
             return Promise.join(
                 request(app)
                     .get('/test?p=1')
@@ -82,7 +82,7 @@ describe('index.js', () => {
                     })
             );
         });
-        it('should validate that offset and limit are integers', () => {
+        it('should validate that offset and limit are integers.', () => {
             return Promise.join(
                 request(app)
                     .get('/test?p=test&i=1')
@@ -162,6 +162,25 @@ describe('index.js', () => {
                 .expect(200)
                 .then(response => {
                     expect(response.body).to.deep.equal({ result: { value1: 'test0' } });
+                });
+        });
+    });
+    describe('/model/:id DELETE', () => {
+        it('should delete an instance.', () => {
+            return request(app)
+                .delete('/test/1')
+                .expect(204)
+                .then(response => {
+                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
+                        expect(instance).to.not.exist;
+                    });
+                });
+        });
+        it('should inform callers that an instance does not exist.', () => {
+            return request(app)
+                .delete('/test/0')
+                .expect(404)
+                .then(response => {
                 });
         });
     });
