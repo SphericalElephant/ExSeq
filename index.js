@@ -53,15 +53,24 @@ const _fillMissingUpdateableAttributes = (model, input) => {
     }, {});
 };
 
+const _getAssociatedModelNames = model => {
+    return _.keys(model.associations);
+};
+
+const _getAssociationByName = (model, name) => {
+    return model.associations[name];
+};
+
 module.exports = (model, opts) => {
     if (!model) throw new Error('model must be set!');
     opts = opts || {};
 
     const router = express.Router();
-    const route = opts.route || model.name;
 
     const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
     const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
+    const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
+    const getAssociationByName = _getAssociationByName.bind(null, model);
 
     router.post('/', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
@@ -163,5 +172,5 @@ module.exports = (model, opts) => {
         });
     });
 
-    return router;
+    return ['/' + model.name, router];
 };
