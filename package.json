@@ -15,10 +15,11 @@
     "sequelize": "^4.4.2"
   },
   "devDependencies": {
+    "body-parser": "^1.17.2",
     "chai": "^4.1.0",
     "mocha": "^3.5.0",
+    "rewire": "^2.5.2",
     "sqlite3": "^3.1.8",
-    "supertest": "^3.0.0",
-    "body-parser": "^1.17.2"
+    "supertest": "^3.0.0"
   }
 }
