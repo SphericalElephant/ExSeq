@@ -4,6 +4,8 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 
+const routingInformation = {};
+
 const _attachReply = (req, res, next, statusCode, result, message) => {
     // TODO: check if required fields are set!
     req.custom = {
@@ -63,6 +65,8 @@ const _getAssociationByName = (model, name) => {
 
 module.exports = (model, opts) => {
     if (!model) throw new Error('model must be set!');
+    if (routingInformation[model.name])
+        throw new Error('model "' + model.name + '" already registered!');
     opts = opts || {};
 
     const router = express.Router();
@@ -171,6 +175,22 @@ module.exports = (model, opts) => {
             return handleUnexpectedError(err);
         });
     });
+
+    getAssociatedModelNames(model).forEach(associationName => {
+        const association = getAssociationByName(associationName);
+        const target = association.target;
+        const source = association.source;
+
+        switch (association.associationType) {
+            case 'BelongsTo':
+                router.get('/')
+                break;
+        };
+        //console.log(_.keys(association))
+        //console.dir(association)
+    });
+
+    routingInformation[model.name] = router;
 
     return ['/' + model.name, router];
 };
