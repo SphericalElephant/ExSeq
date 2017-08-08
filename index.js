@@ -4,6 +4,55 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 
+const _attachReply = (req, res, next, statusCode, result, message) => {
+    // TODO: check if required fields are set!
+    req.custom = {
+        statusCode,
+        result,
+        message
+    };
+    return next();
+};
+
+const _attachErrorReply = (req, res, next, statusCode, result, message) => {
+    return next({
+        statusCode,
+        result,
+        message
+    });
+};
+
+const _formatValidationError = (err) => {
+    return err.errors.map(error => {
+        return _.pick(error, ['type', 'path', 'value']);
+    });
+};
+
+const _handleUnexpectedError = (req, res, next, err) => {
+    if (err instanceof sequelize.ValidationError) return _attachErrorReply(req, res, next, 400, _formatValidationError(err));
+    _attachErrorReply(req, res, next, 500, err);
+};
+
+const _getUpdateableAttributes = (model) => {
+    return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt').map(attribute => {
+        const allowNull = model.attributes[attribute].allowNull;
+        return { attribute, allowNull: allowNull === undefined || allowNull === true }
+    });
+};
+
+const _removeIllegalAttributes = (model, input) => {
+    return _.pick(input, _getUpdateableAttributes(model).map(attr => attr.attribute));
+};
+
+const _fillMissingUpdateableAttributes = (model, input) => {
+    const clonedInput = Object.assign({}, input);
+    return _getUpdateableAttributes(model).reduce((result, current) => {
+        if (input[current.attribute] !== undefined) result[current.attribute] = input[current.attribute];
+        else result[current.attribute] = null;
+        return result;
+    }, {});
+};
+
 module.exports = (model, opts) => {
     if (!model) throw new Error('model must be set!');
     opts = opts || {};
@@ -11,57 +60,26 @@ module.exports = (model, opts) => {
     const router = express.Router();
     const route = opts.route || model.name;
 
-    const _attachReply = (req, res, next, statusCode, result, message) => {
-        // TODO: check if required fields are set!
-        req.custom = {
-            statusCode,
-            result,
-            message
-        };
-        return next();
-    };
-
-    const _attachErrorReply = (req, res, next, statusCode, result, message) => {
-        return next({
-            statusCode,
-            result,
-            message
-        });
-    };
-
-    const _formatValidationError = (err) => {
-        return err.errors.map(error => {
-            return _.pick(error, ['type', 'path', 'value']);
-        });
-    };
-
-    const _getUpdateableAttributes = (model) => {
-        return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt').map(attribute => {
-            return {attribute, allowNull: model.attributes[attribute].allowNull}
-        });
-    };
-
-    const _create = () => {
-
-    };
+    const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
+    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
 
     router.post('/', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
-        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+        const input = removeIllegalAttributes(req.body);
 
         model
-            .create(req.body)
+            .create(input)
             .then(modelInstance => {
                 attachReply(201, modelInstance.get({ plain: true }));
             }).catch(err => {
-                if (err instanceof sequelize.ValidationError) return attachErrorReply(400, _formatValidationError(err));
-                return attachErrorReply(500, err);
+                return handleUnexpectedError(err);
             });
     });
 
     router.get('/', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
-        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
         const limit = req.query.i;
         const offset = req.query.p;
@@ -89,33 +107,34 @@ module.exports = (model, opts) => {
                 const result = modelInstances.map(instance => instance.get({ plain: true }));
                 attachReply(200, result);
             }).catch(err => {
-                attachErrorReply(500, err);
+                return handleUnexpectedError(err);
             });
     });
 
     router.get('/:id', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
-        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
         const attributes = req.query.a ? req.query.a.split('|') : undefined;
         model.findOne({ where: { id: req.params.id }, attributes }).then(modelInstance => {
             attachReply(200, modelInstance);
         }).catch(err => {
-            attachErrorReply(500, err);
+            return handleUnexpectedError(err);
         });
     });
 
     router.put('/:id', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
-        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
-        const attributes = _getUpdateableAttributes(model);
+        const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
+        const input = fillMissingUpdateableAttributes(removeIllegalAttributes(req.body));
 
-        model.update(req.body, { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
+        model.update(input, { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
             if (affectedCount === 0) return attachReply(404);
             return attachReply(204);
         }).catch(err => {
-            return attachErrorReply(500, err);
+            return handleUnexpectedError(err);
         });
     });
 
@@ -125,13 +144,13 @@ module.exports = (model, opts) => {
 
     router.delete('/:id', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
-        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
         model.destroy({ where: { id: req.params.id } }).then(affectedRows => {
             if (affectedRows === 0) return attachReply(404);
             return attachReply(204);
         }).catch(err => {
-            return attachErrorReply(500, err);
+            return handleUnexpectedError(err);
         });
     });
 

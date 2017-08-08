@@ -3,6 +3,7 @@
 const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
+const rewire = require('rewire');
 
 const database = require('./database');
 const testModel = require('./model/test');
@@ -10,7 +11,12 @@ const TestModel = testModel(database.sequelize, database.Sequelize);
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const _esg = rewire('../index.js');
 const esg = require('../index');
+
+const _getUpdateableAttributes = _esg.__get__('_getUpdateableAttributes');
+const _removeIllegalAttributes = _esg.__get__('_removeIllegalAttributes');
+const _fillMissingUpdateableAttributes = _esg.__get__('_fillMissingUpdateableAttributes');
 
 describe('index.js', () => {
 
@@ -32,7 +38,7 @@ describe('index.js', () => {
         return database.init().then(() => {
             const testModelPromises = [];
             for (let i = 0; i < 49; i++) {
-                testModelPromises.push(TestModel.create({ value1: 'test' + i, value2: i }));
+                testModelPromises.push(TestModel.create({ value1: 'test' + i, value2: i, value3: 'no null!' }));
             }
             return Promise.all(testModelPromises);
         });
@@ -40,6 +46,41 @@ describe('index.js', () => {
 
     afterEach(() => {
         return database.reset();
+    });
+
+    describe('_getUpdateableAttributes', () => {
+        it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
+            expect(_getUpdateableAttributes(TestModel)).to.deep.equal([
+                { attribute: 'value1', allowNull: true },
+                { attribute: 'value2', allowNull: true },
+                { attribute: 'value3', allowNull: false }]);
+        });
+    });
+
+    describe('_removeIllegalAttributes', () => {
+        it('should remove illegal arguments.', () => {
+            expect(_removeIllegalAttributes(TestModel, { this: 1, is: 1, a: 1, test: 1 })).to.deep.equal({});
+        });
+        it('should retain legal arguments.', () => {
+            expect(_removeIllegalAttributes(TestModel, { this: 1, is: 1, a: 1, test: 1, value1: 'should stay' })).to.deep.equal({ value1: 'should stay' });
+        });
+    });
+
+    describe('_fillMissingUpdateableAttributes', () => {
+        it('should fill up missing model members with null.', () => {
+            expect(_fillMissingUpdateableAttributes(TestModel, {})).to.deep.equal({
+                value1: null,
+                value2: null,
+                value3: null
+            });
+        });
+        it('should not overwrite existing members.', () => {
+            expect(_fillMissingUpdateableAttributes(TestModel, { value1: 'test' })).to.deep.equal({
+                value1: 'test',
+                value2: null,
+                value3: null
+            });
+        });
     });
 
     describe('/model POST', () => {
@@ -188,21 +229,22 @@ describe('index.js', () => {
         it('should replace an instance.', () => {
             return request(app)
                 .put('/test/1')
-                .send({value1: 'changed'})
+                .send({ value3: 'changed' })
                 .expect(204)
                 .then(response => {
                     return TestModel.findOne({ where: { id: 1 } }).then(instance => {
-                        expect(instance.get({plain: true})).to.deep.equal({value1: 'changed'});
+                        const result = instance.get({ plain: true })
+                        expect(result.value1).to.be.null;
+                        expect(result.value2).to.be.null;
+                        expect(result.value3).to.equal('changed');
                     });
                 });
         });
         it('should inform callers that an instance does not exist.', () => {
             return request(app)
                 .put('/test/0')
-                .send({})
-                .expect(404)
-                .then(response => {
-                });
+                .send({value3: 'changed'})
+                .expect(404);
         });
     });
 });
