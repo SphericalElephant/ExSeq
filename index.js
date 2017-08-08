@@ -81,6 +81,8 @@ module.exports = (model, opts) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
+        // TODO: search
+
         const limit = req.query.i;
         const offset = req.query.p;
         const attributes = req.query.a ? req.query.a.split('|') : undefined;
@@ -123,23 +125,30 @@ module.exports = (model, opts) => {
         });
     });
 
-    router.put('/:id', (req, res, next) => {
+    const update = (req, res, next, createInput) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
         const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
-        const input = fillMissingUpdateableAttributes(removeIllegalAttributes(req.body));
 
-        model.update(input, { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
+        model.update(createInput(req.body), { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
             if (affectedCount === 0) return attachReply(404);
             return attachReply(204);
         }).catch(err => {
             return handleUnexpectedError(err);
         });
+    };
+
+    router.put('/:id', (req, res, next) => {
+        update(req, res, next, (body) => {
+            return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
+        });
     });
 
     router.patch('/:id', (req, res, next) => {
-
+        update(req, res, next, (body) => {
+            return removeIllegalAttributes(body);
+        });
     });
 
     router.delete('/:id', (req, res, next) => {
