@@ -243,7 +243,29 @@ describe('index.js', () => {
         it('should inform callers that an instance does not exist.', () => {
             return request(app)
                 .put('/test/0')
-                .send({value3: 'changed'})
+                .send({ value3: 'changed' })
+                .expect(404);
+        });
+    });
+    describe('/model/:id PATCH', () => {
+        it('should update invididual attributes of a record', () => {
+            return request(app)
+                .patch('/test/1')
+                .send({ value3: 'changed' })
+                .expect(204)
+                .then(response => {
+                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
+                        const result = instance.get({ plain: true })
+                        expect(result.value1).to.equal('test0');
+                        expect(result.value2).to.equal(0);
+                        expect(result.value3).to.equal('changed');
+                    });
+                });
+        });
+        it('should inform callers that an instance does not exist.', () => {
+            return request(app)
+                .patch('/test/0')
+                .send({ value3: 'changed' })
                 .expect(404);
         });
     });
