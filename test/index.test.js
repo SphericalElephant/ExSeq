@@ -87,7 +87,7 @@ describe('index.js', () => {
         it('should create an instance.', () => {
             return request(app)
                 .post('/test')
-                .send({ value1: 'test1', value2: 1 })
+                .send({ value1: 'test1', value2: 1, value3: 'not null' })
                 .expect(201)
                 .then(response => {
                     expect(response.body.result.value1).to.equal('test1');
@@ -98,7 +98,7 @@ describe('index.js', () => {
         it('should create a validation error.', () => {
             return request(app)
                 .post('/test')
-                .send({ value1: 'test1', value2: 101 })
+                .send({ value1: 'test1', value2: 101, value3: 'not null' })
                 .expect(400)
                 .then(response => {
                     expect(response.body.result).to.deep.equal([{ type: 'Validation error', path: 'value2', value: 101 }]);
