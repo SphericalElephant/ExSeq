@@ -35,6 +35,16 @@ module.exports = (model, opts) => {
         });
     };
 
+    const _getUpdateableAttributes = (model) => {
+        return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt').map(attribute => {
+            return {attribute, allowNull: model.attributes[attribute].allowNull}
+        });
+    };
+
+    const _create = () => {
+
+    };
+
     router.post('/', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
@@ -96,7 +106,17 @@ module.exports = (model, opts) => {
     });
 
     router.put('/:id', (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
 
+        const attributes = _getUpdateableAttributes(model);
+
+        model.update(req.body, { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
+            if (affectedCount === 0) return attachReply(404);
+            return attachReply(204);
+        }).catch(err => {
+            return attachErrorReply(500, err);
+        });
     });
 
     router.patch('/:id', (req, res, next) => {
@@ -106,6 +126,7 @@ module.exports = (model, opts) => {
     router.delete('/:id', (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const attachErrorReply = _attachErrorReply.bind(null, req, res, next);
+
         model.destroy({ where: { id: req.params.id } }).then(affectedRows => {
             if (affectedRows === 0) return attachReply(404);
             return attachReply(204);

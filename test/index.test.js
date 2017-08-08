@@ -184,4 +184,25 @@ describe('index.js', () => {
                 });
         });
     });
+    describe('/model/:id PUT', () => {
+        it('should replace an instance.', () => {
+            return request(app)
+                .put('/test/1')
+                .send({value1: 'changed'})
+                .expect(204)
+                .then(response => {
+                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
+                        expect(instance.get({plain: true})).to.deep.equal({value1: 'changed'});
+                    });
+                });
+        });
+        it('should inform callers that an instance does not exist.', () => {
+            return request(app)
+                .put('/test/0')
+                .send({})
+                .expect(404)
+                .then(response => {
+                });
+        });
+    });
 });
