@@ -274,4 +274,14 @@ describe('index.js', () => {
                 .expect(404);
         });
     });
+    describe('/model/:id/belongsToRelation/ GET', () => {
+        it('should return the belongsTo relation of the requested resource', done => {
+            return request(app)
+            .get('/TestModel/1/TestModel2/')
+            .expect(200)
+            .then(response => {
+                expect(response.body.result).to.equal(1);
+            });
+        });
+    });
 });

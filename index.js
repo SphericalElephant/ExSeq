@@ -183,7 +183,14 @@ module.exports = (model, opts) => {
 
         switch (association.associationType) {
             case 'BelongsTo':
-                router.get('/')
+                router.get('/:id/' + target.name, (req, res, next) => {
+                    const attachReply = _attachReply.bind(null, req, res, next);                    
+                    source.get[target.name].then(targetInstance => {
+                        return attachReply(200, result);
+                    }).catch(err => {
+                        return handleUnexpectedError(err);
+                    });
+                });
                 break;
         };
         //console.log(_.keys(association))
