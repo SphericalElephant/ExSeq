@@ -63,6 +63,10 @@ const _getAssociationByName = (model, name) => {
     return model.associations[name];
 };
 
+const _getRouterForModel = (routingInformation, model) => {
+    return (_.find(routingInformation, (i) => i.model.model.name === model.name) || { router: null }).router;
+};
+
 module.exports = (models) => {
     if (!models) throw new Error('models must be set!');
     if (!(models instanceof Array)) throw new Error('models must be an array');
@@ -196,9 +200,15 @@ module.exports = (models) => {
             switch (association.associationType) {
                 case 'BelongsTo':
                     router.get('/:id/' + target.name, (req, res, next) => {
-                        const attachReply = _attachReply.bind(null, req, res, next);                    
-                        source.get[target.name].then(targetInstance => {
-                            return attachReply(200, result);
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`get${target.name}`]().then(targetInstance => {
+                                if (!targetInstance) return attachReply(404, undefined, 'target not found');
+                                return attachReply(200, targetInstance.get({plain: true}));
+                            });
                         }).catch(err => {
                             return handleUnexpectedError(err);
                         });
@@ -210,6 +220,6 @@ module.exports = (models) => {
         });
     });
     return routingInformation.map(routing => {
-        return {route: '/' + routing.route, router: routing.router}
+        return { route: '/' + routing.route, router: routing.router }
     });
 };

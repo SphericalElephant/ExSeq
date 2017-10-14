@@ -26,19 +26,22 @@ describe('index.js', () => {
         app.use(bodyParser.json({}));
 
         esg([
-            {model: TestModel, opts: {}},
-            {model: TestModel2, opts: {}}
+            { model: TestModel, opts: {} },
+            { model: TestModel2, opts: {} }
         ]).forEach((routing) => {
             app.use(routing.route, routing.router);
         });
-        
+
         // simple response handler
         app.use((req, res) => {
             return res.status(req.custom.statusCode).send({ result: req.custom.result, message: req.custom.message });
         });
         // simple error handler
         app.use((err, req, res, next) => {
-            if (!err.statusCode) return res.status(500).send({result: err.stack});
+            console.log(err);
+            if (!err.statusCode) {
+                return res.status(500).send({ result: err.stack })
+            };
             return res.status(err.statusCode).send({ result: err.result });
         });
         done();
@@ -48,7 +51,13 @@ describe('index.js', () => {
         return database.init().then(() => {
             const testModelPromises = [];
             for (let i = 0; i < 49; i++) {
-                testModelPromises.push(TestModel.create({ value1: 'test' + i, value2: i, value3: 'no null!' }));
+                testModelPromises.push(
+                    TestModel.create({ value1: 'test' + i, value2: i, value3: 'no null!' }).then(testModel => {
+                        return TestModel2.create().then(testModel2 => {
+                            return testModel2.setTestModel(testModel);
+                        });
+                    })
+                );
             }
             return Promise.all(testModelPromises);
         });
@@ -57,10 +66,10 @@ describe('index.js', () => {
     afterEach(() => {
         return database.reset();
     });
-    
+
     describe('esg', () => {
         it('should not allow registering the same model twice', () => {
-            expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
+            expect(esg.bind(null, [{ model: TestModel }, { model: TestModel }])).to.throw('already registered');
         });
     });
 
@@ -285,14 +294,15 @@ describe('index.js', () => {
                 .expect(404);
         });
     });
-    describe.skip('/model/:id/belongsToRelation/ GET', () => {
-        it('should return the belongsTo relation of the requested resource', done => {
+    describe('/model/:id/belongsToRelation/ GET', () => {
+        it('should return the belongsTo relation of the requested resource', () => {
             return request(app)
-            .get('/TestModel/1/TestModel2/')
-            .expect(200)
-            .then(response => {
-                expect(response.body.result).to.equal(1);
-            });
+                .get('/TestModel2/1/TestModel/')
+                .expect(200)
+                .then(response => {
+                    console.log(response.body)
+                    expect(response.body).to.equal(1);
+                });
         });
     });
 });
