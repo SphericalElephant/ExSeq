@@ -6,9 +6,9 @@ const Promise = require('bluebird');
 const rewire = require('rewire');
 
 const database = require('./database');
-const testModel = require('./model/test');
+const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
-const testModel2 = require('./model/test2');
+const testModel2 = require('./model/test-model2');
 const TestModel2 = testModel2(database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 const express = require('express');
@@ -300,9 +300,10 @@ describe('index.js', () => {
                 .get('/TestModel2/1/TestModel/')
                 .expect(200)
                 .then(response => {
-                    console.log(response.body)
-                    expect(response.body).to.equal(1);
+                    expect(response.body.result.id).to.equal(1);
                 });
         });
+
+        // TODO: test target not found and source not found
     });
 });

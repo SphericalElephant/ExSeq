@@ -198,6 +198,7 @@ module.exports = (models) => {
             const source = association.source;
 
             switch (association.associationType) {
+                case 'HasOne':
                 case 'BelongsTo':
                     router.get('/:id/' + target.name, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
@@ -207,7 +208,7 @@ module.exports = (models) => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
                             return sourceInstance[`get${target.name}`]().then(targetInstance => {
                                 if (!targetInstance) return attachReply(404, undefined, 'target not found');
-                                return attachReply(200, targetInstance.get({plain: true}));
+                                return attachReply(200, targetInstance.get({ plain: true }));
                             });
                         }).catch(err => {
                             return handleUnexpectedError(err);
