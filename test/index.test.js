@@ -10,7 +10,10 @@ const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
 const testModel2 = require('./model/test-model2');
 const TestModel2 = testModel2(database.sequelize, database.Sequelize);
+const testModel3 = require('./model/test-model3');
+const TestModel3 = testModel3(database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
+TestModel.hasOne(TestModel3);
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -53,9 +56,14 @@ describe('index.js', () => {
             for (let i = 0; i < 49; i++) {
                 testModelPromises.push(
                     TestModel.create({ value1: 'test' + i, value2: i, value3: 'no null!' }).then(testModel => {
-                        return TestModel2.create().then(testModel2 => {
-                            return testModel2.setTestModel(testModel);
-                        });
+                        return Promise.join(
+                            TestModel2.create().then(testModel2 => {
+                                return testModel2.setTestModel(testModel);
+                            }),
+                            TestModel3.create().then(testModel3 => {
+                                return testModel.setTestModel3(testModel3);
+                            })
+                        );
                     })
                 );
             }
@@ -301,6 +309,19 @@ describe('index.js', () => {
                 .expect(200)
                 .then(response => {
                     expect(response.body.result.id).to.equal(1);
+                });
+        });
+
+        // TODO: test target not found and source not found
+    });
+    describe('/model/:id/hasOneRelation/ GET', () => {
+        it('should return the belongsTo relation of the requested resource', () => {
+            return request(app)
+                .get('/TestModel/1/TestModel3/')
+                .expect(200)
+                .then(response => {
+                    expect(response.body.result.id).to.equal(1);
+                    expect(response.body.result.TestModelId).to.equal(1);
                 });
         });
 
