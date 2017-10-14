@@ -57,6 +57,12 @@ describe('index.js', () => {
     afterEach(() => {
         return database.reset();
     });
+    
+    describe('esg', () => {
+        it('should not allow registering the same model twice', () => {
+            expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
+        });
+    });
 
     describe('_getUpdateableAttributes', () => {
         it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {

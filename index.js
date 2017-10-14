@@ -69,7 +69,8 @@ module.exports = (models) => {
 
     // first pass, register all models
     models.forEach(model => {
-        // TODO: check if model is registered
+        if (_.find(routingInformation, (i) => i.model.model.name === model.model.name))
+            throw new Error(`model ${model.model.name} already registered`);
         const router = express.Router();
         routingInformation.push({
             model,
