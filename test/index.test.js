@@ -258,9 +258,7 @@ describe('index.js', () => {
         it('should inform callers that an instance does not exist.', () => {
             return request(app)
                 .delete('/TestModel/0')
-                .expect(404)
-                .then(response => {
-                });
+                .expect(404);
         });
     });
     describe('/model/:id PUT', () => {
@@ -286,7 +284,7 @@ describe('index.js', () => {
         });
     });
     describe('/model/:id PATCH', () => {
-        it('should update invididual attributes of a record', () => {
+        it('should update invididual attributes of a record.', () => {
             return request(app)
                 .patch('/TestModel/1')
                 .send({ value3: 'changed' })
@@ -307,8 +305,33 @@ describe('index.js', () => {
                 .expect(404);
         });
     });
+    describe('/model/:id/belongsTo & hasOne/ ALL - 404', () => {
+        ['get', 'post', 'put', 'delete'].forEach(verb => {
+            it(`should inform callers that the source does not exist: ${verb}.`, () => {
+                return request(app)
+                [verb]('/TestModel2/1000/TestModel/')
+                    .expect(404)
+                    .then(response => {
+                        expect(response.body.message).to.equal('source not found.');
+                    });
+            });
+        });
+        // DELETE and POST are special, POST creates a target and DELETE unsets a target
+        ['get', 'put'].forEach(verb => {
+            it(`should inform callers that the target does not exist: ${verb}.`, () => {
+                return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModel2Instance => {
+                    return request(app)
+                    [verb](`/TestModel2/${testModel2Instance.id}/TestModel/`)
+                        .expect(404)
+                        .then(response => {
+                            expect(response.body.message).to.equal('target not found.');
+                        });
+                });
+            });
+        });
+    });
     describe('/model/:id/belongsToRelation/ GET', () => {
-        it('should return the belongsTo relation of the requested resource', () => {
+        it('should return the belongsTo relation of the requested resource.', () => {
             return request(app)
                 .get('/TestModel2/5/TestModel/')
                 .expect(200)
@@ -316,8 +339,6 @@ describe('index.js', () => {
                     expect(response.body.result.id).to.equal(4);
                 });
         });
-
-        // TODO: test target not found and source not found
     });
     describe('/model/:id/belongsToRelation/ POST', () => {
         it('should create the belongsTo relation of the resource', () => {
@@ -337,7 +358,6 @@ describe('index.js', () => {
                     });
             });
         });
-        // TODO: test source not found
     });
     describe('/model/:id/belongsToRelation/ PUT', () => {
         it('should update the belongsTo relation of the resource', () => {
@@ -360,7 +380,6 @@ describe('index.js', () => {
                     });
                 });
         });
-        // TODO: test source not found
     });
     describe('/model/:id/belongsToRelation/ DELETE', () => {
         it('should delete the belongsTo relation of the resource', () => {
@@ -375,7 +394,6 @@ describe('index.js', () => {
                     });
                 });
         });
-        // TODO: test source not found
     });
     describe('/model/:id/hasOneRelation/ GET', () => {
         it('should return the belongsTo relation of the requested resource', () => {
@@ -387,7 +405,6 @@ describe('index.js', () => {
                     expect(response.body.result.TestModelId).to.equal(1);
                 });
         });
-        // TODO: test target not found and source not found
     });
     describe('/model/:id/hasOneRleation/ POST', () => {
         it('should create the hasOne relation of the resource', () => {
@@ -403,7 +420,6 @@ describe('index.js', () => {
                     });
             });
         });
-        // TODO: test source not found
     });
     describe('/model/:id/hasOneRelation/ PUT', () => {
         it('should update the hasOne relation of the resource', () => {
@@ -422,7 +438,6 @@ describe('index.js', () => {
                     });
                 });
         });
-        // TODO: test source not found
     });
     describe('/model/:id/hasOneRelation/ DELETE', () => {
         it('should delete the hasOne relation of the resource', () => {
@@ -437,6 +452,5 @@ describe('index.js', () => {
                     });
                 });
         });
-        // TODO: test source not found
     });
 });
