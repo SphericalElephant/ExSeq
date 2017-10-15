@@ -15,11 +15,11 @@ const _attachReply = (req, res, next, statusCode, result, message) => {
     return Promise.reject(err);
 };
 
-const _createError = (req, res, next, statusCode, err, message) => {
-    err = err || new Error();
+const _createError = (req, res, next, statusCode, errInput, message) => {
+    const err = errInput instanceof Error ? errInput : new Error(message);
     err.success = false;
     err.statusCode = statusCode;
-    err.message = message;
+    err.result = !(errInput instanceof Error) ? errInput : null;
     return err;
 };
 
