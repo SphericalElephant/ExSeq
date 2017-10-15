@@ -199,6 +199,7 @@ module.exports = (models) => {
             const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
             const removeIllegalSourceAttributes = _removeIllegalAttributes.bind(null, source);
 
+            // TODO: add "as" support
             switch (association.associationType) {
                 case 'HasOne':
                 case 'BelongsTo':
