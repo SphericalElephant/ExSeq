@@ -19,7 +19,6 @@ const _createError = (req, res, next, statusCode, err, message) => {
     err = err || new Error();
     err.success = false;
     err.statusCode = statusCode;
-    err.result = err;
     err.message = message;
     return err;
 };
