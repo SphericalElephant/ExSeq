@@ -250,18 +250,33 @@ module.exports = (models) => {
 
                         source.findById(req.params.id).then(sourceInstance => {
                             const update = _update.bind(null, target);
-                            sourceInstance[`get${target.name}`]().then(targetInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`get${target.name}`]().then(targetInstance => {
                                 if (!targetInstance)
                                     return attachReply(404, undefined, 'no target relation found for source.');
                                 update(req, res, next, targetInstance.get({ playn: true }).id, (body) => {
                                     return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
                                 });
                             });
+                        }).catch(err => {
+                            return handleUnexpectedError(err);
                         });
                     });
                     router.patch(`/:id/${target.name}`, (req, res, next) => {
                     });
                     router.delete(`/:id/${target.name}`, (req, res, next) => {
+                        // TODO: currently, deleting only dereferences but leaves the actual data in the database. we should allow complete deletion of hasOne 
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`set${target.name}`](null).then(sourceInstance => {
+                                return attachReply(204);
+                            });
+                        }).catch(err => {
+                            return handleUnexpectedError(err);
+                        });
                     });
                     break;
             };
