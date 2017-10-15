@@ -36,10 +36,12 @@ const _handleUnexpectedError = (req, res, next, err) => {
 };
 
 const _getUpdateableAttributes = (model) => {
-    return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt').map(attribute => {
-        const allowNull = model.attributes[attribute].allowNull;
-        return { attribute, allowNull: allowNull === undefined || allowNull === true }
-    });
+    return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
+        .filter(attribute => !model.attributes[attribute].references)
+        .map(attribute => {
+            const allowNull = model.attributes[attribute].allowNull;
+            return { attribute, allowNull: allowNull === undefined || allowNull === true }
+        });
 };
 
 const _removeIllegalAttributes = (model, input) => {
@@ -67,6 +69,20 @@ const _getRouterForModel = (routingInformation, model) => {
     return (_.find(routingInformation, (i) => i.model.model.name === model.name) || { router: null }).router;
 };
 
+
+const _update = (model, req, res, next, id, createInput) => {
+    const attachReply = _attachReply.bind(null, req, res, next);
+    const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+    const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
+    model.update(createInput(req.body), { where: { id }, fields: attributes }).spread((affectedCount, affectedRows) => {
+        if (affectedCount === 0) return attachReply(404);
+        return attachReply(204);
+    }).catch(err => {
+        return handleUnexpectedError(err);
+    });
+};
+
 module.exports = (models) => {
     if (!models) throw new Error('models must be set!');
     if (!(models instanceof Array)) throw new Error('models must be an array');
@@ -91,6 +107,7 @@ module.exports = (models) => {
         const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
         const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
         const getAssociationByName = _getAssociationByName.bind(null, model);
+        const update = _update.bind(null, model);
 
         router.post('/', (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
@@ -154,28 +171,14 @@ module.exports = (models) => {
             });
         });
 
-        const update = (req, res, next, createInput) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
-
-            const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
-
-            model.update(createInput(req.body), { where: { id: req.params.id }, fields: attributes }).spread((affectedCount, affectedRows) => {
-                if (affectedCount === 0) return attachReply(404);
-                return attachReply(204);
-            }).catch(err => {
-                return handleUnexpectedError(err);
-            });
-        };
-
         router.put('/:id', (req, res, next) => {
-            update(req, res, next, (body) => {
+            update(req, res, next, req.params.id, (body) => {
                 return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
             });
         });
 
         router.patch('/:id', (req, res, next) => {
-            update(req, res, next, (body) => {
+            update(req, res, next, req.params.id, (body) => {
                 return removeIllegalAttributes(body);
             });
         });
@@ -226,17 +229,35 @@ module.exports = (models) => {
                             return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
                         }).then(instance => {
                             if (association.associationType === 'BelongsTo') {
-                                instance[`get${target.name}`]().then(createdTargetInstance => {                                    
+                                instance[`get${target.name}`]().then(createdTargetInstance => {
                                     return attachReply(201, createdTargetInstance.get({ plain: true }));
                                 });
                             } else {
-                                return attachReply(201, instance.get({plain: true}));
+                                return attachReply(201, instance.get({ plain: true }));
                             }
                         }).catch(err => {
                             return handleUnexpectedError(err);
                         });
                     });
                     router.put(`/:id/${target.name}`, (req, res, next) => {
+                        const body = req.body;
+
+                        const removeIllegalAttributes = _removeIllegalAttributes.bind(null, target);
+                        const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, target);
+
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            const update = _update.bind(null, target);
+                            sourceInstance[`get${target.name}`]().then(targetInstance => {
+                                if (!targetInstance)
+                                    return attachReply(404, undefined, 'no target relation found for source.');
+                                update(req, res, next, targetInstance.get({ playn: true }).id, (body) => {
+                                    return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
+                                });
+                            });
+                        });
                     });
                     router.patch(`/:id/${target.name}`, (req, res, next) => {
                     });

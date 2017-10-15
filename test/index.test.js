@@ -90,6 +90,9 @@ describe('index.js', () => {
                 { attribute: 'value2', allowNull: true },
                 { attribute: 'value3', allowNull: false }]);
         });
+        it('should strip attributes that are relvant for relations',  () => {
+            expect(_getUpdateableAttributes(TestModel3).TestModelId).to.not.exist;
+        });
     });
 
     describe('_removeIllegalAttributes', () => {
@@ -307,10 +310,10 @@ describe('index.js', () => {
     describe('/model/:id/belongsToRelation/ GET', () => {
         it('should return the belongsTo relation of the requested resource', () => {
             return request(app)
-                .get('/TestModel2/1/TestModel/')
+                .get('/TestModel2/5/TestModel/')
                 .expect(200)
                 .then(response => {
-                    expect(response.body.result.id).to.equal(1);
+                    expect(response.body.result.id).to.equal(4);
                 });
         });
 
@@ -318,9 +321,9 @@ describe('index.js', () => {
     });
     describe('/model/:id/belongsToRelation/ POST', () => {
         it('should create the belongsTo relation of the resource', () => {
-            return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModelInstance => {
+            return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModel2Instance => {
                 return request(app)
-                    .post(`/TestModel2/${testModelInstance.get({ plain: true }).id}/TestModel/`)
+                    .post(`/TestModel2/${testModel2Instance.get({ plain: true }).id}/TestModel/`)
                     .send({
                         value1: 'teststring1',
                         value2: 1,
@@ -334,7 +337,32 @@ describe('index.js', () => {
                     });
             });
         });
-        // TODO: test source
+        // TODO: test source not found
+    });
+    describe('/model/:id/belongsToRelation/ PUT', () => {
+        it('should update the belongsTo relation of the resource', () => {
+            return TestModel2.findById(5).then(testModel2Instance => {
+                return request(app)
+                    .put(`/TestModel2/${testModel2Instance.get({ plain: true }).id}/TestModel/`)
+                    .send({
+                        value1: 'changed1',
+                        value2: 2,
+                        value3: 'changed2'
+                    })
+                    .expect(204)
+                    .then(response => {
+                        return TestModel2.findById(5).then(testModel2Instance => {
+                            return testModel2Instance.getTestModel().then(testModelInstance => {
+                                const plainInstance = testModelInstance.get({plain: true});
+                                expect(plainInstance.value1).to.equal('changed1');
+                                expect(plainInstance.value2).to.equal(2);
+                                expect(plainInstance.value3).to.equal('changed2');                                
+                            });
+                        });
+                    });
+            });
+        });
+        // TODO: test source not found
     });
     describe('/model/:id/hasOneRelation/ GET', () => {
         it('should return the belongsTo relation of the requested resource', () => {
@@ -363,6 +391,27 @@ describe('index.js', () => {
                     });
             });
         });
-        // TODO: test source
+        // TODO: test source not found
+    });
+    describe('/model/:id/hasOneRelation/ PUT', () => {
+        it('should update the hasOne relation of the resource', () => {
+            return TestModel.findById(5).then(testModelInstance => {
+                return request(app)
+                    .put(`/TestModel/${testModelInstance.get({ plain: true }).id}/TestModel3/`)
+                    .send({
+                        value1: 'changed1'
+                    })
+                    .expect(204)
+                    .then(response => {
+                        return TestModel.findById(5).then(testModelInstance => {
+                            return testModelInstance.getTestModel3().then(testModel3Instance => {
+                                const plainInstance = testModel3Instance.get({plain: true});
+                                expect(plainInstance.value1).to.equal('changed1');
+                            });
+                        });
+                    });
+            });
+        });
+        // TODO: test source not found
     });
 });
