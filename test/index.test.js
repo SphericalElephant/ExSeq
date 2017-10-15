@@ -60,7 +60,7 @@ describe('index.js', () => {
                             TestModel2.create().then(testModel2 => {
                                 return testModel2.setTestModel(testModel);
                             }),
-                            TestModel3.create().then(testModel3 => {
+                            TestModel3.create({value1: 'test' + i, value2: 3}).then(testModel3 => {
                                 return testModel.setTestModel3(testModel3);
                             })
                         );
@@ -381,6 +381,24 @@ describe('index.js', () => {
                 });
         });
     });
+    describe('/model/:id/belongsToRelation/ PATCH', () => {
+        it('should update individual attributes of the belongsTo relation of the resource', () => {
+            return request(app)
+                .patch('/TestModel2/5/TestModel/')
+                .send({ value1: 'changed1' })
+                .expect(204)
+                .then(response => {
+                    return TestModel2.findById(5).then(testModel2Instance => {
+                        return testModel2Instance.getTestModel().then(testModelInstance => {
+                            const plainInstance = testModelInstance.get({ plain: true });
+                            expect(plainInstance.value1).to.equal('changed1');
+                            expect(plainInstance.value2).to.equal(3);
+                            expect(plainInstance.value3).to.equal('no null!');
+                        });
+                    });
+                });
+        });
+    });
     describe('/model/:id/belongsToRelation/ DELETE', () => {
         it('should delete the belongsTo relation of the resource', () => {
             return request(app)
@@ -434,6 +452,23 @@ describe('index.js', () => {
                         return testModelInstance.getTestModel3().then(testModel3Instance => {
                             const plainInstance = testModel3Instance.get({ plain: true });
                             expect(plainInstance.value1).to.equal('changed1');
+                        });
+                    });
+                });
+        });
+    });
+    describe('/model/:id/hasOneRelation/ PATCH', () => {
+        it('should update individual attributes of the hasOne relation of the resource', () => {
+            return request(app)
+                .patch('/TestModel/5/TestModel3/')
+                .send({ value1: 'changed' })
+                .expect(204)
+                .then(response => {
+                    return TestModel.findById(5).then(testModelInstance => {
+                        return testModelInstance.getTestModel3().then(testModel3Instance => {
+                            const plainInstance = testModel3Instance.get({ plain: true });
+                            expect(plainInstance.value1).to.equal('changed');
+                            expect(plainInstance.value2).to.equal(3);
                         });
                     });
                 });

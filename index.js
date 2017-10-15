@@ -79,7 +79,6 @@ const _getRouterForModel = (routingInformation, model) => {
     return (_.find(routingInformation, (i) => i.model.model.name === model.name) || { router: null }).router;
 };
 
-
 const _update = (model, req, res, next, id, createInput) => {
     const attachReply = _attachReply.bind(null, req, res, next);
     const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
@@ -88,6 +87,30 @@ const _update = (model, req, res, next, id, createInput) => {
     model.update(createInput(req.body), { where: { id }, fields: attributes }).spread((affectedCount, affectedRows) => {
         if (affectedCount === 0) return attachReply(404);
         return attachReply(204);
+    }).catch(err => {
+        return handleUnexpectedError(err);
+    });
+};
+
+const _updateRelation = (source, target, req, res, next, id, prepareBody) => {
+    const body = req.body;
+
+    const removeIllegalAttributes = _removeIllegalAttributes.bind(null, target);
+    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, target);
+
+    const attachReply = _attachReply.bind(null, req, res, next);
+    const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+    source.findById(id).then(sourceInstance => {
+        const update = _update.bind(null, target);
+        if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+        return sourceInstance[`get${target.name}`]().then(targetInstance => {
+            if (!targetInstance)
+                return attachReply(404, undefined, 'target not found.');
+            update(req, res, next, targetInstance.get({ plain: true }).id, (body) => {
+                return prepareBody(body);
+            });
+        });
     }).catch(err => {
         return handleUnexpectedError(err);
     });
@@ -144,7 +167,6 @@ module.exports = (models) => {
             const attributes = req.query.a ? req.query.a.split('|') : undefined;
             const sortField = req.query.f;
             const sortOrder = req.query.o || 'DESC';
-
 
             Promise.resolve().then(() => {
                 if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
@@ -211,8 +233,8 @@ module.exports = (models) => {
             const target = association.target;
             const source = association.source;
             const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
-            const removeIllegalSourceAttributes = _removeIllegalAttributes.bind(null, source);
-
+            const fillMissingUpdateableTargetAttributes = _removeIllegalAttributes.bind(null, target);
+            
             // TODO: add "as" support
             switch (association.associationType) {
                 case 'HasOne':
@@ -250,29 +272,14 @@ module.exports = (models) => {
                         });
                     });
                     router.put(`/:id/${target.name}`, (req, res, next) => {
-                        const body = req.body;
-
-                        const removeIllegalAttributes = _removeIllegalAttributes.bind(null, target);
-                        const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, target);
-
-                        const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
-
-                        source.findById(req.params.id).then(sourceInstance => {
-                            const update = _update.bind(null, target);
-                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
-                            return sourceInstance[`get${target.name}`]().then(targetInstance => {
-                                if (!targetInstance)
-                                    return attachReply(404, undefined, 'target not found.');
-                                update(req, res, next, targetInstance.get({ playn: true }).id, (body) => {
-                                    return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
-                                });
-                            });
-                        }).catch(err => {
-                            return handleUnexpectedError(err);
+                        _updateRelation(source, target, req, res, next, req.params.id, (body) => {
+                            return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
                         });
                     });
                     router.patch(`/:id/${target.name}`, (req, res, next) => {
+                        _updateRelation(source, target, req, res, next, req.params.id, (body) => {
+                            return removeIllegalTargetAttributes(body);
+                        });
                     });
                     router.delete(`/:id/${target.name}`, (req, res, next) => {
                         // TODO: currently, deleting only dereferences but leaves the actual data in the database. we should allow complete deletion of hasOne 
@@ -290,8 +297,6 @@ module.exports = (models) => {
                     });
                     break;
             };
-            //console.log(_.keys(association))
-            //console.dir(association)
         });
     });
     return routingInformation.map(routing => {
