@@ -7,21 +7,21 @@ const _ = require('lodash');
 const routingInformation = [];
 
 const _attachReply = (req, res, next, statusCode, result, message) => {
-    // TODO: check if required fields are set!
-    req.custom = {
-        statusCode,
-        result,
-        message
-    };
-    return next();
+    const err = new Error();
+    err.success = true;
+    err.statusCode = statusCode;
+    err.result = result;
+    err.message = message;
+    return Promise.reject(err);
 };
 
-const _attachErrorReply = (req, res, next, statusCode, result, message) => {
-    return next({
-        statusCode,
-        result,
-        message
-    });
+const _createError = (req, res, next, statusCode, err, message) => {
+    err = err || new Error();
+    err.success = false;
+    err.statusCode = statusCode;
+    err.result = err;
+    err.message = message;
+    return err;
 };
 
 const _formatValidationError = (err) => {
@@ -31,8 +31,19 @@ const _formatValidationError = (err) => {
 };
 
 const _handleUnexpectedError = (req, res, next, err) => {
-    if (err instanceof sequelize.ValidationError) return _attachErrorReply(req, res, next, 400, _formatValidationError(err));
-    _attachErrorReply(req, res, next, 500, err);
+    if (err.success) {
+        req.custom = {
+            statusCode: err.statusCode,
+            result: err.result,
+            message: err.message
+        };
+        next();
+    } else {
+        if (err instanceof sequelize.ValidationError)
+            return next(_createError(req, res, next, 400, _formatValidationError(err)));
+        else
+            return next(_createError(req, res, next, 500, err));
+    }
 };
 
 const _getUpdateableAttributes = (model) => {
@@ -117,7 +128,7 @@ module.exports = (models) => {
             model
                 .create(input)
                 .then(modelInstance => {
-                    attachReply(201, modelInstance.get({ plain: true }));
+                    return attachReply(201, modelInstance.get({ plain: true }));
                 }).catch(err => {
                     return handleUnexpectedError(err);
                 });
@@ -135,28 +146,29 @@ module.exports = (models) => {
             const sortField = req.query.f;
             const sortOrder = req.query.o || 'DESC';
 
-            if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
-                return attachReply(400, undefined, 'invalid sort order, must be DESC or ASC');
 
-            if ((!limit || !offset) && limit !== offset)
-                return attachReply(400, undefined, 'p or i must be both undefined or both defined.');
+            Promise.resolve().then(() => {
+                if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
+                    return attachReply(400, undefined, 'invalid sort order, must be DESC or ASC');
 
-            const limitInt = parseInt(limit);
-            const offsetInt = parseInt(offset);
+                if ((!limit || !offset) && limit !== offset)
+                    return attachReply(400, undefined, 'p or i must be both undefined or both defined.');
 
-            if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
-                ((offset && (isNaN(offsetInt))) || offsetInt < 1))
-                return attachReply(400, undefined, 'p or i must be integers larger than 1!');
+                const limitInt = parseInt(limit);
+                const offsetInt = parseInt(offset);
 
-            const order = sortField ? [[sortField, sortOrder]] : undefined;
-            model
-                .findAll({ limit: limitInt, offset: limitInt * offsetInt, attributes, order })
-                .then(modelInstances => {
-                    const result = modelInstances.map(instance => instance.get({ plain: true }));
-                    attachReply(200, result);
-                }).catch(err => {
-                    return handleUnexpectedError(err);
-                });
+                if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
+                    ((offset && (isNaN(offsetInt))) || offsetInt < 1))
+                    return attachReply(400, undefined, 'p or i must be integers larger than 1!');
+
+                const order = sortField ? [[sortField, sortOrder]] : undefined;
+                return model.findAll({ limit: limitInt, offset: limitInt * offsetInt, attributes, order });
+            }).then(modelInstances => {
+                const result = modelInstances.map(instance => instance.get({ plain: true }));
+                return attachReply(200, result);
+            }).catch(err => {
+                return handleUnexpectedError(err);
+            });
         });
 
         router.get('/:id', (req, res, next) => {
@@ -165,7 +177,7 @@ module.exports = (models) => {
 
             const attributes = req.query.a ? req.query.a.split('|') : undefined;
             model.findOne({ where: { id: req.params.id }, attributes }).then(modelInstance => {
-                attachReply(200, modelInstance);
+                return attachReply(200, modelInstance);
             }).catch(err => {
                 return handleUnexpectedError(err);
             });
@@ -213,7 +225,7 @@ module.exports = (models) => {
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
                             return sourceInstance[`get${target.name}`]().then(targetInstance => {
-                                if (!targetInstance) return attachReply(404, undefined, 'target not found');
+                                if (!targetInstance) return attachReply(404, undefined, 'target not found.');
                                 return attachReply(200, targetInstance.get({ plain: true }));
                             });
                         }).catch(err => {
@@ -223,13 +235,12 @@ module.exports = (models) => {
                     router.post(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
-
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
                             return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
                         }).then(instance => {
                             if (association.associationType === 'BelongsTo') {
-                                instance[`get${target.name}`]().then(createdTargetInstance => {
+                                return instance[`get${target.name}`]().then(createdTargetInstance => {
                                     return attachReply(201, createdTargetInstance.get({ plain: true }));
                                 });
                             } else {
@@ -253,7 +264,7 @@ module.exports = (models) => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
                             return sourceInstance[`get${target.name}`]().then(targetInstance => {
                                 if (!targetInstance)
-                                    return attachReply(404, undefined, 'no target relation found for source.');
+                                    return attachReply(404, undefined, 'target not found.');
                                 update(req, res, next, targetInstance.get({ playn: true }).id, (body) => {
                                     return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
                                 });
