@@ -67,6 +67,8 @@ describe('index.js', () => {
                     })
                 );
             }
+            testModelPromises.push(TestModel2.create({ value1: 'addrelationTestModel2' }));
+            testModelPromises.push(TestModel.create({ value1: 'addrelationTestModel', value2: 1, value3: 'no null!' }));
             return Promise.all(testModelPromises);
         });
     });
@@ -215,9 +217,9 @@ describe('index.js', () => {
                 .get('/TestModel?p=1&i=10&f=value1&o=ASC')
                 .expect(200)
                 .then(response => {
-                    expect(response.body.result[0].id).to.equal(19);
-                    expect(response.body.result[1].id).to.equal(20);
-                    expect(response.body.result[2].id).to.equal(3);
+                    expect(response.body.result[0].id).to.equal(18);
+                    expect(response.body.result[1].id).to.equal(19);
+                    expect(response.body.result[2].id).to.equal(20);
                 });
         });
     });
@@ -314,6 +316,26 @@ describe('index.js', () => {
 
         // TODO: test target not found and source not found
     });
+    describe('/model/:id/belongsToRelation/ POST', () => {
+        it('should create the belongsTo relation of the resource', () => {
+            return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModelInstance => {
+                return request(app)
+                    .post(`/TestModel2/${testModelInstance.get({ plain: true }).id}/TestModel/`)
+                    .send({
+                        value1: 'teststring1',
+                        value2: 1,
+                        value3: 'teststring2'
+                    })
+                    .expect(201)
+                    .then(response => {
+                        expect(response.body.result.value1).to.equal('teststring1');
+                        expect(response.body.result.value2).to.equal(1);
+                        expect(response.body.result.value3).to.equal('teststring2');
+                    });
+            });
+        });
+        // TODO: test source
+    });
     describe('/model/:id/hasOneRelation/ GET', () => {
         it('should return the belongsTo relation of the requested resource', () => {
             return request(app)
@@ -326,5 +348,21 @@ describe('index.js', () => {
         });
 
         // TODO: test target not found and source not found
+    });
+    describe('/model/:id/hasOneRleation/ POST', () => {
+        it('should create the hasOne relation of the resource', () => {
+            return TestModel.findOne({ where: { value1: 'addrelationTestModel' } }).then(testModelInstance => {
+                return request(app)
+                    .post(`/TestModel/${testModelInstance.get({ plain: true }).id}/TestModel3/`)
+                    .send({
+                        value1: 'teststring1'
+                    })
+                    .expect(201)
+                    .then(response => {
+                        expect(response.body.result.value1).to.equal('teststring1');
+                    });
+            });
+        });
+        // TODO: test source
     });
 });

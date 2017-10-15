@@ -196,11 +196,13 @@ module.exports = (models) => {
             const association = getAssociationByName(associationName);
             const target = association.target;
             const source = association.source;
+            const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
+            const removeIllegalSourceAttributes = _removeIllegalAttributes.bind(null, source);
 
             switch (association.associationType) {
                 case 'HasOne':
                 case 'BelongsTo':
-                    router.get('/:id/' + target.name, (req, res, next) => {
+                    router.get(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
@@ -213,6 +215,31 @@ module.exports = (models) => {
                         }).catch(err => {
                             return handleUnexpectedError(err);
                         });
+                    });
+                    router.post(`/:id/${target.name}`, (req, res, next) => {
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
+                        }).then(instance => {
+                            if (association.associationType === 'BelongsTo') {
+                                instance[`get${target.name}`]().then(createdTargetInstance => {                                    
+                                    return attachReply(201, createdTargetInstance.get({ plain: true }));
+                                });
+                            } else {
+                                return attachReply(201, instance.get({plain: true}));
+                            }
+                        }).catch(err => {
+                            return handleUnexpectedError(err);
+                        });
+                    });
+                    router.put(`/:id/${target.name}`, (req, res, next) => {
+                    });
+                    router.patch(`/:id/${target.name}`, (req, res, next) => {
+                    });
+                    router.delete(`/:id/${target.name}`, (req, res, next) => {
                     });
                     break;
             };
