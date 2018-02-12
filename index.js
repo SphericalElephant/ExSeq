@@ -50,7 +50,7 @@ const _getUpdateableAttributes = (model) => {
         .filter(attribute => !model.attributes[attribute].references)
         .map(attribute => {
             const allowNull = model.attributes[attribute].allowNull;
-            return { attribute, allowNull: allowNull === undefined || allowNull === true }
+            return {attribute, allowNull: allowNull === undefined || allowNull === true}
         });
 };
 
@@ -76,7 +76,7 @@ const _getAssociationByName = (model, name) => {
 };
 
 const _getRouterForModel = (routingInformation, model) => {
-    return (_.find(routingInformation, (i) => i.model.model.name === model.name) || { router: null }).router;
+    return (_.find(routingInformation, (i) => i.model.model.name === model.name) || {router: null}).router;
 };
 
 const _update = (model, req, res, next, id, createInput) => {
@@ -84,7 +84,7 @@ const _update = (model, req, res, next, id, createInput) => {
     const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
     const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
-    model.update(createInput(req.body), { where: { id }, fields: attributes }).spread((affectedCount, affectedRows) => {
+    model.update(createInput(req.body), {where: {id}, fields: attributes}).spread((affectedCount, affectedRows) => {
         if (affectedCount === 0) return attachReply(404);
         return attachReply(204);
     }).catch(err => {
@@ -92,7 +92,7 @@ const _update = (model, req, res, next, id, createInput) => {
     });
 };
 
-const _updateRelation = (source, target, req, res, next, id, prepareBody) => {
+const _updateRelation = (source, target, relationType, req, res, next, id, targetId, prepareBody) => {
     const body = req.body;
 
     const removeIllegalAttributes = _removeIllegalAttributes.bind(null, target);
@@ -104,10 +104,14 @@ const _updateRelation = (source, target, req, res, next, id, prepareBody) => {
     source.findById(id).then(sourceInstance => {
         const update = _update.bind(null, target);
         if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
-        return sourceInstance[`get${target.name}`]().then(targetInstance => {
+        const targetRelationFunctionGetterName = relationType === 'HasOne' || relationType === 'BelongsTo' ? `get${target.name}` : `get${target.name}s`;
+        const query = relationType === 'HasOne' || relationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
+        return sourceInstance[targetRelationFunctionGetterName](query).then(targetInstance => {
             if (!targetInstance)
                 return attachReply(404, undefined, 'target not found.');
-            update(req, res, next, targetInstance.get({ plain: true }).id, (body) => {
+            if (targetInstance instanceof Array) // "many" relationsship
+                targetInstance = targetInstance[0]
+            update(req, res, next, targetInstance.get({plain: true}).id, (body) => {
                 return prepareBody(body);
             });
         });
@@ -150,7 +154,7 @@ module.exports = (models) => {
             model
                 .create(input)
                 .then(modelInstance => {
-                    return attachReply(201, modelInstance.get({ plain: true }));
+                    return attachReply(201, modelInstance.get({plain: true}));
                 }).catch(err => {
                     return handleUnexpectedError(err);
                 });
@@ -183,9 +187,9 @@ module.exports = (models) => {
                     return attachReply(400, undefined, 'p or i must be integers larger than 1!');
 
                 const order = sortField ? [[sortField, sortOrder]] : undefined;
-                return model.findAll({ limit: limitInt, offset: limitInt * offsetInt, attributes, order });
+                return model.findAll({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
             }).then(modelInstances => {
-                const result = modelInstances.map(instance => instance.get({ plain: true }));
+                const result = modelInstances.map(instance => instance.get({plain: true}));
                 return attachReply(200, result);
             }).catch(err => {
                 return handleUnexpectedError(err);
@@ -197,7 +201,7 @@ module.exports = (models) => {
             const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
             const attributes = req.query.a ? req.query.a.split('|') : undefined;
-            model.findOne({ where: { id: req.params.id }, attributes }).then(modelInstance => {
+            model.findOne({where: {id: req.params.id}, attributes}).then(modelInstance => {
                 return attachReply(200, modelInstance);
             }).catch(err => {
                 return handleUnexpectedError(err);
@@ -220,7 +224,7 @@ module.exports = (models) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
-            model.destroy({ where: { id: req.params.id } }).then(affectedRows => {
+            model.destroy({where: {id: req.params.id}}).then(affectedRows => {
                 if (affectedRows === 0) return attachReply(404);
                 return attachReply(204);
             }).catch(err => {
@@ -233,8 +237,22 @@ module.exports = (models) => {
             const target = association.target;
             const source = association.source;
             const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
-            const fillMissingUpdateableTargetAttributes = _removeIllegalAttributes.bind(null, target);
-            
+            const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
+
+            const unlinkRelations = (req, res, next, setterFunctionName) => {
+                const attachReply = _attachReply.bind(null, req, res, next);
+                const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                source.findById(req.params.id).then(sourceInstance => {
+                    if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                    return sourceInstance[setterFunctionName](null).then(sourceInstance => {
+                        return attachReply(204);
+                    });
+                }).catch(err => {
+                    return handleUnexpectedError(err);
+                });
+            }
+
             // TODO: add "as" support
             switch (association.associationType) {
                 case 'HasOne':
@@ -247,7 +265,7 @@ module.exports = (models) => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
                             return sourceInstance[`get${target.name}`]().then(targetInstance => {
                                 if (!targetInstance) return attachReply(404, undefined, 'target not found.');
-                                return attachReply(200, targetInstance.get({ plain: true }));
+                                return attachReply(200, targetInstance.get({plain: true}));
                             });
                         }).catch(err => {
                             return handleUnexpectedError(err);
@@ -262,33 +280,95 @@ module.exports = (models) => {
                         }).then(instance => {
                             if (association.associationType === 'BelongsTo') {
                                 return instance[`get${target.name}`]().then(createdTargetInstance => {
-                                    return attachReply(201, createdTargetInstance.get({ plain: true }));
+                                    return attachReply(201, createdTargetInstance.get({plain: true}));
                                 });
                             } else {
-                                return attachReply(201, instance.get({ plain: true }));
+                                return attachReply(201, instance.get({plain: true}));
                             }
                         }).catch(err => {
                             return handleUnexpectedError(err);
                         });
                     });
                     router.put(`/:id/${target.name}`, (req, res, next) => {
-                        _updateRelation(source, target, req, res, next, req.params.id, (body) => {
+                        _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
                             return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
                         });
                     });
                     router.patch(`/:id/${target.name}`, (req, res, next) => {
-                        _updateRelation(source, target, req, res, next, req.params.id, (body) => {
+                        _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
                             return removeIllegalTargetAttributes(body);
                         });
                     });
                     router.delete(`/:id/${target.name}`, (req, res, next) => {
-                        // TODO: currently, deleting only dereferences but leaves the actual data in the database. we should allow complete deletion of hasOne 
+                        unlinkRelations(req, res, next, `set${target.name}`)
+                    });
+                    break;
+                case 'HasMany':
+                case 'BelongsToMany':
+                    router.get(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
 
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
-                            return sourceInstance[`set${target.name}`](null).then(sourceInstance => {
+                            sourceInstance[`get${target.name}s`]().then(targetInstances => {
+                                if (!targetInstances) return attachReply(404, undefined, 'target not found.');
+                                return attachReply(200, targetInstances.map(targetInstance => targetInstance.get({plain: true})));
+                            }).catch(err => {
+                                return handleUnexpectedError(err);
+                            });
+                        });
+                    });
+                    router.get(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            sourceInstance[`get${target.name}s`]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+                                if (!targetInstance) return attachReply(404, undefined, 'target not found.');
+                                return attachReply(200, targetInstance.get({plain: true}));
+                            }).catch(err => {
+                                return handleUnexpectedError(err);
+                            });
+                        });
+                    });
+                    router.post(`/:id/${target.name}`, (req, res, next) => {
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
+                        }).then(instance => {
+                            return attachReply(201, instance.get({plain: true}));
+                        }).catch(err => {
+                            return handleUnexpectedError(err);
+                        });
+                    });
+                    router.put(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                        _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
+                            return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
+                        });
+                    });
+                    router.patch(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                        _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
+                            return removeIllegalTargetAttributes(body);
+                        });
+                    });
+                    router.delete(`/:id/${target.name}`, (req, res, next) => {
+                        unlinkRelations(req, res, next, `set${target.name}s`)
+                    });
+                    router.delete(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                        const attachReply = _attachReply.bind(null, req, res, next);
+                        const handleUnexpectedError = _handleUnexpectedError.bind(null, req, res, next);
+
+                        source.findById(req.params.id).then(sourceInstance => {
+                            if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+                            return sourceInstance[`get${target.name}s`]({where: {id: req.params.targetId}}).then(targetInstances => {
+                                const targetInstance = targetInstances[0];
+                                if (!targetInstance) return attachReply(404, undefined, 'target not found.');
+                                return sourceInstance[`remove${target.name}`](targetInstance);
+                            }).then(() => {
                                 return attachReply(204);
                             });
                         }).catch(err => {
@@ -300,6 +380,6 @@ module.exports = (models) => {
         });
     });
     return routingInformation.map(routing => {
-        return { route: '/' + routing.route, router: routing.router }
+        return {route: '/' + routing.route, router: routing.router}
     });
 };

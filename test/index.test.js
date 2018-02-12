@@ -12,8 +12,19 @@ const testModel2 = require('./model/test-model2');
 const TestModel2 = testModel2(database.sequelize, database.Sequelize);
 const testModel3 = require('./model/test-model3');
 const TestModel3 = testModel3(database.sequelize, database.Sequelize);
+const testModel4 = require('./model/test-model4');
+const TestModel4 = testModel4(database.sequelize, database.Sequelize);
+const testModel5 = require('./model/test-model5');
+const TestModel5 = testModel5(database.sequelize, database.Sequelize);
+const testModel6 = require('./model/test-model6');
+const TestModel6 = testModel6(database.sequelize, database.Sequelize);
+const testModel7 = require('./model/test-model7');
+const TestModel7 = testModel7(database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 TestModel.hasOne(TestModel3);
+TestModel4.hasMany(TestModel5);
+TestModel7.belongsToMany(TestModel6, {through: 'TestModel6TestModel7'});
+TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -29,23 +40,27 @@ describe('index.js', () => {
         app.use(bodyParser.json({}));
 
         esg([
-            { model: TestModel, opts: {} },
-            { model: TestModel2, opts: {} }
+            {model: TestModel, opts: {}},
+            {model: TestModel2, opts: {}},
+            {model: TestModel4, opts: {}},
+            {model: TestModel5, opts: {}},
+            {model: TestModel6, opts: {}},
+            {model: TestModel7, opts: {}}
         ]).forEach((routing) => {
             app.use(routing.route, routing.router);
         });
 
         // simple response handler
         app.use((req, res) => {
-            return res.status(req.custom.statusCode).send({ result: req.custom.result, message: req.custom.message });
+            return res.status(req.custom.statusCode).send({result: req.custom.result, message: req.custom.message});
         });
         // simple error handler
         app.use((err, req, res, next) => {
             console.log(err);
             if (!err.statusCode) {
-                return res.status(500).send({ result: err.stack })
+                return res.status(500).send({result: err.stack})
             };
-            return res.status(err.statusCode).send({ result: err.result });
+            return res.status(err.statusCode).send({result: err.result});
         });
         done();
     });
@@ -55,7 +70,7 @@ describe('index.js', () => {
             const testModelPromises = [];
             for (let i = 0; i < 49; i++) {
                 testModelPromises.push(
-                    TestModel.create({ value1: 'test' + i, value2: i, value3: 'no null!' }).then(testModel => {
+                    TestModel.create({value1: 'test' + i, value2: i, value3: 'no null!'}).then(testModel => {
                         return Promise.join(
                             TestModel2.create().then(testModel2 => {
                                 return testModel2.setTestModel(testModel);
@@ -67,8 +82,32 @@ describe('index.js', () => {
                     })
                 );
             }
-            testModelPromises.push(TestModel2.create({ value1: 'addrelationTestModel2' }));
-            testModelPromises.push(TestModel.create({ value1: 'addrelationTestModel', value2: 1, value3: 'no null!' }));
+            testModelPromises.push(TestModel2.create({value1: 'addrelationTestModel2'}));
+            testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
+            testModelPromises.push(TestModel4.create({name: 'hasManyRelation-parent1'}).then(testModel4 => {
+                return Promise.each(
+                    [
+                        TestModel5.create({name: 'hasManyRelation-child1', value: 'hasManyRelation-value-child1'}),
+                        TestModel5.create({name: 'hasManyRelation-child2', value: 'hasManyRelation-value-child2'}),
+                        TestModel5.create({name: 'hasManyRelation-child3', value: 'hasManyRelation-value-child3'})
+                    ],
+                    () => {}
+                ).spread((one, two, three) => {
+                    return Promise.join(testModel4.addTestModel5(one), testModel4.addTestModel5(two), testModel4.addTestModel5(three))
+                });
+            }));
+            testModelPromises.push(TestModel6.create({name: 'belongsToManyRelation-parent1'}).then(testModel6 => {
+                return Promise.each(
+                    [
+                        TestModel7.create({name: 'belongsToManyRelation-child1', value: 'belongsToManyRelation-value-child1'}),
+                        TestModel7.create({name: 'belongsToManyRelation-child2', value: 'belongsToManyRelation-value-child2'}),
+                        TestModel7.create({name: 'belongsToManyRelation-child3', value: 'belongsToManyRelation-value-child3'})
+                    ],
+                    () => {}
+                ).spread((one, two, three) => {
+                    return Promise.join(testModel6.addTestModel7(one), testModel6.addTestModel7(two), testModel6.addTestModel7(three))
+                });
+            }));
             return Promise.all(testModelPromises);
         });
     });
@@ -79,16 +118,16 @@ describe('index.js', () => {
 
     describe('esg', () => {
         it('should not allow registering the same model twice', () => {
-            expect(esg.bind(null, [{ model: TestModel }, { model: TestModel }])).to.throw('already registered');
+            expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
         });
     });
 
     describe('_getUpdateableAttributes', () => {
         it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
             expect(_getUpdateableAttributes(TestModel)).to.deep.equal([
-                { attribute: 'value1', allowNull: true },
-                { attribute: 'value2', allowNull: true },
-                { attribute: 'value3', allowNull: false }]);
+                {attribute: 'value1', allowNull: true},
+                {attribute: 'value2', allowNull: true},
+                {attribute: 'value3', allowNull: false}]);
         });
         it('should strip attributes that are relvant for relations', () => {
             expect(_getUpdateableAttributes(TestModel3).TestModelId).to.not.exist;
@@ -97,10 +136,10 @@ describe('index.js', () => {
 
     describe('_removeIllegalAttributes', () => {
         it('should remove illegal arguments.', () => {
-            expect(_removeIllegalAttributes(TestModel, { this: 1, is: 1, a: 1, test: 1 })).to.deep.equal({});
+            expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1})).to.deep.equal({});
         });
         it('should retain legal arguments.', () => {
-            expect(_removeIllegalAttributes(TestModel, { this: 1, is: 1, a: 1, test: 1, value1: 'should stay' })).to.deep.equal({ value1: 'should stay' });
+            expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1, value1: 'should stay'})).to.deep.equal({value1: 'should stay'});
         });
     });
 
@@ -113,7 +152,7 @@ describe('index.js', () => {
             });
         });
         it('should not overwrite existing members.', () => {
-            expect(_fillMissingUpdateableAttributes(TestModel, { value1: 'test' })).to.deep.equal({
+            expect(_fillMissingUpdateableAttributes(TestModel, {value1: 'test'})).to.deep.equal({
                 value1: 'test',
                 value2: null,
                 value3: null
@@ -125,7 +164,7 @@ describe('index.js', () => {
         it('should create an instance.', () => {
             return request(app)
                 .post('/TestModel')
-                .send({ value1: 'test1', value2: 1, value3: 'not null' })
+                .send({value1: 'test1', value2: 1, value3: 'not null'})
                 .expect(201)
                 .then(response => {
                     expect(response.body.result.value1).to.equal('test1');
@@ -136,10 +175,10 @@ describe('index.js', () => {
         it('should create a validation error.', () => {
             return request(app)
                 .post('/TestModel')
-                .send({ value1: 'test1', value2: 101, value3: 'not null' })
+                .send({value1: 'test1', value2: 101, value3: 'not null'})
                 .expect(400)
                 .then(response => {
-                    expect(response.body.result).to.deep.equal([{ type: 'Validation error', path: 'value2', value: 101 }]);
+                    expect(response.body.result).to.deep.equal([{type: 'Validation error', path: 'value2', value: 101}]);
                 });
         });
     });
@@ -151,13 +190,13 @@ describe('index.js', () => {
                     .get('/TestModel?p=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be both undefined or both defined.' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be both undefined or both defined.'});
                     }),
                 request(app)
                     .get('/TestModel?i=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be both undefined or both defined.' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be both undefined or both defined.'});
                     })
             );
         });
@@ -167,25 +206,25 @@ describe('index.js', () => {
                     .get('/TestModel?p=test&i=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be integers larger than 1!' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
                     }),
                 request(app)
                     .get('/TestModel?i=test&p=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be integers larger than 1!' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
                     }),
                 request(app)
                     .get('/TestModel?i=-1&p=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be integers larger than 1!' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
                     }),
                 request(app)
                     .get('/TestModel?p=1&i=-1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({ message: 'p or i must be integers larger than 1!' });
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
                     })
             );
         });
@@ -204,7 +243,7 @@ describe('index.js', () => {
                 .get('/TestModel?a=value1&p=1&i=1')
                 .expect(200)
                 .then(response => {
-                    expect(response.body).to.deep.equal({ result: [{ value1: 'test1' }] });
+                    expect(response.body).to.deep.equal({result: [{value1: 'test1'}]});
                 });
         });
         it('should not allow invalid sort orders.', () => {
@@ -212,7 +251,7 @@ describe('index.js', () => {
                 .get('/TestModel?p=1&i=10&f=value1&o=INVALID')
                 .expect(400)
                 .then(response => {
-                    expect(response.body).to.deep.equal({ message: 'invalid sort order, must be DESC or ASC' });
+                    expect(response.body).to.deep.equal({message: 'invalid sort order, must be DESC or ASC'});
                 });
         });
         it('should sort according to given order and field.', () => {
@@ -240,7 +279,7 @@ describe('index.js', () => {
                 .get('/TestModel/1?a=value1')
                 .expect(200)
                 .then(response => {
-                    expect(response.body).to.deep.equal({ result: { value1: 'test0' } });
+                    expect(response.body).to.deep.equal({result: {value1: 'test0'}});
                 });
         });
     });
@@ -250,7 +289,7 @@ describe('index.js', () => {
                 .delete('/TestModel/1')
                 .expect(204)
                 .then(response => {
-                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
+                    return TestModel.findOne({where: {id: 1}}).then(instance => {
                         expect(instance).to.not.exist;
                     });
                 });
@@ -265,11 +304,11 @@ describe('index.js', () => {
         it('should replace an instance.', () => {
             return request(app)
                 .put('/TestModel/1')
-                .send({ value3: 'changed' })
+                .send({value3: 'changed'})
                 .expect(204)
                 .then(response => {
-                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
-                        const result = instance.get({ plain: true })
+                    return TestModel.findOne({where: {id: 1}}).then(instance => {
+                        const result = instance.get({plain: true})
                         expect(result.value1).to.be.null;
                         expect(result.value2).to.be.null;
                         expect(result.value3).to.equal('changed');
@@ -279,7 +318,7 @@ describe('index.js', () => {
         it('should inform callers that an instance does not exist.', () => {
             return request(app)
                 .put('/TestModel/0')
-                .send({ value3: 'changed' })
+                .send({value3: 'changed'})
                 .expect(404);
         });
     });
@@ -287,11 +326,11 @@ describe('index.js', () => {
         it('should update invididual attributes of a record.', () => {
             return request(app)
                 .patch('/TestModel/1')
-                .send({ value3: 'changed' })
+                .send({value3: 'changed'})
                 .expect(204)
                 .then(response => {
-                    return TestModel.findOne({ where: { id: 1 } }).then(instance => {
-                        const result = instance.get({ plain: true })
+                    return TestModel.findOne({where: {id: 1}}).then(instance => {
+                        const result = instance.get({plain: true})
                         expect(result.value1).to.equal('test0');
                         expect(result.value2).to.equal(0);
                         expect(result.value3).to.equal('changed');
@@ -301,7 +340,7 @@ describe('index.js', () => {
         it('should inform callers that an instance does not exist.', () => {
             return request(app)
                 .patch('/TestModel/0')
-                .send({ value3: 'changed' })
+                .send({value3: 'changed'})
                 .expect(404);
         });
     });
@@ -319,7 +358,7 @@ describe('index.js', () => {
         // DELETE and POST are special, POST creates a target and DELETE unsets a target
         ['get', 'put'].forEach(verb => {
             it(`should inform callers that the target does not exist: ${verb}.`, () => {
-                return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModel2Instance => {
+                return TestModel2.findOne({where: {value1: 'addrelationTestModel2'}}).then(testModel2Instance => {
                     return request(app)
                     [verb](`/TestModel2/${testModel2Instance.id}/TestModel/`)
                         .expect(404)
@@ -342,9 +381,9 @@ describe('index.js', () => {
     });
     describe('/model/:id/belongsToRelation/ POST', () => {
         it('should create the belongsTo relation of the resource', () => {
-            return TestModel2.findOne({ where: { value1: 'addrelationTestModel2' } }).then(testModel2Instance => {
+            return TestModel2.findOne({where: {value1: 'addrelationTestModel2'}}).then(testModel2Instance => {
                 return request(app)
-                    .post(`/TestModel2/${testModel2Instance.get({ plain: true }).id}/TestModel/`)
+                    .post(`/TestModel2/${testModel2Instance.get({plain: true}).id}/TestModel/`)
                     .send({
                         value1: 'teststring1',
                         value2: 1,
@@ -372,7 +411,7 @@ describe('index.js', () => {
                 .then(response => {
                     return TestModel2.findById(5).then(testModel2Instance => {
                         return testModel2Instance.getTestModel().then(testModelInstance => {
-                            const plainInstance = testModelInstance.get({ plain: true });
+                            const plainInstance = testModelInstance.get({plain: true});
                             expect(plainInstance.value1).to.equal('changed1');
                             expect(plainInstance.value2).to.equal(2);
                             expect(plainInstance.value3).to.equal('changed2');
@@ -385,12 +424,12 @@ describe('index.js', () => {
         it('should update individual attributes of the belongsTo relation of the resource', () => {
             return request(app)
                 .patch('/TestModel2/5/TestModel/')
-                .send({ value1: 'changed1' })
+                .send({value1: 'changed1'})
                 .expect(204)
                 .then(response => {
                     return TestModel2.findById(5).then(testModel2Instance => {
                         return testModel2Instance.getTestModel().then(testModelInstance => {
-                            const plainInstance = testModelInstance.get({ plain: true });
+                            const plainInstance = testModelInstance.get({plain: true});
                             expect(plainInstance.value1).to.equal('changed1');
                             expect(plainInstance.value2).to.equal(3);
                             expect(plainInstance.value3).to.equal('no null!');
@@ -426,9 +465,9 @@ describe('index.js', () => {
     });
     describe('/model/:id/hasOneRleation/ POST', () => {
         it('should create the hasOne relation of the resource', () => {
-            return TestModel.findOne({ where: { value1: 'addrelationTestModel' } }).then(testModelInstance => {
+            return TestModel.findOne({where: {value1: 'addrelationTestModel'}}).then(testModelInstance => {
                 return request(app)
-                    .post(`/TestModel/${testModelInstance.get({ plain: true }).id}/TestModel3/`)
+                    .post(`/TestModel/${testModelInstance.get({plain: true}).id}/TestModel3/`)
                     .send({
                         value1: 'teststring1'
                     })
@@ -450,8 +489,9 @@ describe('index.js', () => {
                 .then(response => {
                     return TestModel.findById(5).then(testModelInstance => {
                         return testModelInstance.getTestModel3().then(testModel3Instance => {
-                            const plainInstance = testModel3Instance.get({ plain: true });
+                            const plainInstance = testModel3Instance.get({plain: true});
                             expect(plainInstance.value1).to.equal('changed1');
+                            // TODO: test for reset
                         });
                     });
                 });
@@ -461,12 +501,12 @@ describe('index.js', () => {
         it('should update individual attributes of the hasOne relation of the resource', () => {
             return request(app)
                 .patch('/TestModel/5/TestModel3/')
-                .send({ value1: 'changed' })
+                .send({value1: 'changed'})
                 .expect(204)
                 .then(response => {
                     return TestModel.findById(5).then(testModelInstance => {
                         return testModelInstance.getTestModel3().then(testModel3Instance => {
-                            const plainInstance = testModel3Instance.get({ plain: true });
+                            const plainInstance = testModel3Instance.get({plain: true});
                             expect(plainInstance.value1).to.equal('changed');
                             expect(plainInstance.value2).to.equal(3);
                         });
@@ -486,6 +526,129 @@ describe('index.js', () => {
                         });
                     });
                 });
+        });
+    });
+
+    describe('many', () => {
+        const sortById = (a, b) => {
+            if (a.id < b.id) return -1;
+            if (a.id > b.id) return 1;
+            return 0;
+        };
+        [{source: TestModel4, target: TestModel5, type: 'hasManyRelation'}, {source: TestModel6, target: TestModel7, type: 'belongsToManyRelation'}].forEach(manyRelation => {
+            describe(`/model/:id/${manyRelation.type}/ GET`, () => {
+                it(`should return the ${manyRelation.type} relations of the requested resource.`, () => {
+                    return request(app)
+                        .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/`)
+                        .expect(200)
+                        .then(response => {
+                            expect(response.body.result).to.have.lengthOf(3);
+                            expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.type}-child1`);
+                        });
+                });
+            });
+            describe(`/model/:id/${manyRelation.type}/:targetId GET`, () => {
+                it(`should return the ${manyRelation.type} relation of the requested resource with the specified id.`, () => {
+                    return request(app)
+                        .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/2`)
+                        .expect(200)
+                        .then(response => {
+                            expect(response.body.result.name).to.equal(`${manyRelation.type}-child2`);
+                        });
+                });
+            });
+            describe('/model/:id/hasManyRelation/ POST', () => {
+                it('should add an item to the hasMany relation of the source. ', () => {
+                    return manyRelation.source.findOne({where: {name: `${manyRelation.type}-parent1`}}).then(sourceInstance => {
+                        return request(app)
+                            .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/`)
+                            .send({
+                                name: `${manyRelation.type}-child4`
+                            })
+                            .expect(201)
+                            .then(response => {
+                                expect(response.body.result.name).to.equal(`${manyRelation.type}-child4`);
+                                return manyRelation.source.findOne({where: {name: `${manyRelation.type}-parent1`}}).then(sourceInstance => {
+
+                                    return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+                                        expect(targetInstances).to.have.lengthOf(4);
+                                        expect(targetInstances[3].name).to.equal(`${manyRelation.type}-child4`);
+                                    });
+                                });
+                            });
+                    });
+                });
+            });
+            describe('/model/:id/hasManyRelation/ PUT', () => {
+                it(`should update a ${manyRelation.type} relation of the resource`, () => {
+                    return request(app)
+                        .put(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1/`)
+                        .send({name: 'changed1'})
+                        .expect(204)
+                        .then(response => {
+                            return manyRelation.source.findById(1).then(sourceInstance => {
+                                return sourceInstance[`get${manyRelation.target.name}s`]({where: {name: 'changed1'}}).then(targetInstances => {
+                                    const plainInstance = targetInstances[0].get({plain: true});
+                                    expect(plainInstance.name).to.equal('changed1');
+                                    expect(plainInstance.value).to.be.null;
+                                });
+                            });
+                        });
+                });
+            });
+            describe('/model/:id/hasManyRelation/ PATCH', () => {
+                it(`should update individual attributes of a ${manyRelation.type} relation of the resource`, () => {
+                    return request(app)
+                        .patch(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1/`)
+                        .send({name: 'changed'})
+                        .expect(204)
+                        .then(response => {
+                            return manyRelation.source.findById(1).then(sourceInstance => {
+                                return sourceInstance[`get${manyRelation.target.name}s`]({where: {id: 1}}).then(targetInstances => {
+                                    const plainInstance = targetInstances[0].get({plain: true});
+                                    expect(plainInstance.name).to.equal('changed');
+                                    expect(plainInstance.value).to.equal(`${manyRelation.type}-value-child1`);
+                                });
+                            });
+                        });
+                });
+            });
+            describe('/model/:id/hasManyRelation/ DELETE', () => {
+                it(`should delete all ${manyRelation.type} relations of the resource`, () => {
+                    return request(app)
+                        .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}`)
+                        .expect(204)
+                        .then(response => {
+                            return manyRelation.source.findById(1).then(sourceInstance => {
+                                return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+                                    expect(targetInstances).to.have.lengthOf(0);
+                                });
+                            });
+                        });
+                });
+            });
+            describe('/model/:id/hasManyRelation/ DELETE', () => {
+                it(`should delete a specific ${manyRelation.type} relation of the resource`, () => {
+                    return request(app)
+                        .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1`)
+                        .expect(204)
+                        .then(response => {
+                            return manyRelation.source.findById(1).then(sourceInstance => {
+                                return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+                                    expect(targetInstances).to.have.lengthOf(2);
+                                });
+                            });
+                        });
+                });
+                it(`should return 404 if the ${manyRelation.type} relation does not exist for the resource`, () => {
+                    return request(app)
+                        .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}/5`)
+                        .expect(404)
+                        .then(response => {
+                            expect(response.body.message).to.equal('target not found.');
+                        });
+                });
+            });
         });
     });
 });
