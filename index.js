@@ -118,6 +118,14 @@ const _updateRelation = (source, target, relationType, req, res, next, id, targe
     });
 };
 
+const _obtainExcludeRule = (excludeRules, method, targetName, all) => {
+    return _.find(excludeRules, (r) => r.method === method && r.relation === targetName && (r.all !== false) === (all !== false));
+};
+
+const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => {
+    return _obtainExcludeRule(excludeRules, method, targetName, all) !== undefined;
+};
+
 module.exports = (models) => {
     const routingInformation = [];
 

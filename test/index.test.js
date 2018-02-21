@@ -34,6 +34,8 @@ const esg = require('../index');
 const _getUpdateableAttributes = _esg.__get__('_getUpdateableAttributes');
 const _removeIllegalAttributes = _esg.__get__('_removeIllegalAttributes');
 const _fillMissingUpdateableAttributes = _esg.__get__('_fillMissingUpdateableAttributes');
+const _obtainExcludeRule = _esg.__get__('_obtainExcludeRule');
+const _shouldRouteBeExposed = _esg.__get__('_shouldRouteBeExposed');
 
 describe('index.js', () => {
     before(done => {
@@ -120,25 +122,29 @@ describe('index.js', () => {
         it('should not allow registering the same model twice.', () => {
             expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
         });
-        it('should allow setting a custom route name.', () => {
-            expect(esg([
-                {
-                    model: {name: 'DontUseThis'},
-                    opts: {route: 'UseThis'}
-                }
-            ])[0].route).to.equal('/UseThis');
+        describe('opts', () => {
+            describe('opts.route', () => {
+                it('should allow setting a custom route name.', () => {
+                    expect(esg([
+                        {
+                            model: {name: 'DontUseThis'},
+                            opts: {route: 'UseThis'}
+                        }
+                    ])[0].route).to.equal('/UseThis');
+                });
+                it('should check if the custom route name has already been registered.', () => {
+                    expect(esg.bind(null, [
+                        {
+                            model: {name: 'UseThis'}
+                        },
+                        {
+                            model: {name: 'DontUseThis'},
+                            opts: {route: 'UseThis'}
+                        }
+                    ])).to.throw('already registered');
+                });
+            });
         });
-        it('should check if the custom route name has already been registered.', () => {
-            expect(esg.bind(null, [
-                {
-                    model: {name: 'UseThis'}
-                },
-                {
-                    model: {name: 'DontUseThis'},
-                    opts: {route: 'UseThis'}
-                }
-            ])).to.throw('already registered');
-        })
     });
 
     describe('_getUpdateableAttributes', () => {
@@ -159,6 +165,58 @@ describe('index.js', () => {
         });
         it('should retain legal arguments.', () => {
             expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1, value1: 'should stay'})).to.deep.equal({value1: 'should stay'});
+        });
+    });
+
+    const rules = [
+        {
+            method: 'GET',
+            relation: 'r1'
+        },
+        {
+            method: 'GET',
+            relation: 'r1',
+            all: false
+        },
+        {
+            method: 'GET'
+        },
+        {
+            method: 'GET',
+            relation: 'r2',
+            all: true
+        },
+        {
+            method: 'GET',
+            relation: 'r3',
+        }
+    ];
+
+    describe('_shouldRouteBeExposed', () => {
+        it('should return false if a route should not be exposed.', () => {
+            expect(_shouldRouteBeExposed(rules, 'GET', 'r5', false)).to.be.false;
+        });
+        it('should return true if a route should be exposed.', () => {
+            expect(_shouldRouteBeExposed(rules, 'GET', 'r1', true)).to.be.true;
+            expect(_shouldRouteBeExposed(rules, 'GET', 'r2')).to.be.true;
+        });
+    });
+
+    describe('_obtainExcludeRule', () => {
+
+        it('should return the correct exclude rule', () => {
+            expect(_obtainExcludeRule(rules, 'GET', 'r1')).to.equal(rules[0]);
+            expect(_obtainExcludeRule(rules, 'GET', 'r1', false)).to.equal(rules[1]);
+            expect(_obtainExcludeRule(rules, 'GET')).to.equal(rules[2]);
+            expect(_obtainExcludeRule(rules, 'GET', 'r2', true)).to.equal(rules[3]);
+        });
+        it('it should treat "true" as default value for all', () => {
+            expect(_obtainExcludeRule(rules, 'GET', 'r2')).to.equal(rules[3]);
+            expect(_obtainExcludeRule(rules, 'GET', 'r3')).to.equal(rules[4]);
+        });
+        it('it should undefined if no rule matching the inquiry was found.', () => {
+            expect(_obtainExcludeRule(rules, 'POST', 'r2')).to.be.undefined;
+            expect(_obtainExcludeRule(rules, 'GET', 'r3', false)).to.be.undefined;
         });
     });
 
