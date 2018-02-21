@@ -117,9 +117,28 @@ describe('index.js', () => {
     });
 
     describe('esg', () => {
-        it('should not allow registering the same model twice', () => {
+        it('should not allow registering the same model twice.', () => {
             expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
         });
+        it('should allow setting a custom route name.', () => {
+            expect(esg([
+                {
+                    model: {name: 'DontUseThis'},
+                    opts: {route: 'UseThis'}
+                }
+            ])[0].route).to.equal('/UseThis');
+        });
+        it('should check if the custom route name has already been registered.', () => {
+            expect(esg.bind(null, [
+                {
+                    model: {name: 'UseThis'}
+                },
+                {
+                    model: {name: 'DontUseThis'},
+                    opts: {route: 'UseThis'}
+                }
+            ])).to.throw('already registered');
+        })
     });
 
     describe('_getUpdateableAttributes', () => {

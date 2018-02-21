@@ -4,8 +4,6 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 
-const routingInformation = [];
-
 const _attachReply = (req, res, next, statusCode, result, message) => {
     const err = new Error();
     err.success = true;
@@ -121,17 +119,20 @@ const _updateRelation = (source, target, relationType, req, res, next, id, targe
 };
 
 module.exports = (models) => {
+    const routingInformation = [];
+
     if (!models) throw new Error('models must be set!');
     if (!(models instanceof Array)) throw new Error('models must be an array');
 
     // first pass, register all models
     models.forEach(model => {
-        if (_.find(routingInformation, (i) => i.model.model.name === model.model.name))
+        model.opts = model.opts || {};
+        if (_.find(routingInformation, (i) => i.model.model.name === (model.opts.route || model.model.name)))
             throw new Error(`model ${model.model.name} already registered`);
         const router = express.Router();
         routingInformation.push({
             model,
-            route: model.model.name,
+            route: model.opts.route || model.model.name,
             router
         });
     });
