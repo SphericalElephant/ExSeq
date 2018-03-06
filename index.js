@@ -126,6 +126,12 @@ const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => 
     return _obtainExcludeRule(excludeRules, method, targetName, all) !== undefined;
 };
 
+const _validateExcludeRules = (excludeRules) => {
+    excludeRules.forEach(rule => {
+
+    });
+};
+
 module.exports = (models) => {
     const routingInformation = [];
 
@@ -141,6 +147,7 @@ module.exports = (models) => {
         routingInformation.push({
             model,
             route: model.opts.route || model.model.name,
+            exclude: model.opts.exclude || [],
             router
         });
     });
@@ -148,6 +155,7 @@ module.exports = (models) => {
     routingInformation.forEach(routing => {
         const router = routing.router;
         const model = routing.model.model;
+        const exposeRoute = _shouldRouteBeExposed.bind(null, routing.exclude);
 
         const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
         const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);

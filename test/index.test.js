@@ -144,6 +144,31 @@ describe('index.js', () => {
                     ])).to.throw('already registered');
                 });
             });
+            describe('opts.exclude', () => {
+                it('should exclude routes based on the provided rules.', () => {
+                    expect(esg([
+                        {
+                            model: TestModel,
+                            opts: {
+                                exlude: [
+                                    // prohibit GET /TestModel/:id
+                                    {
+                                        method: 'GET'
+                                    },
+                                    // prohibit GET /TestModel/:id/TestModel3/
+                                    {
+                                        method: 'GET',
+                                        relation: 'TestModel3',
+                                        all: true // default is false
+                                    }
+                                ]
+                            }
+                        }
+                    ]));
+                });
+                it('should not exclude any route not explicitly excluded.', () => {
+                });
+            });
         });
     });
 
