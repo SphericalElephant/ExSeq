@@ -155,6 +155,27 @@ const _attachSearchToQuery = async (req, source = 'query', query) => {
     return Promise.resolve(newQuery);
 };
 
+const _getModelOpts = (models, model) => {
+    for (let modelDefinition of models) {
+        if (modelDefinition.model === model) {
+            return modelDefinition.opts;
+        }
+    }
+    return {};
+};
+
+const alwaysAllowMiddleware = async (req, res, next) => next();
+
+const _getAuthorizationMiddleWare = function (opts, type) {
+    const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'OTHER'].filter(method => method == type).length === 1;
+    if (!isAllowed) {
+        throw new Error(`unknown http method ${type}`);
+    }
+    return opts.authorizeWith ?
+        (opts.authorizeWith[type] || opts.authorizeWith['OTHER'] || alwaysAllowMiddleware) :
+        alwaysAllowMiddleware;
+};
+
 module.exports = (models) => {
     const routingInformation = [];
 
@@ -182,9 +203,11 @@ module.exports = (models) => {
         const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
         const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
         const getAssociationByName = _getAssociationByName.bind(null, model);
-        const update = _update.bind(null, model);
+        const update = _update.bind(null, _getModelOpts(models, model));
 
-        router.post('/', (req, res, next) => {
+        const auth = _getAuthorizationMiddleWare.bind(null, model);
+
+        router.post('/', auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             const input = removeIllegalAttributes(req.body);
@@ -198,7 +221,7 @@ module.exports = (models) => {
                 });
         });
 
-        router.get('/', async (req, res, next) => {
+        router.get('/', auth('READ'), async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             try {
@@ -210,7 +233,7 @@ module.exports = (models) => {
             }
         });
 
-        router.post('/search', async (req, res, next) => {
+        router.post('/search', auth('SEARCH'), async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             try {
@@ -227,7 +250,7 @@ module.exports = (models) => {
             }
         });
 
-        router.get('/:id', (req, res, next) => {
+        router.get('/:id', auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
 
@@ -239,19 +262,19 @@ module.exports = (models) => {
             });
         });
 
-        router.put('/:id', (req, res, next) => {
+        router.put('/:id', auth('UPDATE'), (req, res, next) => {
             update(req, res, next, req.params.id, (body) => {
                 return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
             });
         });
 
-        router.patch('/:id', (req, res, next) => {
+        router.patch('/:id', auth('UPDATE_PARTIAL'), (req, res, next) => {
             update(req, res, next, req.params.id, (body) => {
                 return removeIllegalAttributes(body);
             });
         });
 
-        router.delete('/:id', (req, res, next) => {
+        router.delete('/:id', auth('DELETE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
 
@@ -269,6 +292,7 @@ module.exports = (models) => {
             const source = association.source;
             const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
             const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
+            const auth = _getAuthorizationMiddleWare.bind(null, _getModelOpts(models, target));
 
             const unlinkRelations = (req, res, next, setterFunctionName) => {
                 const attachReply = _attachReply.bind(null, req, res, next);

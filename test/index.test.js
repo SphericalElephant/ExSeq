@@ -20,6 +20,8 @@ const testModel6 = require('./model/test-model6');
 const TestModel6 = testModel6(database.sequelize, database.Sequelize);
 const testModel7 = require('./model/test-model7');
 const TestModel7 = testModel7(database.sequelize, database.Sequelize);
+const testModel8 = require('./model/test-model8');
+const TestModel8 = testModel8(database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 TestModel.hasOne(TestModel3);
 TestModel4.hasMany(TestModel5);
@@ -36,6 +38,13 @@ const _removeIllegalAttributes = _esg.__get__('_removeIllegalAttributes');
 const _fillMissingUpdateableAttributes = _esg.__get__('_fillMissingUpdateableAttributes');
 const _obtainExcludeRule = _esg.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _esg.__get__('_shouldRouteBeExposed');
+const _getAuthorizationMiddleWare = _esg.__get__('_getAuthorizationMiddleWare');
+const alwaysAllowMiddleware = _esg.__get__('alwaysAllowMiddleware');
+
+const denyAccess = (req, res, next) => false;
+const allowAccess = (req, res, next) => true;
+const denyFallThrough = (req, res, next) => false;
+
 
 describe('index.js', () => {
     before(done => {
@@ -47,7 +56,17 @@ describe('index.js', () => {
             {model: TestModel4, opts: {}},
             {model: TestModel5, opts: {}},
             {model: TestModel6, opts: {}},
-            {model: TestModel7, opts: {}}
+            {model: TestModel7, opts: {}},
+            {
+                model: TestModel8, opts: {
+                    authorizeWith: {
+                        CREATE: denyAccess,
+                        READ: allowAccess,
+                        SEARCH: allowAccess,
+                        OTHER: denyFallThrough // any other method
+                    }
+                }
+            }
         ]).forEach((routing) => {
             app.use(routing.route, routing.router);
         });
@@ -146,6 +165,25 @@ describe('index.js', () => {
                             opts: {route: 'UseThis'}
                         }
                     ])).to.throw('already registered');
+                });
+            });
+            describe('opts.authorizeWith', () => {
+                it('should not allow illegal auth types.', () => {
+                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'FOO')).to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'BAR')).to.throw();
+                });
+                it('should allow legal auth types.', () => {
+                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'CREATE')).not.to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'UPDATE_PARTIAL')).not.to.throw();
+                });
+                it('should use other if there is no specified behaviour for the requested type.', () => {
+                    expect(_getAuthorizationMiddleWare({authorizeWith: {CREATE: allowAccess, OTHER: denyFallThrough}}, 'UPDATE_PARTIAL')).to.equal(denyFallThrough);
+                });
+                it('should allow access when there is no specified behaviour, but the authorizedWith block is provided.', () => {
+                    expect(_getAuthorizationMiddleWare({authorizeWith: {}}, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                });
+                it('should allow access when there is no specified behaviour, and the authorizedWith block is not provided.', () => {
+                    expect(_getAuthorizationMiddleWare({}, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
                 });
             });
         });
