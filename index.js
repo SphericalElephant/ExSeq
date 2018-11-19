@@ -10,7 +10,7 @@ const _attachReply = (req, res, next, status, result, message) => {
     return Promise.resolve();
 }
 
-const _handleError = (req, res, next, err) => {
+const _handleError = (next, err) => {
     if (err instanceof sequelize.ValidationError)
         return next(_createError(400, _formatValidationError(err)));
     else if (err.isCreatedError)
@@ -75,7 +75,7 @@ const _getRouterForModel = (routingInformation, model) => {
 
 const _update = (model, req, res, next, id, createInput) => {
     const attachReply = _attachReply.bind(null, req, res, next);
-    const handleError = _handleError.bind(null, req, res, next);
+    const handleError = _handleError.bind(null, next);
 
     const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
     model.update(createInput(req.body), {where: {id}, fields: attributes}).spread((affectedCount, affectedRows) => {
@@ -87,13 +87,8 @@ const _update = (model, req, res, next, id, createInput) => {
 };
 
 const _updateRelation = (source, target, relationType, req, res, next, id, targetId, prepareBody) => {
-    const body = req.body;
-
-    const removeIllegalAttributes = _removeIllegalAttributes.bind(null, target);
-    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, target);
-
     const attachReply = _attachReply.bind(null, req, res, next);
-    const handleError = _handleError.bind(null, req, res, next);
+    const handleError = _handleError.bind(null, next);
 
     source.findById(id).then(sourceInstance => {
         const update = _update.bind(null, target);
@@ -153,7 +148,7 @@ module.exports = (models) => {
 
         router.post('/', (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
             const input = removeIllegalAttributes(req.body);
 
             model
@@ -167,7 +162,7 @@ module.exports = (models) => {
 
         router.get('/', (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
 
             // TODO: search
 
@@ -210,7 +205,7 @@ module.exports = (models) => {
 
         router.get('/:id', (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
 
             const attributes = req.query.a ? req.query.a.split('|') : undefined;
             model.findOne({where: {id: req.params.id}, attributes}).then(modelInstance => {
@@ -234,7 +229,7 @@ module.exports = (models) => {
 
         router.delete('/:id', (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
 
             model.destroy({where: {id: req.params.id}}).then(affectedRows => {
                 if (affectedRows === 0) return _createErrorPromise(404);
@@ -253,7 +248,7 @@ module.exports = (models) => {
 
             const unlinkRelations = (req, res, next, setterFunctionName) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
-                const handleError = _handleError.bind(null, req, res, next);
+                const handleError = _handleError.bind(null, next);
 
                 source.findById(req.params.id).then(sourceInstance => {
                     if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
@@ -271,7 +266,7 @@ module.exports = (models) => {
                 case 'BelongsTo':
                     router.get(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
 
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
@@ -285,7 +280,7 @@ module.exports = (models) => {
                     });
                     router.post(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
                             return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
@@ -319,7 +314,7 @@ module.exports = (models) => {
                 case 'BelongsToMany':
                     router.get(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
 
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
@@ -333,7 +328,7 @@ module.exports = (models) => {
                     });
                     router.get(`/:id/${target.name}/:targetId`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
 
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
@@ -347,7 +342,7 @@ module.exports = (models) => {
                     });
                     router.post(`/:id/${target.name}`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
                             return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
@@ -372,7 +367,7 @@ module.exports = (models) => {
                     });
                     router.delete(`/:id/${target.name}/:targetId`, (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
-                        const handleError = _handleError.bind(null, req, res, next);
+                        const handleError = _handleError.bind(null, next);
 
                         source.findById(req.params.id).then(sourceInstance => {
                             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
