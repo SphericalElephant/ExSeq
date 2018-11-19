@@ -283,25 +283,37 @@ describe('index.js', () => {
                     .get('/TestModel?p=test&i=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 0!'});
                     }),
                 request(app)
                     .get('/TestModel?i=test&p=1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 0!'});
                     }),
                 request(app)
-                    .get('/TestModel?i=-1&p=1')
+                    .get('/TestModel?i=-1&p=0')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 0!'});
                     }),
                 request(app)
-                    .get('/TestModel?p=1&i=-1')
+                    .get('/TestModel?p=0&i=-1')
                     .expect(400)
                     .then(response => {
-                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 1!'});
+                        expect(response.body).to.deep.equal({message: 'p or i must be integers larger than 0!'});
+                    }),
+                request(app)
+                    .get('/TestModel?p=0&i=1')
+                    .expect(200)
+                    .then(response => {
+                        expect(response.body.result.length).to.equal(1);
+                    }),
+                request(app)
+                    .get('/TestModel')
+                    .expect(200)
+                    .then(response => {
+                        expect(response.body.result.length).to.equal(10);
                     })
             );
         });

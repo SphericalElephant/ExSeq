@@ -188,12 +188,12 @@ module.exports = (models) => {
                 if ((!limit || !offset) && limit !== offset)
                     return attachReply(400, undefined, 'p or i must be both undefined or both defined.');
 
-                const limitInt = parseInt(limit);
-                const offsetInt = parseInt(offset);
+                const limitInt = parseInt(limit || 10);
+                const offsetInt = parseInt(offset || 0);
 
-                if (((limit && (isNaN(limitInt))) || limitInt < 1) ||
-                    ((offset && (isNaN(offsetInt))) || offsetInt < 1))
-                    return attachReply(400, undefined, 'p or i must be integers larger than 1!');
+                if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
+                    ((offset && (isNaN(offsetInt))) || offsetInt < 0))
+                    return attachReply(400, undefined, 'p or i must be integers larger than 0!');
 
                 const order = sortField ? [[sortField, sortOrder]] : undefined;
                 return model.findAll({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
