@@ -203,9 +203,9 @@ module.exports = (models) => {
         const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
         const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
         const getAssociationByName = _getAssociationByName.bind(null, model);
-        const update = _update.bind(null, _getModelOpts(models, model));
+        const update = _update.bind(null, model);
 
-        const auth = _getAuthorizationMiddleWare.bind(null, model);
+        const auth = _getAuthorizationMiddleWare.bind(null, _getModelOpts(models, model));
 
         router.post('/', auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);

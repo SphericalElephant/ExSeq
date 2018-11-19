@@ -41,9 +41,12 @@ const _shouldRouteBeExposed = _esg.__get__('_shouldRouteBeExposed');
 const _getAuthorizationMiddleWare = _esg.__get__('_getAuthorizationMiddleWare');
 const alwaysAllowMiddleware = _esg.__get__('alwaysAllowMiddleware');
 
-const denyAccess = (req, res, next) => false;
-const allowAccess = (req, res, next) => true;
-const denyFallThrough = (req, res, next) => false;
+const unauthorizedError = new Error();
+unauthorizedError.status = 401;
+
+const denyAccess = (req, res, next) => next(unauthorizedError);
+const allowAccess = (req, res, next) => next();
+const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 
 describe('index.js', () => {
