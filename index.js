@@ -17,7 +17,6 @@ const _handleError = (next, err) => {
         return next(err);
     else
         return next(_createError(500, err));
-
 };
 
 const _createErrorPromise = (status, errInput) => {
@@ -117,6 +116,45 @@ const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => 
     return _obtainExcludeRule(excludeRules, method, targetName, all) !== undefined;
 };
 
+const _createQuery = async (req, source = 'query') => {
+    let s = req[source];
+    if (!s) return _createErrorPromise(500, `invalid source ${source}`);
+
+    const limit = s.i;
+    const offset = s.p;
+    const attributes = s.a ? s.a.split('|') : undefined;
+    const sortField = s.f;
+    const sortOrder = s.o || 'DESC';
+
+    if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
+        return _createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
+
+    if ((!limit || !offset) && limit !== offset) {
+        return _createErrorPromise(400, 'p or i must be both undefined or both defined.');
+    }
+
+    const limitInt = parseInt(limit || 10);
+    const offsetInt = parseInt(offset || 0);
+
+    if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
+        ((offset && (isNaN(offsetInt))) || offsetInt < 0)) {
+        return _createErrorPromise(400, 'p or i must be integers larger than 0!');
+    }
+
+    const order = sortField ? [[sortField, sortOrder]] : undefined;
+    return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
+};
+
+const _attachSearchToQuery = async (req, source = 'query', query) => {
+    let s = req[source];
+    if (!s) return _createErrorPromise(500, `invalid source ${source}`);
+
+    const where = s.s;
+    let newQuery = Object.assign({}, query);
+    newQuery = Object.assign(newQuery, {where});
+    return Promise.resolve(newQuery);
+};
+
 module.exports = (models) => {
     const routingInformation = [];
 
@@ -160,47 +198,33 @@ module.exports = (models) => {
                 });
         });
 
-        router.get('/', (req, res, next) => {
+        router.get('/', async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-
-            // TODO: search
-
-            const limit = req.query.i;
-            const offset = req.query.p;
-            const attributes = req.query.a ? req.query.a.split('|') : undefined;
-            const sortField = req.query.f;
-            const sortOrder = req.query.o || 'DESC';
-
-            (() => {
-                if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
-                    return _createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
-
-                if ((!limit || !offset) && limit !== offset) {
-                    return _createErrorPromise(400, 'p or i must be both undefined or both defined.');
-                }
-
-                const limitInt = parseInt(limit || 10);
-                const offsetInt = parseInt(offset || 0);
-
-                if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
-                    ((offset && (isNaN(offsetInt))) || offsetInt < 0)) {
-                    return _createErrorPromise(400, 'p or i must be integers larger than 0!');
-                }
-
-                const order = sortField ? [[sortField, sortOrder]] : undefined;
-                const query = {limit: limitInt, offset: limitInt * offsetInt, attributes, order};
-                return Promise.all([
-                    query,
-                    model.findAll(query)
-                ]);
-            })().then(r => {
-                const modelInstances = r[1];
-                const result = modelInstances.map(instance => instance.get({plain: true}));
-                return attachReply(200, result);
-            }).catch(err => {
+            try {
+                const query = await _createQuery(req, 'query');
+                const results = await model.findAll(query);
+                return attachReply(200, results.map(instance => instance.get({plain: true})));
+            } catch (err) {
                 return handleError(err);
-            });
+            }
+        });
+
+        router.post('/search', async (req, res, next) => {
+            const attachReply = _attachReply.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
+            try {
+                const query = await _createQuery(req, 'body');
+                const searchQuery = await _attachSearchToQuery(req, 'body', query);
+                const results = await model.findAll(searchQuery);
+                if (results.length === 0) {
+                    return attachReply(204);
+                } else {
+                    return attachReply(200, results.map(instance => instance.get({plain: true})));
+                }
+            } catch (err) {
+                return handleError(err);
+            }
         });
 
         router.get('/:id', (req, res, next) => {

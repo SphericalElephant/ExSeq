@@ -259,9 +259,24 @@ describe('index.js', () => {
                 .send({value1: 'test1', value2: 101, value3: 'not null'})
                 .expect(400)
                 .then(response => {
-
                     expect(response.body.message).to.deep.equal([{type: 'Validation error', path: 'value2', value: 101}]);
                 });
+        });
+    });
+
+    describe('/model/search POST', async () => {
+        it('should find instance that match the search query', () => {
+            return request(app)
+                .post('/TestModel/search')
+                .send({s: {value1: 'test1'}})
+                .expect(200)
+                .then(response => {
+                    expect(response.body.result.length).to.equal(1);
+                    expect(response.body.result[0].value1).to.deep.equal('test1');
+                });
+        });
+        it('should return a 204 if no items where found', () => {
+
         });
     });
 
