@@ -53,16 +53,20 @@ describe('index.js', () => {
         });
 
         // simple response handler
-        app.use((req, res) => {
-            return res.status(req.custom.statusCode).send({result: req.custom.result, message: req.custom.message});
+        app.use((req, res, next) => {
+            if (res.__payload) {
+                return res.status(res.__payload.status).send({
+                    result: res.__payload.result, message: res.__payload.message
+                });
+            }
+            return next(new Error('no payload'));
         });
         // simple error handler
         app.use((err, req, res, next) => {
-            console.log(err);
-            if (!err.statusCode) {
-                return res.status(500).send({result: err.stack})
+            if (!err.status) {
+                return res.status(500).send({message: err.stack})
             };
-            return res.status(err.statusCode).send({result: err.result});
+            return res.status(err.status).send({message: err.result});
         });
         done();
     });
@@ -255,7 +259,8 @@ describe('index.js', () => {
                 .send({value1: 'test1', value2: 101, value3: 'not null'})
                 .expect(400)
                 .then(response => {
-                    expect(response.body.result).to.deep.equal([{type: 'Validation error', path: 'value2', value: 101}]);
+
+                    expect(response.body.message).to.deep.equal([{type: 'Validation error', path: 'value2', value: 101}]);
                 });
         });
     });
