@@ -8,16 +8,14 @@ const rewire = require('rewire');
 const database = require('./database');
 const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
-const testModel2 = require('./model/test-model2');
-const TestModel2 = testModel2(database.sequelize, database.Sequelize);
+const valueString = require('./model/value-string');
+const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);
 const testModel3 = require('./model/test-model3');
 const TestModel3 = testModel3(database.sequelize, database.Sequelize);
-const testModel4 = require('./model/test-model4');
-const TestModel4 = testModel4(database.sequelize, database.Sequelize);
+const TestModel4 = valueString('TestModel4', database.sequelize, database.Sequelize);
 const nameStringValueString = require('./model/name-string-value-string');
 const TestModel5 = nameStringValueString('TestModel5', database.sequelize, database.Sequelize);
-const testModel6 = require('./model/test-model6');
-const TestModel6 = testModel6(database.sequelize, database.Sequelize);
+const TestModel6 = valueString('TestModel6', database.sequelize, database.Sequelize);
 const TestModel7 = nameStringValueString('TestModel7',database.sequelize, database.Sequelize);
 const TestModel8 = nameStringValueString('TestModel8',database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
@@ -134,7 +132,7 @@ describe('index.js', () => {
                     })
                 );
             }
-            testModelPromises.push(TestModel2.create({value1: 'addrelationTestModel2'}));
+            testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
             testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
             testModelPromises.push(TestModel4.create({name: 'hasManyRelation-parent1'}).then(testModel4 => {
                 return Promise.each(
@@ -580,7 +578,7 @@ describe('index.js', () => {
         // DELETE and POST are special, POST creates a target and DELETE unsets a target
         ['get', 'put'].forEach(verb => {
             it(`should inform callers that the target does not exist: ${verb}.`, () => {
-                return TestModel2.findOne({where: {value1: 'addrelationTestModel2'}}).then(testModel2Instance => {
+                return TestModel2.findOne({where: {name: 'addrelationTestModel2'}}).then(testModel2Instance => {
                     return request(app)
                     [verb](`/TestModel2/${testModel2Instance.id}/TestModel/`)
                         .expect(404)
@@ -603,7 +601,7 @@ describe('index.js', () => {
     });
     describe('/model/:id/belongsToRelation/ POST', () => {
         it('should create the belongsTo relation of the resource', () => {
-            return TestModel2.findOne({where: {value1: 'addrelationTestModel2'}}).then(testModel2Instance => {
+            return TestModel2.findOne({where: {name: 'addrelationTestModel2'}}).then(testModel2Instance => {
                 return request(app)
                     .post(`/TestModel2/${testModel2Instance.get({plain: true}).id}/TestModel/`)
                     .send({
