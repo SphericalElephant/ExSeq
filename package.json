@@ -18,7 +18,7 @@
   "devDependencies": {
     "body-parser": "^1.17.2",
     "chai": "^4.1.0",
-    "istanbul": "^0.4.5",
+    "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rewire": "^4.0.1",
     "sqlite3": "^4.0.4",
