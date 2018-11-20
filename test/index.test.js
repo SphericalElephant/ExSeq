@@ -16,8 +16,8 @@ const TestModel4 = valueString('TestModel4', database.sequelize, database.Sequel
 const nameStringValueString = require('./model/name-string-value-string');
 const TestModel5 = nameStringValueString('TestModel5', database.sequelize, database.Sequelize);
 const TestModel6 = valueString('TestModel6', database.sequelize, database.Sequelize);
-const TestModel7 = nameStringValueString('TestModel7',database.sequelize, database.Sequelize);
-const TestModel8 = nameStringValueString('TestModel8',database.sequelize, database.Sequelize);
+const TestModel7 = nameStringValueString('TestModel7', database.sequelize, database.Sequelize);
+const TestModel8 = nameStringValueString('TestModel8', database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 TestModel.hasOne(TestModel3);
 TestModel4.hasMany(TestModel5);
@@ -25,6 +25,7 @@ TestModel7.belongsToMany(TestModel6, {through: 'TestModel6TestModel7'});
 TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
 const AuthorizationAssocChild = valueString('AuthorizationAssocChild', database.sequelize, database.Sequelize);
 const AuthorizationAssocParent = valueString('AuthorizationAssocParent', database.sequelize, database.Sequelize);
+const AuthorizationAssocParent2 = valueString('AuthorizationAssocParent2', database.sequelize, database.Sequelize);
 AuthorizationAssocChild.belongsTo(AuthorizationAssocParent);
 const express = require('express');
 const app = express();
@@ -250,10 +251,63 @@ describe('index.js', () => {
                 });
                 describe('opts.authorizeWith.authorizeForChildren', () => {
                     it('should obtain the parent\'s authorization', () => {
-
+                        expect(_getAuthorizationMiddleWare([
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+                            {
+                                model: AuthorizationAssocParent, opts: {
+                                    authorizeWith: {
+                                        options: {
+                                            authorizeForChildren: [
+                                                {child: AuthorizationAssocChild, authorizeForChild: true}
+                                            ]
+                                        }, rules: {CREATE: allowAccess}
+                                    }
+                                }
+                            }
+                        ], AuthorizationAssocChild, null, 'CREATE')).to.equal(allowAccess);
                     });
                     it('must not accept multiple parents demanding authorization juristriction', () => {
-                        
+                        expect(_getAuthorizationMiddleWare.bind(null, [
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+                            {
+                                model: AuthorizationAssocParent, opts: {
+                                    authorizeWith: {
+                                        options: {
+                                            authorizeForChildren: [
+                                                {child: AuthorizationAssocChild, authorizeForChild: true}
+                                            ]
+                                        }, rules: {CREATE: allowAccess}
+                                    }
+                                }
+                            },
+                            {
+                                model: AuthorizationAssocParent2, opts: {
+                                    authorizeWith: {
+                                        options: {
+                                            authorizeForChildren: [
+                                                {child: AuthorizationAssocChild, authorizeForChild: true}
+                                            ]
+                                        }, rules: {CREATE: allowAccess}
+                                    }
+                                }
+                            }
+                        ], AuthorizationAssocChild, null, 'CREATE')).to.throw('invalid number of middlewares expected 1, got 2!');
+                    });
+                    it('must not accept a associatedModel', () => {
+                        expect(_getAuthorizationMiddleWare.bind(null, [
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+                            {
+                                model: AuthorizationAssocParent, opts: {
+                                    authorizeWith: {
+                                        options: {
+                                            authorizeForChildren: [
+                                                {child: AuthorizationAssocChild, authorizeForChild: true}
+                                            ]
+                                        }, rules: {CREATE: allowAccess}
+                                    }
+                                }
+                            }
+                        ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.throw('an associatedModel (AuthorizationAssocParent) was passed for authorizeForChildren root model routes (AuthorizationAssocChild).');
                     });
                 });
             });

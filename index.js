@@ -170,6 +170,22 @@ const _getModelOpts = (models, model) => {
     return {};
 };
 
+const _getParentAuthorizationForModel = (modelDefinitions, model) => {
+    const authorizationMiddlewaresFound = [];
+    for (let modelDefinition of modelDefinitions) {
+        const authorizeForChildren = _.get(modelDefinition, 'opts.authorizeWith.options.authorizeForChildren', undefined)
+        if (authorizeForChildren) {
+            for (let childModelAuthDefinition of authorizeForChildren) {
+                if (childModelAuthDefinition.child === model && childModelAuthDefinition.authorizeForChild) {
+                    authorizationMiddlewaresFound.push(_.get(modelDefinition, 'opts.authorizeWith', undefined));
+                }
+            }
+        }
+    }
+    if (authorizationMiddlewaresFound.length > 1) throw new Error(`invalid number of middlewares expected 1, got ${authorizationMiddlewaresFound.length}!`);
+    return authorizationMiddlewaresFound[0];
+};
+
 const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
     const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'OTHER'].filter(method => method == type).length === 1;
     const opts = _getModelOpts(modelDefinitions, model);
@@ -177,19 +193,20 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
         throw new Error(`unknown type ${type}`);
     }
     let authorizeWith = opts.authorizeWith;;
-    if (opts.authorizeWith && opts.authorizeWith.options) {
-        if (opts.authorizeWith.options.useParentForAuthorization) {
-            if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
-            const association = _getAssociationByModel(model, associatedModel);
-            if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
-            if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
-                throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`);
-            const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
-            authorizeWith = parentOpts.authorizeWith;
-        } else if (opts.options && opts.options.authorizeForChild) {
-            // TODO check if there are two parents that want to authorize for the same child model
-        }
+    if (_.get(opts, 'authorizeWith.options.useParentForAuthorization', undefined)) {
+        if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
+        const association = _getAssociationByModel(model, associatedModel);
+        if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
+        if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
+            throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`);
+        const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
+        authorizeWith = parentOpts.authorizeWith;
     }
+    // use parent model authorization for root routes of another model
+    const authorizationFromParent = _getParentAuthorizationForModel(modelDefinitions, model);
+    if (authorizationFromParent && associatedModel != null) throw new Error(`an associatedModel (${associatedModel.name}) was passed for authorizeForChildren root model routes (${model.name}).`);
+    if (authorizationFromParent) authorizeWith = authorizationFromParent;
+
     return authorizeWith && authorizeWith.rules ?
         (authorizeWith.rules[type] || authorizeWith.rules['OTHER'] || alwaysAllowMiddleware) :
         alwaysAllowMiddleware;
