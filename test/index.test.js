@@ -27,6 +27,11 @@ TestModel.hasOne(TestModel3);
 TestModel4.hasMany(TestModel5);
 TestModel7.belongsToMany(TestModel6, {through: 'TestModel6TestModel7'});
 TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
+const authorizationAssocChild = require('./model/authorization-assoc-child');
+const AuthorizationAssocChild = authorizationAssocChild(database.sequelize, database.Sequelize);
+const authorizationAssocParent = require('./model/authorization-assoc-parent');
+const AuthorizationAssocParent = authorizationAssocParent(database.sequelize, database.Sequelize);
+AuthorizationAssocChild.belongsTo(AuthorizationAssocParent);
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -62,12 +67,33 @@ describe('index.js', () => {
             {model: TestModel7, opts: {}},
             {
                 model: TestModel8, opts: {
-                    authorizeWith: {
-                        CREATE: denyAccess,
-                        READ: allowAccess,
-                        SEARCH: allowAccess,
-                        OTHER: denyFallThrough // any other method
-                    }
+                    /*authorizeWith: {
+                        options: {
+                            // use the access rules of the "owning" entity
+                            // instead of the "owned" entity, when using the "owning"
+                            // entity route to access the "owned" entity. This flag is
+                            // may only be set in the "owned" entitiy configuration.
+                            // 
+                            // Example: A TIRE belongsTo a CAR (or a CAR hasMany TIRES)
+                            //
+                            // When using /car/:id/tire/:tireId to access a tire, the
+                            // user access to CAR is checked to see if the user can
+                            // access a TIRE.
+                            useParentForAuthorization: true,
+
+                            // does the same as useParentForAuthorization. This flag may
+                            // only be set in the "owning" entity configuration.
+                            authorizeForChildren: [
+                                {child: TestModel, authorizeForChild: false}
+                            ]
+                        },
+                        rules: {
+                            CREATE: denyAccess,
+                            READ: allowAccess,
+                            SEARCH: allowAccess,
+                            OTHER: denyFallThrough // any other method
+                        }
+                    }*/
                 }
             }
         ]).forEach((routing) => {
@@ -171,22 +197,81 @@ describe('index.js', () => {
                 });
             });
             describe('opts.authorizeWith', () => {
+                const modelDefinitions = [{
+                    model: AuthorizationAssocParent, opts: {
+                        authorizeWith: {
+                            options: {
+                                useParentForAuthorization: true,
+                                authorizeForChildren: [
+                                    {child: TestModel, authorizeForChild: false}
+                                ]
+                            },
+                            rules: {
+                                CREATE: denyAccess,
+                                READ: allowAccess,
+                                SEARCH: allowAccess,
+                                OTHER: denyFallThrough
+                            }
+                        }
+                    }
+                }];
+                // modelDefinitions, model, associatedModel, type
                 it('should not allow illegal auth types.', () => {
-                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'FOO')).to.throw();
-                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'BAR')).to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
                 });
                 it('should allow legal auth types.', () => {
-                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'CREATE')).not.to.throw();
-                    expect(_getAuthorizationMiddleWare.bind(null, {}, 'UPDATE_PARTIAL')).not.to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'CREATE')).not.to.throw();
+                    expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).not.to.throw();
                 });
-                it('should use other if there is no specified behaviour for the requested type.', () => {
-                    expect(_getAuthorizationMiddleWare({authorizeWith: {CREATE: allowAccess, OTHER: denyFallThrough}}, 'UPDATE_PARTIAL')).to.equal(denyFallThrough);
+                it('should use OTHER if there is no specified behaviour for the requested type.', () => {
+                    expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {rules: {CREATE: allowAccess, OTHER: denyFallThrough}}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(denyFallThrough);
+                    // TODO: add child model test case
+                });
+                it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
+                    expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {rules: {}}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                    // TODO: add child model test case
                 });
                 it('should allow access when there is no specified behaviour, but the authorizedWith block is provided.', () => {
-                    expect(_getAuthorizationMiddleWare({authorizeWith: {}}, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                    expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                    // TODO: add child model test case
                 });
                 it('should allow access when there is no specified behaviour, and the authorizedWith block is not provided.', () => {
-                    expect(_getAuthorizationMiddleWare({}, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                    expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
+                    // TODO: add child model test case
+                });
+                describe('opts.authorizeWith.useParentForAuthorization', () => {
+                    it('should check that the associatedModel is not null', () => {
+                        expect(_getAuthorizationMiddleWare.bind(null, [
+                            {model: TestModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
+                        ], TestModel, null, 'OTHER')).to.throw('associatedModel is null');
+                    });
+                    it('should check if an association between the models exists', () => {
+                        expect(_getAuthorizationMiddleWare.bind(null, [
+                            {model: TestModel8, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
+                        ], TestModel8, AuthorizationAssocChild, 'OTHER')).to.throw('TestModel8 has no association to AuthorizationAssocChild!');
+                    });
+                    it('should check if the association between the models is valid', () => {
+                        expect(_getAuthorizationMiddleWare.bind(null, [
+                            {model: TestModel4, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
+                        ], TestModel4, TestModel5, 'OTHER')).to.throw('TestModel4 has no BelongsTo / BelongsToMany association to TestModel5, useParentForAuthorization is invalid');
+                    });
+                    it('should use the parent authorization if useParentForAuthorization is "true"', () => {
+                        expect(_getAuthorizationMiddleWare([
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {useParentForAuthorization: true}, rules: {CREATE: denyAccess}}}},
+                            {model: AuthorizationAssocParent, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+                        ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(allowAccess);
+                    });
+                    it('should not use the parent authorization if useParentForAuthorization is not set or is set to false', () => {
+                        expect(_getAuthorizationMiddleWare([
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {useParentForAuthorization: false}, rules: {CREATE: denyAccess}}}},
+                            {model: AuthorizationAssocParent, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+                        ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
+                        expect(_getAuthorizationMiddleWare([
+                            {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+                            {model: AuthorizationAssocParent, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+                        ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
+                    });
                 });
             });
         });

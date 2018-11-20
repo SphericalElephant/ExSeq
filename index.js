@@ -68,6 +68,10 @@ const _getAssociationByName = (model, name) => {
     return model.associations[name];
 };
 
+const _getAssociationByModel = (model, associatedModel) => {
+    return model.associations[`${associatedModel.name}s`] || model.associations[associatedModel.name];
+};
+
 const _getRouterForModel = (routingInformation, model) => {
     return (_.find(routingInformation, (i) => i.model.model.name === model.name) || {router: null}).router;
 };
@@ -155,6 +159,8 @@ const _attachSearchToQuery = async (req, source = 'query', query) => {
     return Promise.resolve(newQuery);
 };
 
+const alwaysAllowMiddleware = async (req, res, next) => next();
+
 const _getModelOpts = (models, model) => {
     for (let modelDefinition of models) {
         if (modelDefinition.model === model) {
@@ -164,15 +170,28 @@ const _getModelOpts = (models, model) => {
     return {};
 };
 
-const alwaysAllowMiddleware = async (req, res, next) => next();
-
-const _getAuthorizationMiddleWare = function (opts, type) {
+const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
     const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'OTHER'].filter(method => method == type).length === 1;
+    const opts = _getModelOpts(modelDefinitions, model);
     if (!isAllowed) {
-        throw new Error(`unknown http method ${type}`);
+        throw new Error(`unknown type ${type}`);
     }
-    return opts.authorizeWith ?
-        (opts.authorizeWith[type] || opts.authorizeWith['OTHER'] || alwaysAllowMiddleware) :
+    let authorizeWith = undefined;
+    if (opts.authorizeWith && opts.authorizeWith.options && opts.authorizeWith.options.useParentForAuthorization) {
+        if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
+        const association = _getAssociationByModel(model, associatedModel);
+        if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
+        if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
+            throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`);
+        const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
+        authorizeWith = parentOpts.authorizeWith;
+    } else if (opts.options && opts.options.authorizeForChild) {
+        // TODO check if there are two parents that want to authorize for the same child model
+    } else {
+        authorizeWith = opts.authorizeWith;
+    }
+    return authorizeWith && authorizeWith.rules ?
+        (authorizeWith.rules[type] || authorizeWith.rules['OTHER'] || alwaysAllowMiddleware) :
         alwaysAllowMiddleware;
 };
 
@@ -205,7 +224,7 @@ module.exports = (models) => {
         const getAssociationByName = _getAssociationByName.bind(null, model);
         const update = _update.bind(null, model);
 
-        const auth = _getAuthorizationMiddleWare.bind(null, _getModelOpts(models, model));
+        const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
 
         router.post('/', auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
