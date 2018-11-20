@@ -234,7 +234,6 @@ module.exports = (models) => {
     routingInformation.forEach(routing => {
         const router = routing.router;
         const model = routing.model.model;
-
         const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
         const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
         const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
@@ -242,7 +241,6 @@ module.exports = (models) => {
         const update = _update.bind(null, model);
 
         const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
-
         router.post('/', auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);

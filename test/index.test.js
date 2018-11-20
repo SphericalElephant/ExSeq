@@ -44,6 +44,7 @@ const alwaysAllowMiddleware = _esg.__get__('alwaysAllowMiddleware');
 const unauthorizedError = new Error();
 unauthorizedError.status = 401;
 
+
 const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
@@ -60,9 +61,11 @@ describe('index.js', () => {
             {model: TestModel5, opts: {}},
             {model: TestModel6, opts: {}},
             {model: TestModel7, opts: {}},
+            {model: TestModel8, opts: {}},
+            {model: AuthorizationAssocChild, opts: {}},
             {
-                model: TestModel8, opts: {
-                    /*authorizeWith: {
+                model: AuthorizationAssocParent, opts: {
+                    authorizeWith: {
                         options: {
                             // use the access rules of the "owning" entity
                             // instead of the "owned" entity, when using the "owning"
@@ -74,12 +77,12 @@ describe('index.js', () => {
                             // When using /car/:id/tire/:tireId to access a tire, the
                             // user access to CAR is checked to see if the user can
                             // access a TIRE.
-                            useParentForAuthorization: true,
+                            useParentForAuthorization: false,
 
                             // does the same as useParentForAuthorization. This flag may
                             // only be set in the "owning" entity configuration.
                             authorizeForChildren: [
-                                {child: TestModel, authorizeForChild: false}
+                                {child: AuthorizationAssocChild, authorizeForChild: true}
                             ]
                         },
                         rules: {
@@ -88,7 +91,7 @@ describe('index.js', () => {
                             SEARCH: allowAccess,
                             OTHER: denyFallThrough // any other method
                         }
-                    }*/
+                    }
                 }
             }
         ]).forEach((routing) => {
@@ -102,7 +105,7 @@ describe('index.js', () => {
                     result: res.__payload.result, message: res.__payload.message
                 });
             }
-            return next(new Error('no payload'));
+            return next(new Error('No Payload'));
         });
         // simple error handler
         app.use((err, req, res, next) => {
@@ -289,7 +292,7 @@ describe('index.js', () => {
                             }
                         ], AuthorizationAssocChild, null, 'CREATE')).to.throw('invalid number of middlewares expected 1, got 2!');
                     });
-                    it('must not accept a associatedModel', () => {
+                    it('must not accept a associatedModel when authorizeForChildren is active.', () => {
                         expect(_getAuthorizationMiddleWare.bind(null, [
                             {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
                             {
@@ -304,6 +307,16 @@ describe('index.js', () => {
                                 }
                             }
                         ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.throw('an associatedModel (AuthorizationAssocParent) was passed for authorizeForChildren root model routes (AuthorizationAssocChild).');
+                    });
+                });
+                describe('Authorize /AuthorizationAssocParent/', () => {
+                    it('must prevent creation of a new AuthorizationAssocParent', async () => {
+                        return request(app)
+                            .post('/AuthorizationAssocParent')
+                            .send({name: 'brr'})
+                            .expect(401)
+                            .then(response => {
+                            });
                     });
                 });
             });
