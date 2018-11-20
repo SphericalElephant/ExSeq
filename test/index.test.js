@@ -202,19 +202,15 @@ describe('index.js', () => {
                 });
                 it('should use OTHER if there is no specified behaviour for the requested type.', () => {
                     expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {rules: {CREATE: allowAccess, OTHER: denyFallThrough}}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(denyFallThrough);
-                    // TODO: add child model test case
                 });
                 it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
                     expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {rules: {}}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
-                    // TODO: add child model test case
                 });
                 it('should allow access when there is no specified behaviour, but the authorizedWith block is provided.', () => {
                     expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {authorizeWith: {}}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
-                    // TODO: add child model test case
                 });
                 it('should allow access when there is no specified behaviour, and the authorizedWith block is not provided.', () => {
                     expect(_getAuthorizationMiddleWare([{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
-                    // TODO: add child model test case
                 });
                 describe('opts.authorizeWith.useParentForAuthorization', () => {
                     it('should check that the associatedModel is not null', () => {
