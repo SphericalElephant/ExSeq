@@ -176,19 +176,19 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
     if (!isAllowed) {
         throw new Error(`unknown type ${type}`);
     }
-    let authorizeWith = undefined;
-    if (opts.authorizeWith && opts.authorizeWith.options && opts.authorizeWith.options.useParentForAuthorization) {
-        if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
-        const association = _getAssociationByModel(model, associatedModel);
-        if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
-        if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
-            throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`);
-        const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
-        authorizeWith = parentOpts.authorizeWith;
-    } else if (opts.options && opts.options.authorizeForChild) {
-        // TODO check if there are two parents that want to authorize for the same child model
-    } else {
-        authorizeWith = opts.authorizeWith;
+    let authorizeWith = opts.authorizeWith;;
+    if (opts.authorizeWith && opts.authorizeWith.options) {
+        if (opts.authorizeWith.options.useParentForAuthorization) {
+            if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
+            const association = _getAssociationByModel(model, associatedModel);
+            if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
+            if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
+                throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`);
+            const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
+            authorizeWith = parentOpts.authorizeWith;
+        } else if (opts.options && opts.options.authorizeForChild) {
+            // TODO check if there are two parents that want to authorize for the same child model
+        }
     }
     return authorizeWith && authorizeWith.rules ?
         (authorizeWith.rules[type] || authorizeWith.rules['OTHER'] || alwaysAllowMiddleware) :
