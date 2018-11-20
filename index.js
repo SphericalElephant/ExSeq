@@ -328,7 +328,7 @@ module.exports = (models) => {
             const source = association.source;
             const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
             const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
-            const auth = _getAuthorizationMiddleWare.bind(null, _getModelOpts(models, target));
+            const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
 
             const unlinkRelations = (req, res, next, setterFunctionName) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
@@ -348,7 +348,7 @@ module.exports = (models) => {
             switch (association.associationType) {
                 case 'HasOne':
                 case 'BelongsTo':
-                    router.get(`/:id/${target.name}`, (req, res, next) => {
+                    router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
 
@@ -362,7 +362,7 @@ module.exports = (models) => {
                             return handleError(err);
                         });
                     });
-                    router.post(`/:id/${target.name}`, (req, res, next) => {
+                    router.post(`/:id/${target.name}`, auth('CREATE'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
                         source.findById(req.params.id).then(sourceInstance => {
@@ -380,23 +380,23 @@ module.exports = (models) => {
                             return handleError(err);
                         });
                     });
-                    router.put(`/:id/${target.name}`, (req, res, next) => {
+                    router.put(`/:id/${target.name}`, auth('UPDATE'), (req, res, next) => {
                         _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
                             return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
                         });
                     });
-                    router.patch(`/:id/${target.name}`, (req, res, next) => {
+                    router.patch(`/:id/${target.name}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
                         _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
                             return removeIllegalTargetAttributes(body);
                         });
                     });
-                    router.delete(`/:id/${target.name}`, (req, res, next) => {
+                    router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
                         unlinkRelations(req, res, next, `set${target.name}`)
                     });
                     break;
                 case 'HasMany':
                 case 'BelongsToMany':
-                    router.get(`/:id/${target.name}`, (req, res, next) => {
+                    router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
 
@@ -410,7 +410,7 @@ module.exports = (models) => {
                             });
                         });
                     });
-                    router.get(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                    router.get(`/:id/${target.name}/:targetId`, auth('READ'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
 
@@ -424,7 +424,7 @@ module.exports = (models) => {
                             });
                         });
                     });
-                    router.post(`/:id/${target.name}`, (req, res, next) => {
+                    router.post(`/:id/${target.name}`, auth('CREATE'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
                         source.findById(req.params.id).then(sourceInstance => {
@@ -436,20 +436,20 @@ module.exports = (models) => {
                             return handleError(err);
                         });
                     });
-                    router.put(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                    router.put(`/:id/${target.name}/:targetId`, auth('UPDATE'), (req, res, next) => {
                         _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
                             return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
                         });
                     });
-                    router.patch(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                    router.patch(`/:id/${target.name}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
                         _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
                             return removeIllegalTargetAttributes(body);
                         });
                     });
-                    router.delete(`/:id/${target.name}`, (req, res, next) => {
+                    router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
                         unlinkRelations(req, res, next, `set${target.name}s`)
                     });
-                    router.delete(`/:id/${target.name}/:targetId`, (req, res, next) => {
+                    router.delete(`/:id/${target.name}/:targetId`, auth('DELETE'), (req, res, next) => {
                         const attachReply = _attachReply.bind(null, req, res, next);
                         const handleError = _handleError.bind(null, next);
 
