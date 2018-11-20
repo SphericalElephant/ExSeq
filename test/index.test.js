@@ -14,14 +14,12 @@ const testModel3 = require('./model/test-model3');
 const TestModel3 = testModel3(database.sequelize, database.Sequelize);
 const testModel4 = require('./model/test-model4');
 const TestModel4 = testModel4(database.sequelize, database.Sequelize);
-const testModel5 = require('./model/test-model5');
-const TestModel5 = testModel5(database.sequelize, database.Sequelize);
+const nameStringValueString = require('./model/name-string-value-string');
+const TestModel5 = nameStringValueString('TestModel5', database.sequelize, database.Sequelize);
 const testModel6 = require('./model/test-model6');
 const TestModel6 = testModel6(database.sequelize, database.Sequelize);
-const testModel7 = require('./model/test-model7');
-const TestModel7 = testModel7(database.sequelize, database.Sequelize);
-const testModel8 = require('./model/test-model8');
-const TestModel8 = testModel8(database.sequelize, database.Sequelize);
+const TestModel7 = nameStringValueString('TestModel7',database.sequelize, database.Sequelize);
+const TestModel8 = nameStringValueString('TestModel8',database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 TestModel.hasOne(TestModel3);
 TestModel4.hasMany(TestModel5);
@@ -197,25 +195,6 @@ describe('index.js', () => {
                 });
             });
             describe('opts.authorizeWith', () => {
-                const modelDefinitions = [{
-                    model: AuthorizationAssocParent, opts: {
-                        authorizeWith: {
-                            options: {
-                                useParentForAuthorization: true,
-                                authorizeForChildren: [
-                                    {child: TestModel, authorizeForChild: false}
-                                ]
-                            },
-                            rules: {
-                                CREATE: denyAccess,
-                                READ: allowAccess,
-                                SEARCH: allowAccess,
-                                OTHER: denyFallThrough
-                            }
-                        }
-                    }
-                }];
-                // modelDefinitions, model, associatedModel, type
                 it('should not allow illegal auth types.', () => {
                     expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
                     expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
@@ -271,6 +250,14 @@ describe('index.js', () => {
                             {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
                             {model: AuthorizationAssocParent, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
                         ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
+                    });
+                });
+                describe('opts.authorizeWith.authorizeForChildren', () => {
+                    it('should obtain the parent\'s authorization', () => {
+
+                    });
+                    it('must not accept multiple parents demanding authorization juristriction', () => {
+                        
                     });
                 });
             });

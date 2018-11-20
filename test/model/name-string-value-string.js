@@ -1,7 +1,7 @@
 'use strict';
 
-module.exports = (sequelize, DataTypes) => {
-    return sequelize.define('TestModel7', {
+module.exports = (name, sequelize, DataTypes) => {
+    return sequelize.define(name, {
         name: {
             type: DataTypes.STRING
         },
