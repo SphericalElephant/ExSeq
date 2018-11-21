@@ -204,7 +204,8 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
     }
     // use parent model authorization for root routes of another model
     const authorizationFromParent = _getParentAuthorizationForModel(modelDefinitions, model);
-    if (authorizationFromParent && associatedModel != null) throw new Error(`an associatedModel (${associatedModel.name}) was passed for authorizeForChildren root model routes (${model.name}).`);
+    // TODO: not sure if we should leave this check in here
+    //if (authorizationFromParent && associatedModel != null) throw new Error(`an associatedModel (${associatedModel.name}) was passed for authorizeForChildren root model routes (${model.name}).`);
     if (authorizationFromParent) authorizeWith = authorizationFromParent;
 
     return authorizeWith && authorizeWith.rules ?
