@@ -201,8 +201,9 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
     const association = _getAssociationByModel(model, associatedModel);
     if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
     if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
-      throw new Error(`${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name},
-        useParentForAuthorization is invalid!`);
+      throw new Error(
+        `${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`
+      );
     const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
     authorizeWith = parentOpts.authorizeWith;
   }
@@ -293,6 +294,7 @@ module.exports = (models) => {
 
       const attributes = req.query.a ? req.query.a.split('|') : undefined;
       model.findOne({where: {id: req.params.id}, attributes}).then(modelInstance => {
+        if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
         return attachReply(200, modelInstance);
       }).catch(err => {
         return handleError(err);

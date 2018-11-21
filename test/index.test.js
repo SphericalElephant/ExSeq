@@ -348,17 +348,13 @@ describe('index.js', () => {
             return request(app)
               .post('/AuthorizationAssocParent')
               .send({name: 'brr'})
-              .expect(401)
-              .then(response => {
-              });
+              .expect(401);
           });
           it('must prevent creation of a new AuthorizationAssocParent\'s AuthorizationAssocChild', async () => {
             return request(app)
               .post('/AuthorizationAssocParent/1/AuthorizationAssocChild')
               .send({name: 'brr'})
-              .expect(401)
-              .then(response => {
-              });
+              .expect(401);
           });
         });
       });
@@ -603,6 +599,13 @@ describe('index.js', () => {
         .expect(200)
         .then(response => {
           expect(response.body).to.deep.equal({result: {value1: 'test0'}});
+        });
+    });
+    it('should return 404 if the entity was not found.', () => {
+      return request(app)
+        .get('/TestModel/1000')
+        .expect(404).then(response => {
+          expect(response.body).to.deep.equal({message: 'entity not found.'});
         });
     });
   });
