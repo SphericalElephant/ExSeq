@@ -30,6 +30,9 @@ const AuthorizationAssocParent = valueString('AuthorizationAssocParent', databas
 const AuthorizationAssocParent2 = valueString('AuthorizationAssocParent2', database.sequelize, database.Sequelize);
 AuthorizationAssocChild.belongsTo(AuthorizationAssocParent);
 AuthorizationAssocParent.hasMany(AuthorizationAssocChild);
+const lowerCaseModel = valueString('lowercasemodel', database.sequelize, database.Sequelize);
+const anotherLowercaseModel = valueString('anotherLowercaseModel', database.sequelize, database.Sequelize);
+lowerCaseModel.belongsTo(anotherLowercaseModel);
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -96,7 +99,8 @@ describe('index.js', () => {
             }
           }
         }
-      }
+      },
+      {model: lowerCaseModel, opts: {}}
     ]).forEach((routing) => {
       app.use(routing.route, routing.router);
     });
@@ -161,6 +165,11 @@ describe('index.js', () => {
           () => {}
         ).spread((one, two, three) => {
           return Promise.join(testModel6.addTestModel7(one), testModel6.addTestModel7(two), testModel6.addTestModel7(three));
+        });
+      }));
+      testModelPromises.push(lowerCaseModel.create({name: 'lowercase-belongsto'}).then(lowerCaseModelInstance => {
+        anotherLowercaseModel.create({name: 'anotherlowercase-belongsto'}).then(anotherLowercaseModelInstance => {
+          return lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
         });
       }));
       return Promise.all(testModelPromises);
@@ -700,6 +709,14 @@ describe('index.js', () => {
         .expect(200)
         .then(response => {
           expect(response.body.result.id).to.equal(4);
+        });
+    });
+    it('should be able to handle models that start with a lowercase letter.', () => {
+      return request(app)
+        .get('/lowerCaseModel/1/anotherLowerCaseModel/')
+        .expect(200)
+        .then(response => {
+          expect(response.body.result.id).to.equal(1);
         });
     });
   });

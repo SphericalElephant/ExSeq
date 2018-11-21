@@ -4,6 +4,10 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 
+String.prototype.capitalize = function () {
+  return this.charAt(0).toUpperCase() + this.slice(1);
+};
+
 const _attachReply = (req, res, next, status, result, message) => {
   res.__payload = {status, result, message};
   next();
@@ -92,12 +96,12 @@ const _update = (model, req, res, next, id, createInput) => {
 const _updateRelation = (source, target, relationType, req, res, next, id, targetId, prepareBody) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
-
+  const targetName = target.name.capitalize();
   source.findById(id).then(sourceInstance => {
     const update = _update.bind(null, target);
     if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
     const targetRelationFunctionGetterName =
-      relationType === 'HasOne' || relationType === 'BelongsTo' ? `get${target.name}` : `get${target.name}s`;
+      relationType === 'HasOne' || relationType === 'BelongsTo' ? `get${targetName}` : `get${targetName}s`;
     const query = relationType === 'HasOne' || relationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
     return sourceInstance[targetRelationFunctionGetterName](query).then(targetInstance => {
       if (!targetInstance)
@@ -329,6 +333,7 @@ module.exports = (models) => {
       const association = getAssociationByName(associationName);
       const target = association.target;
       const source = association.source;
+      const targetName = target.name.capitalize();
       const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
       const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
@@ -357,7 +362,7 @@ module.exports = (models) => {
 
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`get${target.name}`]().then(targetInstance => {
+              return sourceInstance[`get${targetName}`]().then(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, targetInstance.get({plain: true}));
               });
@@ -370,10 +375,10 @@ module.exports = (models) => {
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[`create${targetName}`](removeIllegalTargetAttributes(req.body));
             }).then(instance => {
               if (association.associationType === 'BelongsTo') {
-                return instance[`get${target.name}`]().then(createdTargetInstance => {
+                return instance[`get${targetName}`]().then(createdTargetInstance => {
                   return attachReply(201, createdTargetInstance.get({plain: true}));
                 });
               } else {
@@ -394,7 +399,7 @@ module.exports = (models) => {
             });
           });
           router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, `set${target.name}`);
+            unlinkRelations(req, res, next, `set${targetName}`);
           });
           break;
         case 'HasMany':
@@ -405,7 +410,7 @@ module.exports = (models) => {
 
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[`get${target.name}s`]().then(targetInstances => {
+              sourceInstance[`get${targetName}s`]().then(targetInstances => {
                 if (!targetInstances) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, targetInstances.map(targetInstance => targetInstance.get({plain: true})));
               }).catch(err => {
@@ -419,7 +424,7 @@ module.exports = (models) => {
 
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[`get${target.name}s`]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+              sourceInstance[`get${targetName}s`]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, targetInstance.get({plain: true}));
               }).catch(err => {
@@ -432,7 +437,7 @@ module.exports = (models) => {
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`create${target.name}`](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[`create${targetName}`](removeIllegalTargetAttributes(req.body));
             }).then(instance => {
               return attachReply(201, instance.get({plain: true}));
             }).catch(err => {
@@ -450,7 +455,7 @@ module.exports = (models) => {
             });
           });
           router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, `set${target.name}s`);
+            unlinkRelations(req, res, next, `set${targetName}s`);
           });
           router.delete(`/:id/${target.name}/:targetId`, auth('DELETE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
@@ -458,10 +463,10 @@ module.exports = (models) => {
 
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`get${target.name}s`]({where: {id: req.params.targetId}}).then(targetInstances => {
+              return sourceInstance[`get${targetName}s`]({where: {id: req.params.targetId}}).then(targetInstances => {
                 const targetInstance = targetInstances[0];
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return sourceInstance[`remove${target.name}`](targetInstance);
+                return sourceInstance[`remove${targetName}`](targetInstance);
               }).then(() => {
                 return attachReply(204);
               });
