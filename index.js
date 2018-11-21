@@ -220,6 +220,18 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
     alwaysAllowMiddleware;
 };
 
+const _filterAttributes = (attributeString, instance) => {
+  if (!attributeString) return instance;
+  const attributes = attributeString ? attributeString.split('|') : undefined;
+  if (instance instanceof Array) {
+    return instance.map(item => {
+      return _.pick(item, attributes);
+    });
+  } else {
+    return _.pick(instance, attributes);
+  }
+};
+
 module.exports = (models) => {
   const routingInformation = [];
 
@@ -359,12 +371,11 @@ module.exports = (models) => {
           router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               return sourceInstance[`get${targetName}`]().then(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200, targetInstance.get({plain: true}));
+                return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
               });
             }).catch(err => {
               return handleError(err);
@@ -407,12 +418,12 @@ module.exports = (models) => {
           router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               sourceInstance[`get${targetName}s`]().then(targetInstances => {
                 if (!targetInstances) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200, targetInstances.map(targetInstance => targetInstance.get({plain: true})));
+                return attachReply(200,
+                  targetInstances.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true}))));
               }).catch(err => {
                 return handleError(err);
               });
@@ -421,12 +432,11 @@ module.exports = (models) => {
           router.get(`/:id/${target.name}/:targetId`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               sourceInstance[`get${targetName}s`]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200, targetInstance.get({plain: true}));
+                return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
               }).catch(err => {
                 return handleError(err);
               });

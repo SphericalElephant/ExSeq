@@ -31,7 +31,7 @@ const AuthorizationAssocParent2 = valueString('AuthorizationAssocParent2', datab
 AuthorizationAssocChild.belongsTo(AuthorizationAssocParent);
 AuthorizationAssocParent.hasMany(AuthorizationAssocChild);
 const lowerCaseModel = valueString('lowercasemodel', database.sequelize, database.Sequelize);
-const anotherLowercaseModel = valueString('anotherLowercaseModel', database.sequelize, database.Sequelize);
+const anotherLowercaseModel = nameStringValueString('anotherLowercaseModel', database.sequelize, database.Sequelize);
 lowerCaseModel.belongsTo(anotherLowercaseModel);
 const express = require('express');
 const app = express();
@@ -112,7 +112,7 @@ describe('index.js', () => {
           result: res.__payload.result, message: res.__payload.message
         });
       }
-      return next(new Error('No Payload'));
+      res.status(404).send();
     });
     // simple error handler
     app.use((err, req, res, next) => {
@@ -168,7 +168,9 @@ describe('index.js', () => {
         });
       }));
       testModelPromises.push(lowerCaseModel.create({name: 'lowercase-belongsto'}).then(lowerCaseModelInstance => {
-        anotherLowercaseModel.create({name: 'anotherlowercase-belongsto'}).then(anotherLowercaseModelInstance => {
+        anotherLowercaseModel.create(
+          {name: 'anotherlowercase-belongsto', value: 'anotherlowercase-belongsto-value'}
+        ).then(anotherLowercaseModelInstance => {
           return lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
         });
       }));
@@ -701,6 +703,14 @@ describe('index.js', () => {
         });
       });
     });
+    it('should only show attributes that have been specified.', () => {
+      return request(app)
+        .get('/lowerCaseModel/1/anotherLowerCaseModel?a=value')
+        .expect(200)
+        .then(response => {
+          expect(response.body).to.deep.equal({result: {value: 'anotherlowercase-belongsto-value'}});
+        });
+    });
   });
   describe('/model/:id/belongsToRelation/ GET', () => {
     it('should return the belongsTo relation of the requested resource.', () => {
@@ -871,11 +881,13 @@ describe('index.js', () => {
   });
 
   describe('many', () => {
-    const sortById = (a, b) => {
-      if (a.id < b.id) return -1;
-      if (a.id > b.id) return 1;
+    const sortByField = (field, a, b) => {
+      if (a[field] < b[field]) return -1;
+      if (a[field] > b[field]) return 1;
       return 0;
     };
+    const sortById = sortByField.bind(null, 'id');
+    const sortByValue = sortByField.bind(null, 'value');
     [
       {source: TestModel4, target: TestModel5, type: 'hasManyRelation'},
       {source: TestModel6, target: TestModel7, type: 'belongsToManyRelation'}
@@ -890,6 +902,27 @@ describe('index.js', () => {
               expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.type}-child1`);
             });
         });
+        it('should only show attributes that have been specified.', () => {
+          return request(app)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/?a=value`)
+            .expect(200)
+            .then(response => {
+              expect(response.body.result).to.have.lengthOf(3);
+              expect(response.body.result.sort(sortByValue)).to.deep.equal(
+                [
+                  {
+                    value: `${manyRelation.type}-value-child1`
+                  },
+                  {
+                    value: `${manyRelation.type}-value-child2`
+                  },
+                  {
+                    value: `${manyRelation.type}-value-child3`
+                  }
+                ]
+              );
+            });
+        });
       });
       describe(`/model/:id/${manyRelation.type}/:targetId GET`, () => {
         it(`should return the ${manyRelation.type} relation of the requested resource with the specified id.`, () => {
@@ -898,6 +931,18 @@ describe('index.js', () => {
             .expect(200)
             .then(response => {
               expect(response.body.result.name).to.equal(`${manyRelation.type}-child2`);
+            });
+        });
+        it('should only show attributes that have been specified.', () => {
+          return request(app)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/2?a=value`)
+            .expect(200)
+            .then(response => {
+              expect(response.body).to.deep.equal({
+                result: {
+                  value: `${manyRelation.type}-value-child2`
+                }
+              });
             });
         });
       });
