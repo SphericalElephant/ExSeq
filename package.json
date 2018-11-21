@@ -4,6 +4,7 @@
   "description": "CRUD route generator for Sequelize models",
   "main": "index.js",
   "scripts": {
+    "lint": "eslint .",
     "test": "mocha",
     "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec"
   },
@@ -18,6 +19,8 @@
   "devDependencies": {
     "body-parser": "^1.17.2",
     "chai": "^4.1.0",
+    "eslint": "^5.9.0",
+    "eslint-config-loopback": "^12.1.0",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rewire": "^4.0.1",
