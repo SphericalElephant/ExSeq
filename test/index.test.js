@@ -10,7 +10,7 @@ const rewire = require('rewire');
 const database = require('./database');
 const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
-const valueString = require('./model/value-string');
+const valueString = require('./model/name-string');
 const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);
 const testModel3 = require('./model/test-model3');
 const TestModel3 = testModel3(database.sequelize, database.Sequelize);
@@ -22,9 +22,9 @@ const TestModel7 = nameStringValueString('TestModel7', database.sequelize, datab
 const TestModel8 = nameStringValueString('TestModel8', database.sequelize, database.Sequelize);
 TestModel2.belongsTo(TestModel);
 TestModel.hasOne(TestModel3);
-TestModel4.hasMany(TestModel5);
+const testModel4Testmodel5Association = TestModel4.hasMany(TestModel5);
 TestModel7.belongsToMany(TestModel6, {through: 'TestModel6TestModel7'});
-TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
+const testModel6TestModel7Association = TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
 const AuthorizationAssocChild = valueString('AuthorizationAssocChild', database.sequelize, database.Sequelize);
 const AuthorizationAssocParent = valueString('AuthorizationAssocParent', database.sequelize, database.Sequelize);
 const AuthorizationAssocParent2 = valueString('AuthorizationAssocParent2', database.sequelize, database.Sequelize);
@@ -33,6 +33,9 @@ AuthorizationAssocParent.hasMany(AuthorizationAssocChild);
 const lowerCaseModel = valueString('lowercasemodel', database.sequelize, database.Sequelize);
 const anotherLowercaseModel = nameStringValueString('anotherLowercaseModel', database.sequelize, database.Sequelize);
 lowerCaseModel.belongsTo(anotherLowercaseModel);
+const AliasParent = valueString('AliasParent', database.sequelize, database.Sequelize);
+const AliasChild = nameStringValueString('AliasChild', database.sequelize, database.Sequelize);
+const aliasParentAliasChildAssociation = AliasParent.hasMany(AliasParent, {as: {singular: 'Child', plural: 'Children'}});
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -100,7 +103,9 @@ describe('index.js', () => {
           }
         }
       },
-      {model: lowerCaseModel, opts: {}}
+      {model: lowerCaseModel, opts: {}},
+      {model: AliasParent, opts: {}},
+      {model: AliasChild, opts: {}}
     ]).forEach((routing) => {
       app.use(routing.route, routing.router);
     });
@@ -143,24 +148,24 @@ describe('index.js', () => {
       }
       testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
       testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
-      testModelPromises.push(TestModel4.create({name: 'hasManyRelation-parent1'}).then(testModel4 => {
+      testModelPromises.push(TestModel4.create({name: 'HasMany-parent1'}).then(testModel4 => {
         return Promise.each(
           [
-            TestModel5.create({name: 'hasManyRelation-child1', value: 'hasManyRelation-value-child1'}),
-            TestModel5.create({name: 'hasManyRelation-child2', value: 'hasManyRelation-value-child2'}),
-            TestModel5.create({name: 'hasManyRelation-child3', value: 'hasManyRelation-value-child3'})
+            TestModel5.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
+            TestModel5.create({name: 'HasMany-child2', value: 'HasMany-value-child2'}),
+            TestModel5.create({name: 'HasMany-child3', value: 'HasMany-value-child3'})
           ],
           () => {}
         ).spread((one, two, three) => {
           return Promise.join(testModel4.addTestModel5(one), testModel4.addTestModel5(two), testModel4.addTestModel5(three));
         });
       }));
-      testModelPromises.push(TestModel6.create({name: 'belongsToManyRelation-parent1'}).then(testModel6 => {
+      testModelPromises.push(TestModel6.create({name: 'BelongsToMany-parent1'}).then(testModel6 => {
         return Promise.each(
           [
-            TestModel7.create({name: 'belongsToManyRelation-child1', value: 'belongsToManyRelation-value-child1'}),
-            TestModel7.create({name: 'belongsToManyRelation-child2', value: 'belongsToManyRelation-value-child2'}),
-            TestModel7.create({name: 'belongsToManyRelation-child3', value: 'belongsToManyRelation-value-child3'})
+            TestModel7.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
+            TestModel7.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
+            TestModel7.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
           ],
           () => {}
         ).spread((one, two, three) => {
@@ -172,6 +177,22 @@ describe('index.js', () => {
           {name: 'anotherlowercase-belongsto', value: 'anotherlowercase-belongsto-value'}
         ).then(anotherLowercaseModelInstance => {
           return lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
+        });
+      }));
+      testModelPromises.push(AliasParent.create({name: 'HasMany-parent1'}).then(aliasParentInstance => {
+        return Promise.each(
+          [
+            AliasChild.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
+            AliasChild.create({name: 'HasMany-child2', value: 'HasMany-value-child2'}),
+            AliasChild.create({name: 'HasMany-child3', value: 'HasMany-value-child3'})
+          ],
+          () => {}
+        ).spread((one, two, three) => {
+          return Promise.join(
+            aliasParentInstance.addChild(one.id),
+            aliasParentInstance.addChild(two.id),
+            aliasParentInstance.addChild(three.id)
+          );
         });
       }));
       return Promise.all(testModelPromises);
@@ -889,58 +910,60 @@ describe('index.js', () => {
     const sortById = sortByField.bind(null, 'id');
     const sortByValue = sortByField.bind(null, 'value');
     [
-      {source: TestModel4, target: TestModel5, type: 'hasManyRelation'},
-      {source: TestModel6, target: TestModel7, type: 'belongsToManyRelation'}
+      {source: TestModel4, target: TestModel5, association: testModel4Testmodel5Association},
+      {source: TestModel6, target: TestModel7, association: testModel6TestModel7Association},
+      // test proper aliasing and pluralization
+      // {source: AliasParent, target: AliasChild, association: aliasParentAliasChildAssociation}
     ].forEach(manyRelation => {
-      describe(`/model/:id/${manyRelation.type}/ GET`, () => {
-        it(`should return the ${manyRelation.type} relations of the requested resource.`, () => {
+      describe(`/model/:id/${manyRelation.association.associationType}/ GET`, () => {
+        it(`should return the ${manyRelation.association.associationType} relations of the requested resource.`, () => {
           return request(app)
-            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/`)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/`)
             .expect(200)
             .then(response => {
               expect(response.body.result).to.have.lengthOf(3);
-              expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.type}-child1`);
+              expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.association.associationType}-child1`);
             });
         });
         it('should only show attributes that have been specified.', () => {
           return request(app)
-            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/?a=value`)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/?a=value`)
             .expect(200)
             .then(response => {
               expect(response.body.result).to.have.lengthOf(3);
               expect(response.body.result.sort(sortByValue)).to.deep.equal(
                 [
                   {
-                    value: `${manyRelation.type}-value-child1`
+                    value: `${manyRelation.association.associationType}-value-child1`
                   },
                   {
-                    value: `${manyRelation.type}-value-child2`
+                    value: `${manyRelation.association.associationType}-value-child2`
                   },
                   {
-                    value: `${manyRelation.type}-value-child3`
+                    value: `${manyRelation.association.associationType}-value-child3`
                   }
                 ]
               );
             });
         });
       });
-      describe(`/model/:id/${manyRelation.type}/:targetId GET`, () => {
-        it(`should return the ${manyRelation.type} relation of the requested resource with the specified id.`, () => {
+      describe(`/model/:id/${manyRelation.association.associationType}/:targetId GET`, () => {
+        it(`should return the ${manyRelation.association.associationType} relation of the requested resource with the specified id.`, () => {
           return request(app)
-            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/2`)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/2`)
             .expect(200)
             .then(response => {
-              expect(response.body.result.name).to.equal(`${manyRelation.type}-child2`);
+              expect(response.body.result.name).to.equal(`${manyRelation.association.associationType}-child2`);
             });
         });
         it('should only show attributes that have been specified.', () => {
           return request(app)
-            .get(`/${manyRelation.source.name}/1/${manyRelation.target.name}/2?a=value`)
+            .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/2?a=value`)
             .expect(200)
             .then(response => {
               expect(response.body).to.deep.equal({
                 result: {
-                  value: `${manyRelation.type}-value-child2`
+                  value: `${manyRelation.association.associationType}-value-child2`
                 }
               });
             });
@@ -948,19 +971,19 @@ describe('index.js', () => {
       });
       describe('/model/:id/hasManyRelation/ POST', () => {
         it('should add an item to the hasMany relation of the source. ', () => {
-          return manyRelation.source.findOne({where: {name: `${manyRelation.type}-parent1`}}).then(sourceInstance => {
+          return manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}}).then(sourceInstance => {
             return request(app)
-              .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/`)
+              .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/`)
               .send({
-                name: `${manyRelation.type}-child4`
+                name: `${manyRelation.association.associationType}-child4`
               })
               .expect(201)
               .then(response => {
-                expect(response.body.result.name).to.equal(`${manyRelation.type}-child4`);
-                return manyRelation.source.findOne({where: {name: `${manyRelation.type}-parent1`}}).then(sourceInstance => {
-                  return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+                expect(response.body.result.name).to.equal(`${manyRelation.association.associationType}-child4`);
+                return manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}}).then(sourceInstance => {
+                  return sourceInstance[manyRelation.association.accessors.get]().then(targetInstances => {
                     expect(targetInstances).to.have.lengthOf(4);
-                    expect(targetInstances[3].name).to.equal(`${manyRelation.type}-child4`);
+                    expect(targetInstances[3].name).to.equal(`${manyRelation.association.associationType}-child4`);
                   });
                 });
               });
@@ -968,14 +991,14 @@ describe('index.js', () => {
         });
       });
       describe('/model/:id/hasManyRelation/ PUT', () => {
-        it(`should update a ${manyRelation.type} relation of the resource`, () => {
+        it(`should update a ${manyRelation.association.associationType} relation of the resource`, () => {
           return request(app)
-            .put(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1/`)
+            .put(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1/`)
             .send({name: 'changed1'})
             .expect(204)
             .then(response => {
               return manyRelation.source.findById(1).then(sourceInstance => {
-                return sourceInstance[`get${manyRelation.target.name}s`]({where: {name: 'changed1'}}).then(targetInstances => {
+                return sourceInstance[manyRelation.association.accessors.get]({where: {name: 'changed1'}}).then(targetInstances => {
                   const plainInstance = targetInstances[0].get({plain: true});
                   expect(plainInstance.name).to.equal('changed1');
                   expect(plainInstance.value).to.be.null;
@@ -985,51 +1008,51 @@ describe('index.js', () => {
         });
       });
       describe('/model/:id/hasManyRelation/ PATCH', () => {
-        it(`should update individual attributes of a ${manyRelation.type} relation of the resource`, () => {
+        it(`should update individual attributes of a ${manyRelation.association.associationType} relation of the resource`, () => {
           return request(app)
-            .patch(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1/`)
+            .patch(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1/`)
             .send({name: 'changed'})
             .expect(204)
             .then(response => {
               return manyRelation.source.findById(1).then(sourceInstance => {
-                return sourceInstance[`get${manyRelation.target.name}s`]({where: {id: 1}}).then(targetInstances => {
+                return sourceInstance[manyRelation.association.accessors.get]({where: {id: 1}}).then(targetInstances => {
                   const plainInstance = targetInstances[0].get({plain: true});
                   expect(plainInstance.name).to.equal('changed');
-                  expect(plainInstance.value).to.equal(`${manyRelation.type}-value-child1`);
+                  expect(plainInstance.value).to.equal(`${manyRelation.association.associationType}-value-child1`);
                 });
               });
             });
         });
       });
       describe('/model/:id/hasManyRelation/ DELETE', () => {
-        it(`should delete all ${manyRelation.type} relations of the resource`, () => {
+        it(`should delete all ${manyRelation.association.associationType} relations of the resource`, () => {
           return request(app)
-            .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}`)
+            .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}`)
             .expect(204)
             .then(response => {
               return manyRelation.source.findById(1).then(sourceInstance => {
-                return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+                return sourceInstance[manyRelation.association.accessors.get]().then(targetInstances => {
                   expect(targetInstances).to.have.lengthOf(0);
                 });
               });
             });
         });
       });
-      it(`should delete a specific ${manyRelation.type} relation of the resource`, () => {
+      it(`should delete a specific ${manyRelation.association.associationType} relation of the resource`, () => {
         return request(app)
-          .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}/1`)
+          .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1`)
           .expect(204)
           .then(response => {
             return manyRelation.source.findById(1).then(sourceInstance => {
-              return sourceInstance[`get${manyRelation.target.name}s`]().then(targetInstances => {
+              return sourceInstance[manyRelation.association.accessors.get]().then(targetInstances => {
                 expect(targetInstances).to.have.lengthOf(2);
               });
             });
           });
       });
-      it(`should return 404 if the ${manyRelation.type} relation does not exist for the resource`, () => {
+      it(`should return 404 if the ${manyRelation.association.associationType} relation does not exist for the resource`, () => {
         return request(app)
-          .delete(`/${manyRelation.source.name}/1/${manyRelation.target.name}/5`)
+          .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/5`)
           .expect(404)
           .then(response => {
             expect(response.body.message).to.equal('target not found.');

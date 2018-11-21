@@ -93,17 +93,15 @@ const _update = (model, req, res, next, id, createInput) => {
   });
 };
 
-const _updateRelation = (source, target, relationType, req, res, next, id, targetId, prepareBody) => {
+const _updateRelation = (source, target, association, req, res, next, id, targetId, prepareBody) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
-  const targetName = target.name.capitalize();
   source.findById(id).then(sourceInstance => {
     const update = _update.bind(null, target);
     if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
-    const targetRelationFunctionGetterName =
-      relationType === 'HasOne' || relationType === 'BelongsTo' ? `get${targetName}` : `get${targetName}s`;
-    const query = relationType === 'HasOne' || relationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
-    return sourceInstance[targetRelationFunctionGetterName](query).then(targetInstance => {
+    const query =
+      association.associationType === 'HasOne' || association.associationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
+    return sourceInstance[association.accessors.get](query).then(targetInstance => {
       if (!targetInstance)
         return _createErrorPromise(404, 'target not found.');
       if (targetInstance instanceof Array) // "many" relationsship
@@ -342,10 +340,10 @@ module.exports = (models) => {
     });
 
     getAssociatedModelNames(model).forEach(associationName => {
-      const association = getAssociationByName(associationName);
+      const association = _getAssociationByName(model, associationName);
       const target = association.target;
       const source = association.source;
-      const targetName = target.name.capitalize();
+      const targetRoute = association.options.name.singular;
       const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
       const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
@@ -363,17 +361,15 @@ module.exports = (models) => {
           return handleError(err);
         });
       };
-
-      // TODO: add "as" support
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
-          router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
+          router.get(`/:id/${targetRoute}`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`get${targetName}`]().then(targetInstance => {
+              return sourceInstance[association.accessors.get]().then(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
               });
@@ -381,15 +377,15 @@ module.exports = (models) => {
               return handleError(err);
             });
           });
-          router.post(`/:id/${target.name}`, auth('CREATE'), (req, res, next) => {
+          router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`create${targetName}`](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[association.accessors.create](removeIllegalTargetAttributes(req.body));
             }).then(instance => {
               if (association.associationType === 'BelongsTo') {
-                return instance[`get${targetName}`]().then(createdTargetInstance => {
+                return instance[association.accessors.get]().then(createdTargetInstance => {
                   return attachReply(201, createdTargetInstance.get({plain: true}));
                 });
               } else {
@@ -399,28 +395,28 @@ module.exports = (models) => {
               return handleError(err);
             });
           });
-          router.put(`/:id/${target.name}`, auth('UPDATE'), (req, res, next) => {
-            _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
+          router.put(`/:id/${targetRoute}`, auth('UPDATE'), (req, res, next) => {
+            _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
               return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
             });
           });
-          router.patch(`/:id/${target.name}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
-            _updateRelation(source, target, association.associationType, req, res, next, req.params.id, null, (body) => {
+          router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
+            _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
               return removeIllegalTargetAttributes(body);
             });
           });
-          router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, `set${targetName}`);
+          router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+            unlinkRelations(req, res, next, association.accessors.set);
           });
           break;
         case 'HasMany':
         case 'BelongsToMany':
-          router.get(`/:id/${target.name}`, auth('READ'), (req, res, next) => {
+          router.get(`/:id/${targetRoute}`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[`get${targetName}s`]().then(targetInstances => {
+              sourceInstance[association.accessors.get]().then(targetInstances => {
                 if (!targetInstances) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200,
                   targetInstances.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true}))));
@@ -429,12 +425,12 @@ module.exports = (models) => {
               });
             });
           });
-          router.get(`/:id/${target.name}/:targetId`, auth('READ'), (req, res, next) => {
+          router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[`get${targetName}s`]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+              sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
               }).catch(err => {
@@ -442,41 +438,43 @@ module.exports = (models) => {
               });
             });
           });
-          router.post(`/:id/${target.name}`, auth('CREATE'), (req, res, next) => {
+          router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`create${targetName}`](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[association.accessors.create](removeIllegalTargetAttributes(req.body));
             }).then(instance => {
               return attachReply(201, instance.get({plain: true}));
             }).catch(err => {
               return handleError(err);
             });
           });
-          router.put(`/:id/${target.name}/:targetId`, auth('UPDATE'), (req, res, next) => {
-            _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
-              return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
-            });
+          router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
+            _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+              (body) => {
+                return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
+              });
           });
-          router.patch(`/:id/${target.name}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
-            _updateRelation(source, target, association.associationType, req, res, next, req.params.id, req.params.targetId, (body) => {
-              return removeIllegalTargetAttributes(body);
-            });
+          router.patch(`/:id/${targetRoute}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
+            _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+              (body) => {
+                return removeIllegalTargetAttributes(body);
+              });
           });
-          router.delete(`/:id/${target.name}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, `set${targetName}s`);
+          router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+            unlinkRelations(req, res, next, association.accessors.set);
           });
-          router.delete(`/:id/${target.name}/:targetId`, auth('DELETE'), (req, res, next) => {
+          router.delete(`/:id/${targetRoute}/:targetId`, auth('DELETE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
 
             source.findById(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[`get${targetName}s`]({where: {id: req.params.targetId}}).then(targetInstances => {
+              return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
                 const targetInstance = targetInstances[0];
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return sourceInstance[`remove${targetName}`](targetInstance);
+                return sourceInstance[association.accessors.remove](targetInstance);
               }).then(() => {
                 return attachReply(204);
               });
