@@ -35,7 +35,7 @@ const anotherLowercaseModel = nameStringValueString('anotherLowercaseModel', dat
 lowerCaseModel.belongsTo(anotherLowercaseModel);
 const AliasParent = valueString('AliasParent', database.sequelize, database.Sequelize);
 const AliasChild = nameStringValueString('AliasChild', database.sequelize, database.Sequelize);
-const aliasParentAliasChildAssociation = AliasParent.hasMany(AliasParent, {as: {singular: 'Child', plural: 'Children'}});
+const aliasParentAliasChildAssociation = AliasParent.hasMany(AliasChild, {as: {singular: 'Child', plural: 'Children'}});
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -189,9 +189,9 @@ describe('index.js', () => {
           () => {}
         ).spread((one, two, three) => {
           return Promise.join(
-            aliasParentInstance.addChild(one.id),
-            aliasParentInstance.addChild(two.id),
-            aliasParentInstance.addChild(three.id)
+            aliasParentInstance.addChild(one),
+            aliasParentInstance.addChild(two),
+            aliasParentInstance.addChild(three)
           );
         });
       }));
@@ -910,11 +910,15 @@ describe('index.js', () => {
     const sortById = sortByField.bind(null, 'id');
     const sortByValue = sortByField.bind(null, 'value');
     [
-      {source: TestModel4, target: TestModel5, association: testModel4Testmodel5Association},
-      {source: TestModel6, target: TestModel7, association: testModel6TestModel7Association},
+      {source: TestModel4, sourceName: 'TestModel4', target: TestModel5, association: testModel4Testmodel5Association, associationName: 'TestModel5'},
+      {source: TestModel6, sourceName: 'TestModel6', target: TestModel7, association: testModel6TestModel7Association, associationName: 'TestModel7'},
       // test proper aliasing and pluralization
-      // {source: AliasParent, target: AliasChild, association: aliasParentAliasChildAssociation}
+      {source: AliasParent, sourceName: 'AliasParent', target: AliasChild, association: aliasParentAliasChildAssociation, associationName: 'Child'}
     ].forEach(manyRelation => {
+      it('must meet preconditions.', () => {
+        expect(manyRelation.source.name).to.equal(manyRelation.sourceName);
+        expect(manyRelation.association.options.name.singular).to.equal(manyRelation.associationName);
+      });
       describe(`/model/:id/${manyRelation.association.associationType}/ GET`, () => {
         it(`should return the ${manyRelation.association.associationType} relations of the requested resource.`, () => {
           return request(app)
