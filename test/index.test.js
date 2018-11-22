@@ -74,22 +74,6 @@ describe('index.js', () => {
         model: AuthorizationAssocParent, opts: {
           authorizeWith: {
             options: {
-              // use the access rules of the "owning" entity
-              // instead of the "owned" entity, when using the "owning"
-              // entity route to access the "owned" entity. This flag is
-              // may only be set in the "owned" entitiy configuration.
-              //
-              // Example: A TIRE belongsTo a CAR (or a CAR hasMany TIRES)
-              //
-              // When using /car/:id/tire/:tireId to access a tire, the
-              // user access to CAR is checked to see if the user can
-              // access a TIRE.
-              useParentForAuthorization: false,
-
-              // does the same as useParentForAuthorization. This flag may
-              // only be set in the "owning" entity configuration.
-              // TODO: update documentation
-              // /tire/:id
               authorizeForChildren: [
                 {child: AuthorizationAssocChild, authorizeForChild: true}
               ]
