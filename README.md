@@ -5,7 +5,7 @@ ExSeq uses Sequelize models to generate a REST API using the Express web framewo
 
 ## Installation
 
-``` $ npm install seqex```
+``` $ npm install exseq```
 
 ## Features
 
