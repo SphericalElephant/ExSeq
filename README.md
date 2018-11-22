@@ -1,5 +1,7 @@
 # ExSeq
 
+[![Build Status](https://travis-ci.com/SphericalElephant/ExSeq.svg?branch=master)](https://travis-ci.com/SphericalElephant/ExSeq)
+
 ## About
 ExSeq uses Sequelize models to generate a REST API using the Express web framework.
 
