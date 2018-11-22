@@ -11,8 +11,8 @@
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
   "license": "BSD-3-Clause",
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/SphericalElephant/ExSeq.git"
+    "type": "git",
+    "url": "https://github.com/SphericalElephant/ExSeq.git"
   },
   "dependencies": {
     "bluebird": "^3.5.0",
