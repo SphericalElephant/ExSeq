@@ -1,5 +1,5 @@
 {
-  "name": "seqex",
+  "name": "@sphericalelephant/seqex",
   "version": "1.0.0",
   "description": "CRUD route generator for Sequelize models",
   "main": "index.js",
