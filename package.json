@@ -1,5 +1,5 @@
 {
-  "name": "express-sequelize-generator",
+  "name": "seqex",
   "version": "1.0.0",
   "description": "CRUD route generator for Sequelize models",
   "main": "index.js",
@@ -16,6 +16,14 @@
     "lodash": "^4.17.4",
     "sequelize": "^4.4.2"
   },
+  "keywords": [
+    "express",
+    "sequelize",
+    "rest",
+    "autorest",
+    "generator",
+    "restful"
+  ],
   "devDependencies": {
     "body-parser": "^1.17.2",
     "chai": "^4.1.0",

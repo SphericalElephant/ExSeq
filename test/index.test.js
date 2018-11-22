@@ -39,16 +39,16 @@ const aliasParentAliasChildAssociation = AliasParent.hasMany(AliasChild, {as: {s
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-const _esg = rewire('../index.js');
-const esg = require('../index');
+const _seqex = rewire('../index.js');
+const seqex = require('../index');
 
-const _getUpdateableAttributes = _esg.__get__('_getUpdateableAttributes');
-const _removeIllegalAttributes = _esg.__get__('_removeIllegalAttributes');
-const _fillMissingUpdateableAttributes = _esg.__get__('_fillMissingUpdateableAttributes');
-const _obtainExcludeRule = _esg.__get__('_obtainExcludeRule');
-const _shouldRouteBeExposed = _esg.__get__('_shouldRouteBeExposed');
-const _getAuthorizationMiddleWare = _esg.__get__('_getAuthorizationMiddleWare');
-const alwaysAllowMiddleware = _esg.__get__('alwaysAllowMiddleware');
+const _getUpdateableAttributes = _seqex.__get__('_getUpdateableAttributes');
+const _removeIllegalAttributes = _seqex.__get__('_removeIllegalAttributes');
+const _fillMissingUpdateableAttributes = _seqex.__get__('_fillMissingUpdateableAttributes');
+const _obtainExcludeRule = _seqex.__get__('_obtainExcludeRule');
+const _shouldRouteBeExposed = _seqex.__get__('_shouldRouteBeExposed');
+const _getAuthorizationMiddleWare = _seqex.__get__('_getAuthorizationMiddleWare');
+const alwaysAllowMiddleware = _seqex.__get__('alwaysAllowMiddleware');
 
 const unauthorizedError = new Error();
 unauthorizedError.status = 401;
@@ -61,7 +61,7 @@ describe('index.js', () => {
   before(done => {
     app.use(bodyParser.json({}));
 
-    esg([
+    seqex([
       {model: TestModel, opts: {}},
       {model: TestModel2, opts: {}},
       {model: TestModel4, opts: {}},
@@ -203,14 +203,14 @@ describe('index.js', () => {
     return database.reset();
   });
 
-  describe('esg', () => {
+  describe('seqex', () => {
     it('should not allow registering the same model twice.', () => {
-      expect(esg.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
+      expect(seqex.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
     });
     describe('opts', () => {
       describe('opts.route', () => {
         it('should allow setting a custom route name.', () => {
-          expect(esg([
+          expect(seqex([
             {
               model: {name: 'DontUseThis'},
               opts: {route: 'UseThis'}
@@ -218,7 +218,7 @@ describe('index.js', () => {
           ])[0].route).to.equal('/UseThis');
         });
         it('should check if the custom route name has already been registered.', () => {
-          expect(esg.bind(null, [
+          expect(seqex.bind(null, [
             {
               model: {name: 'UseThis'}
             },

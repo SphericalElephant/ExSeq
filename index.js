@@ -255,7 +255,6 @@ module.exports = (models) => {
     const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
     const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
     const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
-    const getAssociationByName = _getAssociationByName.bind(null, model);
     const update = _update.bind(null, model);
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
