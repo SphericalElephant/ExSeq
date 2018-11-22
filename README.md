@@ -147,7 +147,7 @@ exseq([
 ## Generated Routes
 
 ### Source- and Targetmodels
-When generating routes, SeqEx differentiates beteen the **source** and the **target** model. The **source** model is the model whose association method is called, the **target** model is the one passed to the association method as a parameter:
+When generating routes, ExSeq differentiates beteen the **source** and the **target** model. The **source** model is the model whose association method is called, the **target** model is the one passed to the association method as a parameter:
 
 ```javascript
 const SourceModel = require('./source-model');
