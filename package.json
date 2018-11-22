@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint .",
     "test": "mocha",
-    "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec"
+    "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec",
+    "coveralls": "NODE_ENV=test istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage"
   },
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
   "license": "BSD-3-Clause",
@@ -34,6 +35,7 @@
   "devDependencies": {
     "body-parser": "^1.17.2",
     "chai": "^4.1.0",
+    "coveralls": "^3.0.2",
     "eslint": "^5.9.0",
     "eslint-config-loopback": "^12.1.0",
     "istanbul": "^1.1.0-alpha.1",

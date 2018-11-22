@@ -1,6 +1,7 @@
 # ExSeq
 
 [![Build Status](https://travis-ci.com/SphericalElephant/ExSeq.svg?branch=master)](https://travis-ci.com/SphericalElephant/ExSeq)
+[![Coverage Status](https://coveralls.io/repos/github/SphericalElephant/ExSeq/badge.svg?branch=master)](https://coveralls.io/github/SphericalElephant/ExSeq?branch=master)
 
 ## About
 ExSeq uses Sequelize models to generate a REST API using the Express web framework.
