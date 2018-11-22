@@ -28,6 +28,9 @@
     "generator",
     "restful"
   ],
+  "engines": {
+    "node": ">=8.12"
+  },
   "devDependencies": {
     "body-parser": "^1.17.2",
     "chai": "^4.1.0",
