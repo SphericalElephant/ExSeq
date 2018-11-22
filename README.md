@@ -1,5 +1,6 @@
 # ExSeq
-
+[![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][downloads-url]
 [![Build Status](https://travis-ci.com/SphericalElephant/ExSeq.svg?branch=master)](https://travis-ci.com/SphericalElephant/ExSeq)
 [![Coverage Status](https://coveralls.io/repos/github/SphericalElephant/ExSeq/badge.svg?branch=master)](https://coveralls.io/github/SphericalElephant/ExSeq?branch=master)
 
@@ -197,3 +198,12 @@ The label of the first segment of the route is determined by ```source.name``` o
 | POST (search) | p         | Page (pagination)           | Integer                        | ```{"i": 10, "p":2}```            |
 | POST (search) | f         | Sort by field               | String                         | ```{"f": "name"}```               |
 | POST (search) | o         | Sort order                  | Enum(ASC/DESC)                 | ```{"f": "name", "o":"ASC"}```    |
+
+
+[npm-image]: https://img.shields.io/npm/v/@sphericalelephant/exseq.svg
+[npm-url]: https://npmjs.org/package/@sphericalelephant/exseq
+[downloads-image]: https://img.shields.io/npm/dm/@sphericalelephant/exseq.svg
+[downloads-url]: https://npmjs.org/package/@sphericalelephant/exseq
+
+## License
+[MIT](LICENSE)
