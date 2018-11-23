@@ -7,7 +7,7 @@
     "lint": "eslint .",
     "test": "mocha",
     "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec",
-    "coveralls": "NODE_ENV=test istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage"
+    "test-ci": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
   "license": "BSD-3-Clause",
