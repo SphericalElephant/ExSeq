@@ -198,6 +198,7 @@ The label of the first segment of the route is determined by ```source.name``` o
 | POST (search) | p         | Page (pagination)           | Integer                        | ```{"i": 10, "p":2}```            |
 | POST (search) | f         | Sort by field               | String                         | ```{"f": "name"}```               |
 | POST (search) | o         | Sort order                  | Enum(ASC/DESC)                 | ```{"f": "name", "o":"ASC"}```    |
+| POST (search) | s         | Sequelize Search Query      | JSON                           | ```{s: {value: 1}}```             |
 
 
 [npm-image]: https://img.shields.io/npm/v/@sphericalelephant/exseq.svg
