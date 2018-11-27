@@ -1,0 +1,21 @@
+{
+  "extends": "loopback",
+  "env": {
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 8
+  },
+  "rules": {
+    "comma-dangle": [
+      "error",
+      "never"
+    ],
+    "max-len": ["error", {"code": 140}],
+    "one-var": ["off"],
+    "space-before-function-paren": ["error", {
+      "anonymous": "always",
+      "named": "never"
+    }]
+  }
+}
