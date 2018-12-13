@@ -56,7 +56,6 @@ const _removeIllegalAttributes = (model, input) => {
 };
 
 const _fillMissingUpdateableAttributes = (model, input) => {
-  const clonedInput = Object.assign({}, input);
   return _getUpdateableAttributes(model).reduce((result, current) => {
     if (input[current.attribute] !== undefined) result[current.attribute] = input[current.attribute];
     else result[current.attribute] = null;
@@ -227,6 +226,30 @@ const _filterAttributes = (attributeString, instance) => {
     });
   } else {
     return _.pick(instance, attributes);
+  }
+};
+
+const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuery) => {
+  const opts = {};
+  let model;
+  if (association.associationType === 'BelongsToMany') {
+    model = association.source;
+    if (association.options.as) {
+      opts.include = [{model: association.target, as: association.options.as.plural}];
+    } else {
+      opts.include = [association.target];
+    }
+  } else if (association.associationType === 'HasMany') {
+    model = association.target;
+    opts.where = targetQuery;
+    opts.where[association.foreignKeyField] = sourceId;
+  }
+
+  if (association.associationType === 'BelongsToMany') {
+    const result = await model.findById(sourceId, opts);
+    return await result[association.accessors.get]({where: targetQuery});
+  } else if (association.associationType === 'HasMany') {
+    return await model.findAll(opts);
   }
 };
 
@@ -423,6 +446,22 @@ module.exports = (models) => {
                 return handleError(err);
               });
             });
+          });
+          router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
+            const attachReply = _attachReply.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
+            try {
+              const query = await _createQuery(req, 'body');
+              const searchQuery = await _attachSearchToQuery(req, 'body', query);
+              const results = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
+              if (results.length === 0) {
+                return attachReply(204);
+              } else {
+                return attachReply(200, results.map(instance => instance.get({plain: true})));
+              }
+            } catch (err) {
+              return handleError(err);
+            }
           });
           router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
