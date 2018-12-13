@@ -57,6 +57,14 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
+describe('String', () => {
+  describe('capitalize', () => {
+    it('should capitalize the first letter of a word', () => {
+      expect('test'.capitalize()).to.equal('Test');
+    });
+  });
+});
+
 describe('index.js', () => {
   before(done => {
     app.use(bodyParser.json({}));
