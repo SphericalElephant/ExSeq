@@ -510,7 +510,10 @@ describe('index.js', () => {
         });
     });
     it('should return a 204 if no items where found', () => {
-
+      return request(app)
+        .post('/TestModel/search')
+        .send({s: {value1: 'asdasdasdasd'}})
+        .expect(204);
     });
   });
 
