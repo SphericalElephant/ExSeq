@@ -8,6 +8,7 @@ const Promise = require('bluebird');
 const rewire = require('rewire');
 
 const database = require('./database');
+const Op = database.Sequelize.Op;
 const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
 const valueString = require('./model/name-string');
@@ -101,7 +102,9 @@ describe('index.js', () => {
       },
       {model: lowerCaseModel, opts: {}},
       {model: AliasParent, opts: {}},
-      {model: AliasChild, opts: {}}
+      {model: AliasChild, opts: {}},
+      {model: AliasParentBelongsToMany, opts: {}},
+      {model: AliasChildBelongsToMany, opts: {}}
     ]).forEach((routing) => {
       app.use(routing.route, routing.router);
     });
@@ -117,6 +120,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
+      console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -936,11 +940,11 @@ describe('index.js', () => {
       // test proper aliasing and pluralization
       {
         source: AliasParent, sourceName: 'AliasParent', target: AliasChild,
-        association: aliasParentAliasChildAssociation, associationName: 'Child'
+        association: aliasParentAliasChildAssociation, associationName: 'Child', searchFor: 'HasMany-child1'
       },
       {
         source: AliasParentBelongsToMany, sourceName: 'AliasParentBelongsToMany', target: AliasChildBelongsToMany,
-        association: aliasParentBelongsToManyAliasChildBelongsToManyAssociation, associationName: 'Child'
+        association: aliasParentBelongsToManyAliasChildBelongsToManyAssociation, associationName: 'Child', searchFor: 'BelongsToMany-child1'
       }
     ].forEach(manyRelation => {
       if (manyRelation.source !== AliasParentBelongsToMany) {
@@ -1097,16 +1101,42 @@ describe('index.js', () => {
             });
         });
       }
-      if (manyRelation.source === AliasParentBelongsToMany) {// || manyRelation.source === AliasParent) { // only use AliasParent and AliasChild for the search
+      // only use AliasParent and AliasParentBelongsToMany for the search
+      if (manyRelation.source === AliasParentBelongsToMany || manyRelation.source === AliasParent) {
         describe(`/model/:id/${manyRelation.association.associationType}/search/ POST`, () => {
           it('should return the instances of the child model that match the search criteria', () => {
-
+            return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
+              .send({s: {name: manyRelation.searchFor}})
+              .expect(200)
+              .then(response => {
+                expect(response.body.result).to.have.lengthOf(1);
+                expect(response.body.result[0].name).to.equal(manyRelation.searchFor);
+              });
           });
-          it('should not return any instance of a child model that is not related to the parent', () => {
-
+          // TODO: fix
+          it.skip('should return the instances of the child model that match the search criteria 2', () => {
+            return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
+              .send({s: {name: {
+                [Op.like]: '%BelongsToMany%'
+              }}})
+              .expect(200)
+              .then(response => {
+                expect(response.body.result).to.have.lengthOf(3);
+              });
           });
-          it('should support aliases', () => {
-
+          it('should return 204 if no child has been found.', () => {
+            return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
+              .send({s: {name: 'testing search'}})
+              .expect(204);
+          });
+          it('should respect other query parameters such as "a".', () => {
+            return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
+              .send({s: {name: manyRelation.searchFor}, a: 'name'})
+              .expect(200)
+              .then(response => {
+                expect(response.body.result).have.lengthOf(1);
+                expect(response.body.result[0]).to.deep.equals({name: manyRelation.searchFor});
+              });
           });
         });
       }

@@ -230,24 +230,29 @@ const _filterAttributes = (attributeString, instance) => {
 };
 
 const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuery) => {
-  const opts = {};
+  const opts = targetQuery;
   let model;
+  let include;
   if (association.associationType === 'BelongsToMany') {
     model = association.source;
     if (association.options.as) {
-      opts.include = [{model: association.target, as: association.options.as.plural}];
+      include = [{model: association.target, as: association.options.as.plural}];
     } else {
-      opts.include = [association.target];
+      include = [association.target];
     }
   } else if (association.associationType === 'HasMany') {
     model = association.target;
-    opts.where = targetQuery;
     opts.where[association.foreignKeyField] = sourceId;
   }
-
   if (association.associationType === 'BelongsToMany') {
-    const result = await model.findById(sourceId, opts);
-    return await result[association.accessors.get]({where: targetQuery});
+    const source = await model.findById(sourceId, {include});
+    const targets = await source[association.accessors.get](opts);
+    return targets.map(t => {
+      const model = association.options.through.model;
+      const result = t.get({plain: true});
+      delete result[model.name || model];
+      return result;
+    });
   } else if (association.associationType === 'HasMany') {
     return await model.findAll(opts);
   }
@@ -457,7 +462,7 @@ module.exports = (models) => {
               if (results.length === 0) {
                 return attachReply(204);
               } else {
-                return attachReply(200, results.map(instance => instance.get({plain: true})));
+                return attachReply(200, results);
               }
             } catch (err) {
               return handleError(err);
