@@ -533,6 +533,15 @@ describe('index.js', () => {
           expect(response.body.result[0].value1).to.deep.equal('test1');
         });
     });
+    it('should find instance that match the search query 2', () => {
+      return request(app)
+        .post('/TestModel/search')
+        .send({s: {value1: {'$like': 'test%'}}})
+        .expect(200)
+        .then(response => {
+          expect(response.body.result.length).to.equal(10);
+        });
+    });
     it('should return a 204 if no items where found', () => {
       return request(app)
         .post('/TestModel/search')
@@ -1113,12 +1122,15 @@ describe('index.js', () => {
                 expect(response.body.result[0].name).to.equal(manyRelation.searchFor);
               });
           });
-          // TODO: fix
-          it.skip('should return the instances of the child model that match the search criteria 2', () => {
+          it('should return the instances of the child model that match the search criteria 2', () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
-              .send({s: {name: {
-                [Op.like]: '%BelongsToMany%'
-              }}})
+              .send({
+                s: {
+                  name: {
+                    '$like': `%${manyRelation.association.associationType}%`
+                  }
+                }
+              })
               .expect(200)
               .then(response => {
                 expect(response.body.result).to.have.lengthOf(3);
