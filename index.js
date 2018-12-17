@@ -402,22 +402,26 @@ module.exports = (models) => {
           return handleError(err);
         });
       };
+      const relationshipGet = (postProcess) => {
+        return (req, res, next) => {
+          const attachReply = _attachReply.bind(null, req, res, next);
+          const handleError = _handleError.bind(null, next);
+          source.findById(req.params.id).then(sourceInstance => {
+            if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+            return sourceInstance[association.accessors.get]().then(targetInstance => {
+              if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+              return attachReply(200, postProcess(req, targetInstance));
+            });
+          }).catch(err => {
+            return handleError(err);
+          });
+        };
+      };
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
-          router.get(`/:id/${targetRoute}`, auth('READ'), (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            source.findById(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.get]().then(targetInstance => {
-                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
-              });
-            }).catch(err => {
-              return handleError(err);
-            });
-          });
+          router.get(`/:id/${targetRoute}`, auth('READ'),
+            relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
           router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
@@ -452,20 +456,9 @@ module.exports = (models) => {
           break;
         case 'HasMany':
         case 'BelongsToMany':
-          router.get(`/:id/${targetRoute}`, auth('READ'), (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            source.findById(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[association.accessors.get]().then(targetInstances => {
-                if (!targetInstances) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200,
-                  targetInstances.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true}))));
-              }).catch(err => {
-                return handleError(err);
-              });
-            });
-          });
+          router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
+            return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+          }));
           router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
