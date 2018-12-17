@@ -39,12 +39,12 @@ exseq([
 
 ### Options (opts)
 
-| Option                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|                     Option                      |                                                                                                                                                                                                                                                   Description                                                                                                                                                                                                                                                   |
 | :---------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-| route                                           | Overrides the default label for the first route segment                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+|                      route                      |                                                                                                                                                                                                                             Overrides the default label for the first route segment                                                                                                                                                                                                                             |
 | authorizeWith.options.useParentForAuthorization | Use the access rules of the *source* entity instead of the *target* entity, when using the *source* entity route to access the *target* entity. This flag is may only be set in the *target* entitiy configuration. Example: A TIRE belongsTo a CAR (or a CAR hasMany TIRES) When using /car/:id/tire/:tireId to access a tire, the user access to CAR is checked to see if the user canaccess a TIRE. This option may only be used in *target* entites that have either a **HasOne** or **BelongsTo** relation |
-| authorizeWith.options.authorizeForChildren      | Enables the use of the *source* authorization middleware for *target* entites. This setting must be set in the *source* entity. It causes all authorization request to go through the *source* authorization middleware. A *target* must only use a single *source* for authorization!                                                                                                                                                                                                                          |
-| authorizeWith.rules                             | Contains authorization definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+|   authorizeWith.options.authorizeForChildren    |                                                                                                             Enables the use of the *source* authorization middleware for *target* entites. This setting must be set in the *source* entity. It causes all authorization request to go through the *source* authorization middleware. A *target* must only use a single *source* for authorization!                                                                                                              |
+|               authorizeWith.rules               |                                                                                                                                                                                                                                        Contains authorization definition                                                                                                                                                                                                                                        |
 
 #### Examples
 
@@ -168,37 +168,70 @@ SourceModel.hasMany(TargetModel);
 
 The label of the first segment of the route is determined by ```source.name``` or by ```opts.route``` if specified. The label of the target model segment is determined by ```association.options.name.singular```, meaning that it will take any aliases into account.
 
-| Method | Relation                | Route                        | Permission     | Description                                                   |
-| :----: | :---------------------: | :--------------------------: | :------------: | :-----------------------------------------------------------: |
-| GET    | N/A                     | /source                      | READ           | Obtain all instances of *source*                              |
-| POST   | N/A                     | /source                      | CREATE         | Create a new *source* instance                                |
-| POST   | N/A                     | /source/search               | SEARCH         | Search the *source* table                                     |
-| GET    | N/A                     | /source/:id                  | READ           | Obtain the specified *source* instance                        |
-| PUT    | N/A                     | /source/:id                  | UPDATE         | Replace all values of the *source* instance                   |
-| PATCH  | N/A                     | /source/:id                  | UPDATE_PARTIAL | Replace selected values of the *source* instance              |
-| DELETE | N/A                     | /source/:id                  | DELETE         | Delete the specified *source* instance                        |
-| GET    | HasOne / BelongsTo      | /source/:id/target           | READ           | Get all *target* instances of *source*                        |
-| POST   | HasOne / BelongsTo      | /source/:id/target           | CREATE         | Create a new *target* instance and associate it with *source* |
-| PUT    | HasOne / BelongsTo      | /source/:id/target           | UPDATE         | Replaces all values of the *target* instance                  |
-| PATCH  | HasOne / BelongsTo      | /source/:id/target           | UPDATE_PARTIAL | Replaces selected values of the *target* instance             |
-| DELETE | HasOne / BelongsTo      | /source/:id/target           | DELETE         | Remove the association                                        |
-| GET    | HasMany / BelongsToMany | /source/:id/target           | READ           | Obtains an array of all associated *target* instances         |
-| GET    | HasMany / BelongsToMany | /source/:id/target/:targetId | READ           | Obtains a single *target* instance                            |
-| POST   | HasMany / BelongsToMany | /source/:id/target           | CREATE         | Creates and associates a new *target* instance                |
-| PUT    | HasMany / BelongsToMany | /source/:id/target/:targetId | UPDATE         | Replaces all values of the *target* instance                  |
-| PATCH  | HasMany / BelongsToMany | /source/:id/target/:targetId | UPDATE_PARTIAL | Replaces selected values of the *target* instance             |
-| DELETE | HasMany / BelongsToMany | /source/:id/target/:targetId | DELETE         | Deletes the specified *target* instance                       |
+| Method |        Relation         |            Route             |   Permission   |                           Description                           |
+| :----: | :---------------------: | :--------------------------: | :------------: | :-------------------------------------------------------------: |
+|  GET   |           N/A           |           /source            |      READ      |                Obtain all instances of *source*                 |
+|  POST  |           N/A           |           /source            |     CREATE     |                 Create a new *source* instance                  |
+|  POST  |           N/A           |        /source/search        |     SEARCH     |                    Search the *source* table                    |
+|  GET   |           N/A           |         /source/:id          |      READ      |             Obtain the specified *source* instance              |
+|  PUT   |           N/A           |         /source/:id          |     UPDATE     |           Replace all values of the *source* instance           |
+| PATCH  |           N/A           |         /source/:id          | UPDATE_PARTIAL |        Replace selected values of the *source* instance         |
+| DELETE |           N/A           |         /source/:id          |     DELETE     |             Delete the specified *source* instance              |
+|  GET   |   HasOne / BelongsTo    |      /source/:id/target      |      READ      |             Get all *target* instances of *source*              |
+|  POST  |   HasOne / BelongsTo    |      /source/:id/target      |     CREATE     |  Create a new *target* instance and associate it with *source*  |
+|  PUT   |   HasOne / BelongsTo    |      /source/:id/target      |     UPDATE     |          Replaces all values of the *target* instance           |
+| PATCH  |   HasOne / BelongsTo    |      /source/:id/target      | UPDATE_PARTIAL |        Replaces selected values of the *target* instance        |
+| DELETE |   HasOne / BelongsTo    |      /source/:id/target      |     DELETE     |                     Remove the association                      |
+|  GET   | HasMany / BelongsToMany |      /source/:id/target      |      READ      |      Obtains an array of all associated *target* instances      |
+|  GET   | HasMany / BelongsToMany | /source/:id/target/:targetId |      READ      |               Obtains a single *target* instance                |
+|  POST  | HasMany / BelongsToMany |      /source/:id/target      |     CREATE     |         Creates and associates a new *target* instance          |
+|  POST  | HasMany / BelongsToMany |  /source/:id/target/search   |     SEARCH     | Search items in the *target* table that are related to *source* |
+|  PUT   | HasMany / BelongsToMany | /source/:id/target/:targetId |     UPDATE     |          Replaces all values of the *target* instance           |
+| PATCH  | HasMany / BelongsToMany | /source/:id/target/:targetId | UPDATE_PARTIAL |        Replaces selected values of the *target* instance        |
+| DELETE | HasMany / BelongsToMany | /source/:id/target/:targetId |     DELETE     |             Deletes the specified *target* instance             |
 
 ### GET / POST Parameters
 
-| Method        | Parameter | Description                 | Type                           | Example                           |
+|    Method     | Parameter |         Description         |              Type              |              Example              |
 | :-----------: | :-------: | :-------------------------: | :----------------------------: | :-------------------------------: |
-| GET           | a         | Allows attribute filtering  | "\|" separated list of Strings | /source/?a=name\|birthdate\|email |
-| POST (search) | i         | Items per page (pagination) | Integer                        | ```{"i": 10, "p":2}```            |
-| POST (search) | p         | Page (pagination)           | Integer                        | ```{"i": 10, "p":2}```            |
-| POST (search) | f         | Sort by field               | String                         | ```{"f": "name"}```               |
-| POST (search) | o         | Sort order                  | Enum(ASC/DESC)                 | ```{"f": "name", "o":"ASC"}```    |
-| POST (search) | s         | Sequelize Search Query      | JSON                           | ```{s: {value: 1}}```             |
+|      GET      |     a     | Allows attribute filtering  | "\|" separated list of Strings | /source/?a=name\|birthdate\|email |
+| POST (search) |     i     | Items per page (pagination) |            Integer             |      ```{"i": 10, "p":2}```       |
+| POST (search) |     p     |      Page (pagination)      |            Integer             |      ```{"i": 10, "p":2}```       |
+| POST (search) |     f     |        Sort by field        |             String             |        ```{"f": "name"}```        |
+| POST (search) |     o     |         Sort order          |         Enum(ASC/DESC)         |  ```{"f": "name", "o":"ASC"}```   |
+| POST (search) |     s     |   Sequelize Search Query    |              JSON              |       ```{s: {value: 1}}```       |
+
+### Search
+
+ExSeq supports searching in accordance to [Sequelize Querying](http://docs.sequelizejs.com/manual/tutorial/querying.html). Please make sure to use the backwards compatible operator notation and not the symbol notation, as shown in the example below. Alternatively, you may use the string representation of the symbol.
+
+Backwards compatible:
+```json
+{
+  "value": {
+    "$like": "%foo%"
+  }
+}
+```
+
+Symbol string representation:
+```json
+{
+  "value": {
+    "like": "%foo%"
+  }
+}
+```
+
+Symbol (will not work due to JSON.stringify "limitations"):
+```json
+{
+  "value": {
+    [Op.like]: "%foo%"
+  }
+}
+```
+
 
 
 [npm-image]: https://img.shields.io/npm/v/@sphericalelephant/exseq.svg
