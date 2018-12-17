@@ -300,6 +300,16 @@ module.exports = (models) => {
         });
     });
 
+    router.get('/count', auth('READ'), async (req, res, next) => {
+      const attachReply = _attachReply.bind(null, req, res, next);
+      const handleError = _handleError.bind(null, next);
+      try {
+        return attachReply(200, await model.count(), `Count for ${model.name} obtained!`);
+      } catch (err) {
+        return handleError(err);
+      }
+    });
+
     router.get('/', auth('READ'), async (req, res, next) => {
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
@@ -330,11 +340,15 @@ module.exports = (models) => {
     });
 
     router.get('/:id', auth('READ'), (req, res, next) => {
+      const id = req.params.id;
+      if (id === 'count') {
+        return next();
+      }
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
 
       const attributes = req.query.a ? req.query.a.split('|') : undefined;
-      model.findOne({where: {id: req.params.id}, attributes}).then(modelInstance => {
+      model.findOne({where: {id}, attributes}).then(modelInstance => {
         if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
         return attachReply(200, modelInstance);
       }).catch(err => {

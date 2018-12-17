@@ -643,6 +643,14 @@ describe('index.js', () => {
           expect(response.body.result[2].id).to.equal(20);
         });
     });
+    it('should return the number of entities', () => {
+      return request(app)
+        .get('/TestModel/count')
+        .expect(200)
+        .then(response => {
+          expect(response.body.result).to.equal(50);
+        });
+    });
   });
   describe('/model/:id GET', () => {
     it('should return an item by id.', () => {
