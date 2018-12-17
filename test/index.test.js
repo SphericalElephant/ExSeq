@@ -529,6 +529,7 @@ describe('index.js', () => {
         .send({s: {value1: 'test1'}})
         .expect(200)
         .then(response => {
+          expect(response.header['x-total-count']).to.equal('1');
           expect(response.body.result.length).to.equal(1);
           expect(response.body.result[0].value1).to.deep.equal('test1');
         });
@@ -539,6 +540,7 @@ describe('index.js', () => {
         .send({s: {value1: {'$like': 'test%'}}})
         .expect(200)
         .then(response => {
+          expect(response.header['x-total-count']).to.equal('49');
           expect(response.body.result.length).to.equal(10);
         });
     });
@@ -546,7 +548,10 @@ describe('index.js', () => {
       return request(app)
         .post('/TestModel/search')
         .send({s: {value1: 'asdasdasdasd'}})
-        .expect(204);
+        .expect(204)
+        .then(response => {
+          expect(response.header['x-total-count']).to.equal('0');
+        });
     });
   });
 

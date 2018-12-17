@@ -329,6 +329,8 @@ module.exports = (models) => {
         const query = await _createQuery(req, 'body');
         const searchQuery = await _attachSearchToQuery(req, 'body', query);
         const results = await model.findAll(searchQuery);
+
+        res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {})));
         if (results.length === 0) {
           return attachReply(204);
         } else {
