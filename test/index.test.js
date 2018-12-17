@@ -1,6 +1,7 @@
 'use strict';
 /* eslint-env node, mocha */
 /* eslint no-unused-expressions: "off" */
+/* eslint max-len: ["error", { code: 140, "ignoreTemplateLiterals": true }] */
 
 const request = require('supertest');
 const expect = require('chai').expect;
@@ -120,7 +121,6 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
