@@ -121,6 +121,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
+      //console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -1131,6 +1132,7 @@ describe('index.js', () => {
               .send({s: {name: manyRelation.searchFor}})
               .expect(200)
               .then(response => {
+                expect(response.header['x-total-count']).to.equal('1');
                 expect(response.body.result).to.have.lengthOf(1);
                 expect(response.body.result[0].name).to.equal(manyRelation.searchFor);
               });
@@ -1146,19 +1148,24 @@ describe('index.js', () => {
               })
               .expect(200)
               .then(response => {
+                expect(response.header['x-total-count']).to.equal('3');
                 expect(response.body.result).to.have.lengthOf(3);
               });
           });
           it('should return 204 if no child has been found.', () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({s: {name: 'testing search'}})
-              .expect(204);
+              .expect(204)
+              .then(response => {
+                expect(response.header['x-total-count']).to.equal('0');
+              });
           });
           it('should respect other query parameters such as "a".', () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({s: {name: manyRelation.searchFor}, a: 'name'})
               .expect(200)
               .then(response => {
+                expect(response.header['x-total-count']).to.equal('1');
                 expect(response.body.result).have.lengthOf(1);
                 expect(response.body.result[0]).to.deep.equals({name: manyRelation.searchFor});
               });

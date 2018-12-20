@@ -247,14 +247,28 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   if (association.associationType === 'BelongsToMany') {
     const source = await model.findById(sourceId, {include});
     const targets = await source[association.accessors.get](opts);
-    return targets.map(t => {
+    return [opts, targets.map(t => {
       const model = association.options.through.model;
       const result = t.get({plain: true});
       delete result[model.name || model];
       return result;
-    });
+    })];
   } else if (association.associationType === 'HasMany') {
-    return await model.findAll(opts);
+    return [opts, await model.findAll(opts)];
+  }
+};
+
+const _countAssociations = async (association, query) => {
+  if (association.associationType === 'HasMany') {
+    return await association.target.count({
+      where: query.where
+    });
+  } else if (association.associationType === 'BelongsToMany') {
+    return await association.source.count({
+      include: [{model: association.target, as: association.options.as.plural, where: query.where}]
+    });
+  } else {
+    throw new Error('Unsupported!');
   }
 };
 
@@ -461,13 +475,15 @@ module.exports = (models) => {
           router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
             return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
           }));
+
           router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             try {
               const query = await _createQuery(req, 'body');
               const searchQuery = await _attachSearchToQuery(req, 'body', query);
-              const results = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
+              const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
+              res.set('X-Total-Count', await _countAssociations(association, searchOptions));
               if (results.length === 0) {
                 return attachReply(204);
               } else {
