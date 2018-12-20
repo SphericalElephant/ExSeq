@@ -54,6 +54,7 @@ const _fillMissingUpdateableAttributes = _exseq.__get__('_fillMissingUpdateableA
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
+const _getAssociationByModel = _exseq.__get__('_getAssociationByModel');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 const unauthorizedError = new Error();
@@ -407,6 +408,15 @@ describe('index.js', () => {
           });
         });
       });
+    });
+  });
+
+  describe('_getAssociationByModel', () => {
+    it('should be able to handle normal plurals', () => {
+      expect(_getAssociationByModel(TestModel4, TestModel5)).to.equal(testModel4Testmodel5Association);
+    });
+    it('should be able to handle irregular plurals', () => {
+      expect(_getAssociationByModel(AliasParent, AliasChild)).to.equal(aliasParentAliasChildAssociation);
     });
   });
 

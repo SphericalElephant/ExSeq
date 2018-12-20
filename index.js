@@ -72,7 +72,14 @@ const _getAssociationByName = (model, name) => {
 };
 
 const _getAssociationByModel = (model, associatedModel) => {
-  return model.associations[`${associatedModel.name}s`] || model.associations[associatedModel.name];
+  const keys = Object.keys(model.associations);
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (model.associations[k].target === associatedModel) {
+      return model.associations[k];
+    }
+  }
+  throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
 };
 
 const _getRouterForModel = (routingInformation, model) => {
@@ -200,7 +207,6 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
   if (_.get(opts, 'authorizeWith.options.useParentForAuthorization', undefined)) {
     if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
     const association = _getAssociationByModel(model, associatedModel);
-    if (!association) throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
     if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
       throw new Error(
         `${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`
