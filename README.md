@@ -171,6 +171,7 @@ The label of the first segment of the route is determined by ```source.name``` o
 | Method |        Relation         |            Route             |   Permission   |                           Description                           |
 | :----: | :---------------------: | :--------------------------: | :------------: | :-------------------------------------------------------------: |
 |  GET   |           N/A           |           /source            |      READ      |                Obtain all instances of *source*                 |
+|  GET   |           N/A           |        /source/count         |      READ      |           Obtains the count of all *source* entities.           |
 |  POST  |           N/A           |           /source            |     CREATE     |                 Create a new *source* instance                  |
 |  POST  |           N/A           |        /source/search        |     SEARCH     |                    Search the *source* table                    |
 |  GET   |           N/A           |         /source/:id          |      READ      |             Obtain the specified *source* instance              |
@@ -184,11 +185,19 @@ The label of the first segment of the route is determined by ```source.name``` o
 | DELETE |   HasOne / BelongsTo    |      /source/:id/target      |     DELETE     |                     Remove the association                      |
 |  GET   | HasMany / BelongsToMany |      /source/:id/target      |      READ      |      Obtains an array of all associated *target* instances      |
 |  GET   | HasMany / BelongsToMany | /source/:id/target/:targetId |      READ      |               Obtains a single *target* instance                |
+|  GET   | HasMany / BelongsToMany |   /source/:id/target/count   |      READ      |           Obtains the count of all *target* entities            |
 |  POST  | HasMany / BelongsToMany |      /source/:id/target      |     CREATE     |         Creates and associates a new *target* instance          |
 |  POST  | HasMany / BelongsToMany |  /source/:id/target/search   |     SEARCH     | Search items in the *target* table that are related to *source* |
 |  PUT   | HasMany / BelongsToMany | /source/:id/target/:targetId |     UPDATE     |          Replaces all values of the *target* instance           |
 | PATCH  | HasMany / BelongsToMany | /source/:id/target/:targetId | UPDATE_PARTIAL |        Replaces selected values of the *target* instance        |
 | DELETE | HasMany / BelongsToMany | /source/:id/target/:targetId |     DELETE     |             Deletes the specified *target* instance             |
+
+### Respose Headers
+
+|           Route           |        Relation         |    Header     |                          Info                          |
+| :-----------------------: | :---------------------: | :-----------: | :----------------------------------------------------: |
+|      /source/search       | HasMany / BelongsToMany | X-Total-Count | Contains the count of all results for the search query |
+| /source/:id/target/search | HasMany / BelongsToMany | X-Total-Count | Contains the count of all results for the search query |
 
 ### GET / POST Parameters
 
