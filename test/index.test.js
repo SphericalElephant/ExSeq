@@ -121,7 +121,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      //console.log(err)
+      // console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -1004,6 +1004,16 @@ describe('index.js', () => {
                     }
                   ]
                 );
+              });
+          });
+        });
+        describe(`/model/:id/${manyRelation.association.associationType}/count GET`, () => {
+          it(`should return the ${manyRelation.association.associationType} relations count of the requested resource.`, () => {
+            return request(app)
+              .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/count`)
+              .expect(200)
+              .then(response => {
+                expect(response.body.result).to.equal(3);
               });
           });
         });

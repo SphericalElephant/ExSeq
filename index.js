@@ -259,13 +259,16 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
 };
 
 const _countAssociations = async (association, query) => {
+  const where = query ? query.where : null;
   if (association.associationType === 'HasMany') {
-    return await association.target.count({
-      where: query.where
-    });
+    return await association.target.count({where});
   } else if (association.associationType === 'BelongsToMany') {
+    const includeOpts = {model: association.target, where};
+    if (association.options.as) {
+      includeOpts.as = association.options.as.plural;
+    }
     return await association.source.count({
-      include: [{model: association.target, as: association.options.as.plural, where: query.where}]
+      include: [includeOpts]
     });
   } else {
     throw new Error('Unsupported!');
@@ -475,7 +478,15 @@ module.exports = (models) => {
           router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
             return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
           }));
-
+          router.get(`/:id/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
+            const attachReply = _attachReply.bind(null, req, res, next);
+            const handleError = _handleError.bind(null, next);
+            try {
+              return attachReply(200, await _countAssociations(association), `Count for ${model.name} obtained!`);
+            } catch (err) {
+              return handleError(err);
+            }
+          });
           router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
@@ -494,6 +505,9 @@ module.exports = (models) => {
             }
           });
           router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
+            if (req.params.targetId === 'count') {
+              return next();
+            }
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
             source.findById(req.params.id).then(sourceInstance => {
