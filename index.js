@@ -8,8 +8,21 @@ String.prototype.capitalize = function () {
   return this.charAt(0).toUpperCase() + this.slice(1);
 };
 
-const _attachReply = (req, res, next, status, result, message) => {
+const _createError = (status, errInput) => {
+  const err = errInput instanceof Error ? errInput : new Error(errInput);
+  err.success = false;
+  err.status = status;
+  err.result = !(errInput instanceof Error) ? errInput : null;
+  err.isCreatedError = true;
+  return err;
+};
+
+const _createReply = (res, req, next, status, result, message) => {
   res.__payload = {status, result, message};
+};
+
+const _attachReply = (req, res, next, status, result, message) => {
+  _createReply(res, req, next, status, result, message);
   next();
   return Promise.resolve();
 };
@@ -25,15 +38,6 @@ const _handleError = (next, err) => {
 
 const _createErrorPromise = (status, errInput) => {
   return Promise.reject(_createError(status, errInput));
-};
-
-const _createError = (status, errInput) => {
-  const err = errInput instanceof Error ? errInput : new Error(errInput);
-  err.success = false;
-  err.status = status;
-  err.result = !(errInput instanceof Error) ? errInput : null;
-  err.isCreatedError = true;
-  return err;
 };
 
 const _formatValidationError = (err) => {
