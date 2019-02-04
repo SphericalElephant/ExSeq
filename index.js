@@ -86,39 +86,40 @@ const _getRouterForModel = (routingInformation, model) => {
   return (_.find(routingInformation, (i) => i.model.model.name === model.name) || {router: null}).router;
 };
 
-const _update = (model, req, res, next, id, createInput) => {
+const _update = async (model, req, res, next, id, createInput) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
 
   const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
-  model.update(createInput(req.body), {where: {id}, fields: attributes}).spread((affectedCount, affectedRows) => {
-    if (affectedCount === 0) return _createErrorPromise(404);
+  try {
+    const instance = await model.findById(id);
+    if (!instance) await _createErrorPromise(404);
+    await instance.update(createInput(req.body), {fields: attributes});
     return attachReply(204);
-  }).catch(err => {
+  } catch (err) {
     return handleError(err);
-  });
+  }
 };
 
-const _updateRelation = (source, target, association, req, res, next, id, targetId, prepareBody) => {
+const _updateRelation = async (source, target, association, req, res, next, id, targetId, prepareBody) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
-  source.findById(id).then(sourceInstance => {
+  try {
+    const sourceInstance = await source.findById(id);
     const update = _update.bind(null, target);
     if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
     const query =
       association.associationType === 'HasOne' || association.associationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
-    return sourceInstance[association.accessors.get](query).then(targetInstance => {
-      if (!targetInstance)
-        return _createErrorPromise(404, 'target not found.');
-      if (targetInstance instanceof Array) // "many" relationsship
-        targetInstance = targetInstance[0];
-      update(req, res, next, targetInstance.get({plain: true}).id, (body) => {
-        return prepareBody(body);
-      });
+    let targetInstance = await sourceInstance[association.accessors.get](query);
+    if (!targetInstance) await _createErrorPromise(404, 'target not found.');
+    if (targetInstance instanceof Array) // "many" relationsship
+      targetInstance = targetInstance[0];
+    await update(req, res, next, targetInstance.get({plain: true}).id, (body) => {
+      return prepareBody(body);
     });
-  }).catch(err => {
-    return handleError(err);
-  });
+  } catch (err) {
+    handleError(err);
+  }
 };
 
 const _obtainExcludeRule = (excludeRules, method, targetName, all) => {
@@ -381,14 +382,14 @@ module.exports = (models) => {
       });
     });
 
-    router.put('/:id', auth('UPDATE'), (req, res, next) => {
-      update(req, res, next, req.params.id, (body) => {
+    router.put('/:id', auth('UPDATE'), async (req, res, next) => {
+      await update(req, res, next, req.params.id, (body) => {
         return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
       });
     });
 
-    router.patch('/:id', auth('UPDATE_PARTIAL'), (req, res, next) => {
-      update(req, res, next, req.params.id, (body) => {
+    router.patch('/:id', auth('UPDATE_PARTIAL'), async (req, res, next) => {
+      await update(req, res, next, req.params.id, (body) => {
         return removeIllegalAttributes(body);
       });
     });
@@ -465,13 +466,13 @@ module.exports = (models) => {
               return handleError(err);
             });
           });
-          router.put(`/:id/${targetRoute}`, auth('UPDATE'), (req, res, next) => {
-            _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+          router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
+            await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
               return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
             });
           });
-          router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
-            _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+          router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
+            await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
               return removeIllegalTargetAttributes(body);
             });
           });
