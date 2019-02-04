@@ -394,16 +394,17 @@ module.exports = (models) => {
       });
     });
 
-    router.delete('/:id', auth('DELETE'), (req, res, next) => {
+    router.delete('/:id', auth('DELETE'), async (req, res, next) => {
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
-
-      model.destroy({where: {id: req.params.id}}).then(affectedRows => {
-        if (affectedRows === 0) return _createErrorPromise(404);
+      try {
+        const instance = await model.findById(req.params.id);
+        if (!instance) await _createErrorPromise(404);
+        await instance.destroy();
         return attachReply(204);
-      }).catch(err => {
+      } catch (err) {
         return handleError(err);
-      });
+      }
     });
 
     getAssociatedModelNames(model).forEach(associationName => {

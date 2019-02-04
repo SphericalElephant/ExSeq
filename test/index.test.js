@@ -122,7 +122,6 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      // console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
