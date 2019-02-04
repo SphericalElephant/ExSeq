@@ -4,6 +4,45 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 
+class ModelAssociationMap {
+  constructor(models) {
+    this.modelAssociationMap = {};
+    this._initialize(models);
+  }
+  _initialize(models) {
+    this.modelAssociationMap = {};
+    for (const model of models) {
+      if (model.associations) {
+        for (const association of Object.values(model.associations)) {
+          const sk = association.source.name;
+          const tk = association.target.name;
+          if (!this.modelAssociationMap[sk]) this.modelAssociationMap[sk] = [];
+          if (!this.modelAssociationMap[tk]) this.modelAssociationMap[tk] = [];
+          if (this.modelAssociationMap[sk].indexOf(association) === -1)
+            this.modelAssociationMap[sk].push(association);
+          if (this.modelAssociationMap[tk].indexOf(association) === -1)
+            this.modelAssociationMap[tk].push(association);
+        }
+      }
+    }
+  }
+  /**
+   * Gets a list of relations of model that leave have the foreign key in model
+   * @param {Model} model
+   */
+  getForeignKeyRelations(model) {
+    return this.modelAssociationMap[model.name].filter(association =>
+      ((association.associationType === 'HasOne' || association.associationType === 'HasMany') && model === association.target) ||
+      ((association.associationType === 'BelongsTo' || association.associationType === 'BelongsToMany') && model === association.source));
+  }
+  getForeignKeys(model) {
+    return this.getForeignKeyRelations(model).map(association => {
+
+    });
+    //console.log(require('util').inspect(this.getForeignKeyRelations(model), {customInspect: false}));
+  }
+}
+
 String.prototype.capitalize = function () {
   return this.charAt(0).toUpperCase() + this.slice(1);
 };
@@ -300,7 +339,9 @@ module.exports = (models) => {
       router
     });
   });
-  // second pass, create routes for models
+  // second pass, create a bidirectional lookup table
+  const associationLookupTable = new ModelAssociationMap(models);
+  // thrid pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
     const model = routing.model.model;

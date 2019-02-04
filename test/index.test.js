@@ -9,7 +9,6 @@ const Promise = require('bluebird');
 const rewire = require('rewire');
 
 const database = require('./database');
-const Op = database.Sequelize.Op;
 const testModel = require('./model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
 const valueString = require('./model/name-string');
@@ -50,6 +49,7 @@ const exseq = require('../index');
 
 const _getUpdateableAttributes = _exseq.__get__('_getUpdateableAttributes');
 const _removeIllegalAttributes = _exseq.__get__('_removeIllegalAttributes');
+const _ModelAssociationMap = _exseq.__get__('ModelAssociationMap');
 const _fillMissingUpdateableAttributes = _exseq.__get__('_fillMissingUpdateableAttributes');
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
@@ -438,6 +438,29 @@ describe('index.js', () => {
     it('should retain legal arguments.', () => {
       expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
         .to.deep.equal({value1: 'should stay'});
+    });
+  });
+
+  describe('_getForeignKeyAttributes', () => {
+    const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {});
+    const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {});
+    const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
+    const AllRelationsTarget2 = database.sequelize.define('AllRelationsTarget2', {});
+    const r1 = AllRelationsSource1.hasOne(AllRelationsTarget1);
+    const r2 = AllRelationsSource1.hasMany(AllRelationsTarget1);
+    const r3 = AllRelationsSource2.belongsTo(AllRelationsTarget2);
+    const r4 = AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
+
+    const map = new _ModelAssociationMap([AllRelationsSource1, AllRelationsSource2, AllRelationsTarget1, AllRelationsTarget2]);
+
+    it('should obtain the correct foreignkey relationsships', () => {
+      expect(map.getForeignKeyRelations(AllRelationsSource1)).to.have.lengthOf(0);
+      expect(map.getForeignKeyRelations(AllRelationsTarget2)).to.have.lengthOf(0);
+      expect(map.getForeignKeyRelations(AllRelationsSource2)).to.deep.equal([r3, r4]);
+      expect(map.getForeignKeyRelations(AllRelationsTarget1)).to.deep.equal([r1, r2]);
+    });
+    it('should obtain the correct foreign keys for foreignkey relationships', () => {
+      map.getForeignKeys(AllRelationsTarget1)
     });
   });
 
