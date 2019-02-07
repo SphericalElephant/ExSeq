@@ -86,7 +86,6 @@ const _formatValidationError = (err) => {
 
 const _getUpdateableAttributes = (model) => {
   return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
-    //.filter(attribute => model.attributes[attribute].references)
     .map(attribute => {
       const allowNull = model.attributes[attribute].allowNull;
       return {attribute, allowNull: allowNull === undefined || allowNull === true};
@@ -107,12 +106,18 @@ const _removeIllegalAttributes = (model, input) => {
   return _.pick(input, _getUpdateableAttributes(model).map(attr => attr.attribute));
 };
 
-const _fillMissingUpdateableAttributes = (model, input) => {
-  return _getUpdateableAttributes(model).reduce((result, current) => {
+const _fillMissingUpdateableAttributes = (model, association, source, input) => {
+  const result = _getUpdateableAttributes(model).reduce((result, current) => {
     if (input[current.attribute] !== undefined) result[current.attribute] = input[current.attribute];
     else result[current.attribute] = null;
     return result;
   }, {});
+  // foreign key is required and not inside the body. will only trigger if this is a relation
+  if (association && (association.associationType === 'HasOne' || association.associationType === 'HasMany') &&
+    !result[association.foreignKey]) {
+    result[association.foreignKey] = source.id;
+  }
+  return result;
 };
 
 const _getAssociatedModelNames = model => {
@@ -166,9 +171,7 @@ const _updateRelation = async (source, target, association, req, res, next, id, 
     if (!targetInstance) await _createErrorPromise(404, 'target not found.');
     if (targetInstance instanceof Array) // "many" relationsship
       targetInstance = targetInstance[0];
-    await update(req, res, next, targetInstance.get({plain: true}).id, (body) => {
-      return prepareBody(body);
-    });
+    await update(req, res, next, targetInstance.get({plain: true}).id, prepareBody);
   } catch (err) {
     handleError(err);
   }
@@ -352,14 +355,12 @@ module.exports = (models) => {
       router
     });
   });
-  // second pass, create a bidirectional lookup table
-  const associationLookupTable = new ModelAssociationMap(models);
-  // thrid pass, create routes for models
+  // second pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
     const model = routing.model.model;
     const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
-    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
+    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model, null, null);
     const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
     const update = _update.bind(null, model);
     const filterReferenceAttributesFromModelInstance = _filterReferenceAttributesFromModelInstance.bind(null, model);
@@ -468,7 +469,7 @@ module.exports = (models) => {
       const source = association.source;
       const targetRoute = association.options.name.singular;
       const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
-      const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target);
+      const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target, association, source);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
 
       const unlinkRelations = (req, res, next, setterFunctionName) => {
@@ -477,7 +478,7 @@ module.exports = (models) => {
 
         source.findById(req.params.id).then(sourceInstance => {
           if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-          return sourceInstance[setterFunctionName](null).then(sourceInstance => {
+          return sourceInstance[setterFunctionName](null).then(_ => {
             return attachReply(204);
           });
         }).catch(err => {
@@ -499,6 +500,11 @@ module.exports = (models) => {
           });
         };
       };
+      // TODO: we need to prevent POST / PUT and PATCH requests that attempt to change the FK of either the source
+      // (HasOne or HasMany) or the target (BelongsTo or BelongsToMany). currently callers are able to
+      // modify the owning entity by passing the FK of the owning entity in the body. This makes it hard to implement
+      // access restrictions because the middleware would have to check the path as well as the body for information
+      // all the time. Please also make sure to document the behavior in the readme once this todo has been done.
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':

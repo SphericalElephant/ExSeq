@@ -49,7 +49,6 @@ const r1 = AllRelationsSource1.hasOne(AllRelationsTarget1);
 const r2 = AllRelationsSource1.hasMany(AllRelationsTarget1);
 const r3 = AllRelationsSource2.belongsTo(AllRelationsTarget2);
 const r4 = AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
-
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -522,14 +521,14 @@ describe('index.js', () => {
 
   describe('_fillMissingUpdateableAttributes', () => {
     it('should fill up missing model members with null.', () => {
-      expect(_fillMissingUpdateableAttributes(TestModel, {})).to.deep.equal({
+      expect(_fillMissingUpdateableAttributes(TestModel, null, null, {})).to.deep.equal({
         value1: null,
         value2: null,
         value3: null
       });
     });
     it('should not overwrite existing members.', () => {
-      expect(_fillMissingUpdateableAttributes(TestModel, {value1: 'test'})).to.deep.equal({
+      expect(_fillMissingUpdateableAttributes(TestModel, null, null, {value1: 'test'})).to.deep.equal({
         value1: 'test',
         value2: null,
         value3: null
