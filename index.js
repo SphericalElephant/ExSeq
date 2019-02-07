@@ -27,7 +27,7 @@ class ModelAssociationMap {
     }
   }
   /**
-   * Gets a list of relations of model that leave have the foreign key in model
+   * Gets a list of relations of model that leave a foreign key in model.
    * @param {Model} model
    */
   getForeignKeyRelations(model) {
@@ -35,11 +35,14 @@ class ModelAssociationMap {
       ((association.associationType === 'HasOne' || association.associationType === 'HasMany') && model === association.target) ||
       ((association.associationType === 'BelongsTo' || association.associationType === 'BelongsToMany') && model === association.source));
   }
+  /**
+   * Gets a list of foreign keys of relations that are stored in model
+   * @param {Model} model
+   */
   getForeignKeys(model) {
     return this.getForeignKeyRelations(model).map(association => {
-
+      return association.foreignKey;
     });
-    //console.log(require('util').inspect(this.getForeignKeyRelations(model), {customInspect: false}));
   }
 }
 
@@ -83,11 +86,20 @@ const _formatValidationError = (err) => {
 
 const _getUpdateableAttributes = (model) => {
   return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
-    .filter(attribute => !model.attributes[attribute].references)
     .map(attribute => {
       const allowNull = model.attributes[attribute].allowNull;
       return {attribute, allowNull: allowNull === undefined || allowNull === true};
     });
+};
+
+const _getReferenceAttributes = model => {
+  return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
+    .filter(attribute => model.attributes[attribute].references);
+};
+
+const _filterReferenceAttributesFromModelInstance = (model, input) => {
+  const referenceAttributes = _getReferenceAttributes(model);
+  return _.omit(input, referenceAttributes);
 };
 
 const _removeIllegalAttributes = (model, input) => {
@@ -349,6 +361,7 @@ module.exports = (models) => {
     const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model);
     const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
     const update = _update.bind(null, model);
+    const filterReferenceAttributesFromModelInstance = _filterReferenceAttributesFromModelInstance.bind(null, model);
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
     router.post('/', auth('CREATE'), (req, res, next) => {
@@ -359,7 +372,7 @@ module.exports = (models) => {
       model
         .create(input)
         .then(modelInstance => {
-          return attachReply(201, modelInstance.get({plain: true}));
+          return attachReply(201, filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
         }).catch(err => {
           return handleError(err);
         });

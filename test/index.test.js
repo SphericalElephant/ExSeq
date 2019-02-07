@@ -41,6 +41,15 @@ const AliasParentBelongsToMany = valueString('AliasParentBelongsToMany', databas
 const AliasChildBelongsToMany = nameStringValueString('AliasChildBelongsToMany', database.sequelize, database.Sequelize);
 const aliasParentBelongsToManyAliasChildBelongsToManyAssociation = AliasParentBelongsToMany.belongsToMany(AliasChildBelongsToMany,
   {through: 'AliasBelongsToMany', as: {singular: 'Child', plural: 'Children'}});
+const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {});
+const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {name: database.Sequelize.STRING});
+const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
+const AllRelationsTarget2 = database.sequelize.define('AllRelationsTarget2', {});
+const r1 = AllRelationsSource1.hasOne(AllRelationsTarget1);
+const r2 = AllRelationsSource1.hasMany(AllRelationsTarget1);
+const r3 = AllRelationsSource2.belongsTo(AllRelationsTarget2);
+const r4 = AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
+
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -106,7 +115,9 @@ describe('index.js', () => {
       {model: AliasParent, opts: {}},
       {model: AliasChild, opts: {}},
       {model: AliasParentBelongsToMany, opts: {}},
-      {model: AliasChildBelongsToMany, opts: {}}
+      {model: AliasChildBelongsToMany, opts: {}},
+      {model: AllRelationsSource1, opts: {}},
+      {model: AllRelationsTarget1, opts: {}}
     ]).forEach((routing) => {
       app.use(routing.route, routing.router);
     });
@@ -442,25 +453,19 @@ describe('index.js', () => {
   });
 
   describe('_getForeignKeyAttributes', () => {
-    const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {});
-    const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {});
-    const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
-    const AllRelationsTarget2 = database.sequelize.define('AllRelationsTarget2', {});
-    const r1 = AllRelationsSource1.hasOne(AllRelationsTarget1);
-    const r2 = AllRelationsSource1.hasMany(AllRelationsTarget1);
-    const r3 = AllRelationsSource2.belongsTo(AllRelationsTarget2);
-    const r4 = AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
-
     const map = new _ModelAssociationMap([AllRelationsSource1, AllRelationsSource2, AllRelationsTarget1, AllRelationsTarget2]);
 
     it('should obtain the correct foreignkey relationsships', () => {
       expect(map.getForeignKeyRelations(AllRelationsSource1)).to.have.lengthOf(0);
-      expect(map.getForeignKeyRelations(AllRelationsTarget2)).to.have.lengthOf(0);
-      expect(map.getForeignKeyRelations(AllRelationsSource2)).to.deep.equal([r3, r4]);
       expect(map.getForeignKeyRelations(AllRelationsTarget1)).to.deep.equal([r1, r2]);
+      expect(map.getForeignKeyRelations(AllRelationsSource2)).to.deep.equal([r3, r4]);
+      expect(map.getForeignKeyRelations(AllRelationsTarget2)).to.have.lengthOf(0);
     });
     it('should obtain the correct foreign keys for foreignkey relationships', () => {
-      map.getForeignKeys(AllRelationsTarget1)
+      expect(map.getForeignKeys(AllRelationsSource1)).to.be.lengthOf(0);
+      expect(map.getForeignKeys(AllRelationsTarget1)).to.deep.equal(['AllRelationsSource1Id', 'AllRelationsSource1Id']);
+      expect(map.getForeignKeys(AllRelationsSource2)).to.deep.equal(['AllRelationsTarget2Id', 'AllRelationsSource2Id']);
+      expect(map.getForeignKeys(AllRelationsTarget2)).to.be.lengthOf(0);
     });
   });
 
@@ -552,6 +557,18 @@ describe('index.js', () => {
         .then(response => {
           expect(response.body.message).to.deep.equal([{type: 'Validation error', path: 'value2', value: 101}]);
         });
+    });
+
+    it('should allow the creation of an instance and linking it to its owner (association) via the foreignkey in the request body', async () => {
+      const owner = await AllRelationsSource1.create({});
+      const response = await request(app)
+        .post('/AllRelationsTarget1')
+        .send({AllRelationsSource1Id: owner.id, name: 'assoc by fk test!'})
+        .expect(201);
+      const owned = await owner.getAllRelationsTarget1();
+      console.log(response.body.result)
+      expect(owned.name).to.equal('assoc by fk test!');
+      expect(owned.AllRelationsSource1Id).to.equal(1);
     });
   });
 
