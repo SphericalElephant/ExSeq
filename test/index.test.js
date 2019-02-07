@@ -559,17 +559,17 @@ describe('index.js', () => {
         });
     });
 
-    it('should allow the creation of an instance and linking it to its owner (association) via the foreignkey in the request body', async () => {
-      const owner = await AllRelationsSource1.create({});
-      const response = await request(app)
-        .post('/AllRelationsTarget1')
-        .send({AllRelationsSource1Id: owner.id, name: 'assoc by fk test!'})
-        .expect(201);
-      const owned = await owner.getAllRelationsTarget1();
-      console.log(response.body.result)
-      expect(owned.name).to.equal('assoc by fk test!');
-      expect(owned.AllRelationsSource1Id).to.equal(1);
-    });
+    it('should allow the creation of an instance and linking it to its owner (association) via the foreignkey in the request body',
+      async () => {
+        const owner = await AllRelationsSource1.create({});
+        const response = await request(app)
+          .post('/AllRelationsTarget1')
+          .send({AllRelationsSource1Id: owner.id, name: 'assoc by fk test!'})
+          .expect(201);
+        const owned = await owner.getAllRelationsTarget1();
+        expect(owned.name).to.equal('assoc by fk test!');
+        expect(owned.AllRelationsSource1Id).to.equal(1);
+      });
   });
 
   describe('/model/search POST', async () => {
@@ -770,6 +770,20 @@ describe('index.js', () => {
         .send({value3: 'changed'})
         .expect(404);
     });
+    it('should allow updating of an instance and linking it to an owner (association) via the foreignkey in the request body',
+      async () => {
+        const owner = await AllRelationsSource1.create({});
+        const owner2 = await AllRelationsSource1.create({});
+        const owned = await AllRelationsTarget1.create({AllRelationsSource1Id: owner.id, name: 'assoc by fk test!'});
+        await request(app)
+          .put(`/AllRelationsTarget1/${owned.id}`)
+          .send({AllRelationsSource1Id: owner2.id, name: 'updated: assoc by fk test!'})
+          .expect(204);
+        const changedOwned = await owner2.getAllRelationsTarget1();
+        expect(changedOwned).not.to.be.null;
+        expect(changedOwned.name).to.equal('updated: assoc by fk test!');
+        expect(changedOwned.AllRelationsSource1Id).to.equal(2);
+      });
   });
   describe('/model/:id PATCH', () => {
     it('should update invididual attributes of a record.', () => {

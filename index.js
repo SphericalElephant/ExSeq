@@ -86,6 +86,7 @@ const _formatValidationError = (err) => {
 
 const _getUpdateableAttributes = (model) => {
   return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
+    //.filter(attribute => model.attributes[attribute].references)
     .map(attribute => {
       const allowNull = model.attributes[attribute].allowNull;
       return {attribute, allowNull: allowNull === undefined || allowNull === true};
