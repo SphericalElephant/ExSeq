@@ -505,6 +505,9 @@ module.exports = (models) => {
       // modify the owning entity by passing the FK of the owning entity in the body. This makes it hard to implement
       // access restrictions because the middleware would have to check the path as well as the body for information
       // all the time. Please also make sure to document the behavior in the readme once this todo has been done.
+      //
+      // Create a middleware that attaches a list: [{model: MODEL, primaryKey: FK},...], that contains the FK and the
+      // model of the relation to be altered, so that the authorization middleware is easier to write.
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
