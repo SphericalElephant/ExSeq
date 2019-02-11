@@ -54,10 +54,33 @@ const app = express();
 const bodyParser = require('body-parser');
 const _exseq = rewire('../index.js');
 const exseq = require('../index');
+const modelExtension = require('../lib/model');
 
-const _getUpdateableAttributes = _exseq.__get__('_getUpdateableAttributes');
+[
+  TestModel,
+  TestModel2,
+  TestModel3,
+  TestModel4,
+  TestModel5,
+  TestModel6,
+  TestModel7,
+  TestModel8,
+  AuthorizationAssocChild,
+  AuthorizationAssocParent,
+  AuthorizationAssocParent2,
+  lowerCaseModel,
+  anotherLowercaseModel,
+  AliasParent,
+  AliasChild,
+  AliasParentBelongsToMany,
+  AliasChildBelongsToMany,
+  AllRelationsSource1,
+  AllRelationsTarget1,
+  AllRelationsSource2,
+  AllRelationsTarget2
+].forEach(modelExtension);
+
 const _removeIllegalAttributes = _exseq.__get__('_removeIllegalAttributes');
-const _ModelAssociationMap = _exseq.__get__('ModelAssociationMap');
 const _fillMissingUpdateableAttributes = _exseq.__get__('_fillMissingUpdateableAttributes');
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
@@ -132,6 +155,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
+      console.log(err)
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -239,7 +263,7 @@ describe('index.js', () => {
         it('should allow setting a custom route name.', () => {
           expect(exseq([
             {
-              model: {name: 'DontUseThis'},
+              model: TestModel,
               opts: {route: 'UseThis'}
             }
           ])[0].route).to.equal('/UseThis');
@@ -247,10 +271,10 @@ describe('index.js', () => {
         it('should check if the custom route name has already been registered.', () => {
           expect(exseq.bind(null, [
             {
-              model: {name: 'UseThis'}
+              model: TestModel
             },
             {
-              model: {name: 'DontUseThis'},
+              model: TestModel,
               opts: {route: 'UseThis'}
             }
           ])).to.throw('already registered');
@@ -430,14 +454,18 @@ describe('index.js', () => {
   });
 
   describe('_getUpdateableAttributes', () => {
+    const M1 = database.sequelize.define('M1', {x: {allowNull: false, type: database.Sequelize.STRING}});
+    const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
+    M1.hasMany(M2);
+    modelExtension(M1);
+    modelExtension(M2);
     it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
-      expect(_getUpdateableAttributes(TestModel)).to.deep.equal([
-        {attribute: 'value1', allowNull: true},
-        {attribute: 'value2', allowNull: true},
-        {attribute: 'value3', allowNull: false}]);
+      expect(M1.exseqGetUpdateableAttributes()).to.deep.equal([
+        {attribute: 'x', allowNull: true}
+      ]);
     });
-    it('should strip attributes that are relvant for relations', () => {
-      expect(_getUpdateableAttributes(TestModel3).TestModelId).to.not.exist;
+    it('should not strip attributes that are relevant for relations', () => {
+      expect(M2.exseqGetUpdateableAttributes().M1Id).to.exist;
     });
   });
 
@@ -448,23 +476,6 @@ describe('index.js', () => {
     it('should retain legal arguments.', () => {
       expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
         .to.deep.equal({value1: 'should stay'});
-    });
-  });
-
-  describe('_getForeignKeyAttributes', () => {
-    const map = new _ModelAssociationMap([AllRelationsSource1, AllRelationsSource2, AllRelationsTarget1, AllRelationsTarget2]);
-
-    it('should obtain the correct foreignkey relationsships', () => {
-      expect(map.getForeignKeyRelations(AllRelationsSource1)).to.have.lengthOf(0);
-      expect(map.getForeignKeyRelations(AllRelationsTarget1)).to.deep.equal([r1, r2]);
-      expect(map.getForeignKeyRelations(AllRelationsSource2)).to.deep.equal([r3, r4]);
-      expect(map.getForeignKeyRelations(AllRelationsTarget2)).to.have.lengthOf(0);
-    });
-    it('should obtain the correct foreign keys for foreignkey relationships', () => {
-      expect(map.getForeignKeys(AllRelationsSource1)).to.be.lengthOf(0);
-      expect(map.getForeignKeys(AllRelationsTarget1)).to.deep.equal(['AllRelationsSource1Id', 'AllRelationsSource1Id']);
-      expect(map.getForeignKeys(AllRelationsSource2)).to.deep.equal(['AllRelationsTarget2Id', 'AllRelationsSource2Id']);
-      expect(map.getForeignKeys(AllRelationsTarget2)).to.be.lengthOf(0);
     });
   });
 

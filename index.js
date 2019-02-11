@@ -3,6 +3,7 @@
 const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
+const modelExtension = require('./lib/model');
 
 require('./lib/string');
 
@@ -40,14 +41,6 @@ const _formatValidationError = (err) => {
   });
 };
 
-const _getUpdateableAttributes = (model) => {
-  return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
-    .map(attribute => {
-      const allowNull = model.attributes[attribute].allowNull;
-      return {attribute, allowNull: allowNull === undefined || allowNull === true};
-    });
-};
-
 const _getReferenceAttributes = model => {
   return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
     .filter(attribute => model.attributes[attribute].references);
@@ -59,11 +52,12 @@ const _filterReferenceAttributesFromModelInstance = (model, input) => {
 };
 
 const _removeIllegalAttributes = (model, input) => {
-  return _.pick(input, _getUpdateableAttributes(model).map(attr => attr.attribute));
+  console.log(new Error())
+  return _.pick(input, model.exseqGetUpdateableAttributes().map(attr => attr.attribute));
 };
 
 const _fillMissingUpdateableAttributes = (model, association, source, input) => {
-  const result = _getUpdateableAttributes(model).reduce((result, current) => {
+  const result = model.exseqGetUpdateableAttributes().reduce((result, current) => {
     if (input[current.attribute] !== undefined) result[current.attribute] = input[current.attribute];
     else result[current.attribute] = null;
     return result;
@@ -103,7 +97,7 @@ const _update = async (model, req, res, next, id, createInput) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
 
-  const attributes = _getUpdateableAttributes(model).map(attribute => attribute.attribute);
+  const attributes = model.exseqGetUpdateableAttributes().map(attribute => attribute.attribute);
   try {
     const instance = await model.findById(id);
     if (!instance) await _createErrorPromise(404);
@@ -301,6 +295,7 @@ module.exports = (models) => {
 
   // first pass, register all models
   models.forEach(model => {
+    modelExtension(model.model);
     model.opts = model.opts || {};
     if (_.find(routingInformation, (i) => i.model.model.name === (model.opts.route || model.model.name)))
       throw new Error(`model ${model.model.name} already registered`);
