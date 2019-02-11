@@ -16,10 +16,10 @@
     "url": "https://github.com/SphericalElephant/ExSeq.git"
   },
   "dependencies": {
-    "bluebird": "^3.5.0",
-    "express": "^4.15.3",
-    "lodash": "^4.17.4",
-    "sequelize": "^4.4.2"
+    "bluebird": "^3.5.3",
+    "express": "^4.16.4",
+    "lodash": "^4.17.11",
+    "sequelize": "^4.42.0"
   },
   "keywords": [
     "express",
@@ -33,15 +33,15 @@
     "node": ">=8.12"
   },
   "devDependencies": {
-    "body-parser": "^1.17.2",
-    "chai": "^4.1.0",
+    "body-parser": "^1.18.3",
+    "chai": "^4.2.0",
     "coveralls": "^3.0.2",
-    "eslint": "^5.9.0",
-    "eslint-config-loopback": "^12.1.0",
+    "eslint": "^5.13.0",
+    "eslint-config-loopback": "^13.0.0",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rewire": "^4.0.1",
-    "sqlite3": "^4.0.4",
-    "supertest": "^3.0.0"
+    "sqlite3": "^4.0.6",
+    "supertest": "^3.4.2"
   }
 }
