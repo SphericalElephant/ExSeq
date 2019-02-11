@@ -186,7 +186,7 @@ const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => 
 };
 
 const _createQuery = async (req, source = 'query') => {
-  let s = req[source];
+  const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
 
   const limit = s.i;
@@ -215,7 +215,7 @@ const _createQuery = async (req, source = 'query') => {
 };
 
 const _attachSearchToQuery = async (req, source = 'query', query) => {
-  let s = req[source];
+  const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
 
   const where = s.s;
@@ -227,7 +227,7 @@ const _attachSearchToQuery = async (req, source = 'query', query) => {
 const alwaysAllowMiddleware = async (req, res, next) => next();
 
 const _getModelOpts = (models, model) => {
-  for (let modelDefinition of models) {
+  for (const modelDefinition of models) {
     if (modelDefinition.model === model) {
       return modelDefinition.opts;
     }
@@ -237,10 +237,10 @@ const _getModelOpts = (models, model) => {
 
 const _getParentAuthorizationForModel = (modelDefinitions, model) => {
   const authorizationMiddlewaresFound = [];
-  for (let modelDefinition of modelDefinitions) {
+  for (const modelDefinition of modelDefinitions) {
     const authorizeForChildren = _.get(modelDefinition, 'opts.authorizeWith.options.authorizeForChildren', undefined);
     if (authorizeForChildren) {
-      for (let childModelAuthDefinition of authorizeForChildren) {
+      for (const childModelAuthDefinition of authorizeForChildren) {
         if (childModelAuthDefinition.child === model && childModelAuthDefinition.authorizeForChild) {
           authorizationMiddlewaresFound.push(_.get(modelDefinition, 'opts.authorizeWith', undefined));
         }
