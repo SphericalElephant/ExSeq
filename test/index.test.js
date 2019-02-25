@@ -152,7 +152,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      console.log(err);
+      //console.log(err);
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -457,12 +457,12 @@ describe('index.js', () => {
     modelExtension(M1);
     modelExtension(M2);
     it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
-      expect(M1.exseqGetUpdateableAttributes()).to.deep.equal([
+      expect(M1.getUpdateableAttributes()).to.deep.equal([
         {attribute: 'x', allowNull: true}
       ]);
     });
     it('should not strip attributes that are relevant for relations', () => {
-      expect(M2.exseqGetUpdateableAttributes().filter(attr => attr.attribute === 'M1Id')).to.have.lengthOf(1);
+      expect(M2.getUpdateableAttributes().filter(attr => attr.attribute === 'M1Id')).to.have.lengthOf(1);
     });
   });
 
@@ -815,7 +815,7 @@ describe('index.js', () => {
     });
   });
   describe('/model/:id/belongsTo & hasOne/ ALL - 404', () => {
-    ['get', 'post', 'put', 'delete'].forEach(verb => {
+    ['get', 'post', 'put', 'patch', 'delete'].forEach(verb => {
       it(`should inform callers that the source does not exist: ${verb}.`, () => {
         return request(app)[verb]('/TestModel2/1000/TestModel/')
           .expect(404)
@@ -825,7 +825,7 @@ describe('index.js', () => {
       });
     });
     // DELETE and POST are special, POST creates a target and DELETE unsets a target
-    ['get', 'put'].forEach(verb => {
+    ['get', 'put', 'patch'].forEach(verb => {
       it(`should inform callers that the target does not exist: ${verb}.`, () => {
         return TestModel2.findOne({where: {name: 'addrelationTestModel2'}}).then(testModel2Instance => {
           return request(app)[verb](`/TestModel2/${testModel2Instance.id}/TestModel/`)

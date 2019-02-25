@@ -4,6 +4,7 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 const modelExtension = require('./lib/model');
+const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
 
@@ -49,7 +50,7 @@ const _update = async (model, req, res, next, id, createInput) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
 
-  const attributes = model.exseqGetUpdateableAttributes().map(attribute => attribute.attribute);
+  const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
   try {
     const instance = await model.findByPk(id);
     if (!instance) await _createErrorPromise(404);
@@ -396,14 +397,20 @@ module.exports = (models) => {
           });
         };
       };
-      // TODO: we need to prevent POST / PUT and PATCH requests that attempt to change the FK of either the source
-      // (HasOne or HasMany) or the target (BelongsTo or BelongsToMany). currently callers are able to
-      // modify the owning entity by passing the FK of the owning entity in the body. This makes it hard to implement
-      // access restrictions because the middleware would have to check the path as well as the body for information
-      // all the time. Please also make sure to document the behavior in the readme once this todo has been done.
-      //
-      // Create a middleware that attaches a list: [{model: MODEL, primaryKey: FK},...], that contains the FK and the
-      // model of the relation to be altered, so that the authorization middleware is easier to write.
+      router.use(relationShipMiddlewareFactory(model));
+      router.use((req, res, next) => {
+        if (association.associationType === 'HasOne') {
+          console.log('ASSOC', source.name, 'HasOne', target.name, req.__exseqRelatedModels);
+        } else {
+          console.log('ASSOC', target.name, 'BelongsTo', source.name, req.__exseqRelatedModels);
+        }
+        if (association.associationType === 'HasMany') {
+          console.log('ASSOC', source.name, 'HasMany', target.name, req.__exseqRelatedModels);
+        } else {
+          console.log('ASSOC', target.name, 'BelongsToMany', source.name, req.__exseqRelatedModels);
+        }
+        next();
+      });
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
