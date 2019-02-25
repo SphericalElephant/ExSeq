@@ -41,54 +41,6 @@ const _formatValidationError = (err) => {
   });
 };
 
-const _getReferenceAttributes = model => {
-  return _.pull(_.keys(model.attributes), 'id', 'updatedAt', 'createdAt', 'deletedAt')
-    .filter(attribute => model.attributes[attribute].references);
-};
-
-const _filterReferenceAttributesFromModelInstance = (model, input) => {
-  const referenceAttributes = _getReferenceAttributes(model);
-  return _.omit(input, referenceAttributes);
-};
-
-const _removeIllegalAttributes = (model, input) => {
-  console.log(new Error())
-  return _.pick(input, model.exseqGetUpdateableAttributes().map(attr => attr.attribute));
-};
-
-const _fillMissingUpdateableAttributes = (model, association, source, input) => {
-  const result = model.exseqGetUpdateableAttributes().reduce((result, current) => {
-    if (input[current.attribute] !== undefined) result[current.attribute] = input[current.attribute];
-    else result[current.attribute] = null;
-    return result;
-  }, {});
-  // foreign key is required and not inside the body. will only trigger if this is a relation
-  if (association && (association.associationType === 'HasOne' || association.associationType === 'HasMany') &&
-    !result[association.foreignKey]) {
-    result[association.foreignKey] = source.id;
-  }
-  return result;
-};
-
-const _getAssociatedModelNames = model => {
-  return _.keys(model.associations);
-};
-
-const _getAssociationByName = (model, name) => {
-  return model.associations[name];
-};
-
-const _getAssociationByModel = (model, associatedModel) => {
-  const keys = Object.keys(model.associations);
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i];
-    if (model.associations[k].target === associatedModel) {
-      return model.associations[k];
-    }
-  }
-  throw new Error(`${model.name} has no association to ${associatedModel.name}!`);
-};
-
 const _getRouterForModel = (routingInformation, model) => {
   return (_.find(routingInformation, (i) => i.model.model.name === model.name) || {router: null}).router;
 };
@@ -99,7 +51,7 @@ const _update = async (model, req, res, next, id, createInput) => {
 
   const attributes = model.exseqGetUpdateableAttributes().map(attribute => attribute.attribute);
   try {
-    const instance = await model.findById(id);
+    const instance = await model.findByPk(id);
     if (!instance) await _createErrorPromise(404);
     await instance.update(createInput(req.body), {fields: attributes});
     return attachReply(204);
@@ -112,7 +64,7 @@ const _updateRelation = async (source, target, association, req, res, next, id, 
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
   try {
-    const sourceInstance = await source.findById(id);
+    const sourceInstance = await source.findByPk(id);
     const update = _update.bind(null, target);
     if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
     const query =
@@ -212,7 +164,7 @@ const _getAuthorizationMiddleWare = function (modelDefinitions, model, associate
   let authorizeWith = opts.authorizeWith;
   if (_.get(opts, 'authorizeWith.options.useParentForAuthorization', undefined)) {
     if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
-    const association = _getAssociationByModel(model, associatedModel);
+    const association = model.getAssociationByModel(associatedModel);
     if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
       throw new Error(
         `${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`
@@ -257,7 +209,7 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
     opts.where[association.foreignKeyField] = sourceId;
   }
   if (association.associationType === 'BelongsToMany') {
-    const source = await model.findById(sourceId, {include});
+    const source = await model.findByPk(sourceId, {include});
     const targets = await source[association.accessors.get](opts);
     return [opts, targets.map(t => {
       const model = association.options.through.model;
@@ -292,7 +244,6 @@ module.exports = (models) => {
 
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
-
   // first pass, register all models
   models.forEach(model => {
     modelExtension(model.model);
@@ -310,22 +261,18 @@ module.exports = (models) => {
   routingInformation.forEach(routing => {
     const router = routing.router;
     const model = routing.model.model;
-    const removeIllegalAttributes = _removeIllegalAttributes.bind(null, model);
-    const fillMissingUpdateableAttributes = _fillMissingUpdateableAttributes.bind(null, model, null, null);
-    const getAssociatedModelNames = _getAssociatedModelNames.bind(null, model);
     const update = _update.bind(null, model);
-    const filterReferenceAttributesFromModelInstance = _filterReferenceAttributesFromModelInstance.bind(null, model);
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
     router.post('/', auth('CREATE'), (req, res, next) => {
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
-      const input = removeIllegalAttributes(req.body);
+      const input = model.removeIllegalAttributes(req.body);
 
       model
         .create(input)
         .then(modelInstance => {
-          return attachReply(201, filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
+          return attachReply(201, model.filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
         }).catch(err => {
           return handleError(err);
         });
@@ -391,13 +338,13 @@ module.exports = (models) => {
 
     router.put('/:id', auth('UPDATE'), async (req, res, next) => {
       await update(req, res, next, req.params.id, (body) => {
-        return fillMissingUpdateableAttributes(removeIllegalAttributes(body));
+        return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
       });
     });
 
     router.patch('/:id', auth('UPDATE_PARTIAL'), async (req, res, next) => {
       await update(req, res, next, req.params.id, (body) => {
-        return removeIllegalAttributes(body);
+        return model.removeIllegalAttributes(body);
       });
     });
 
@@ -405,7 +352,7 @@ module.exports = (models) => {
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
       try {
-        const instance = await model.findById(req.params.id);
+        const instance = await model.findByPk(req.params.id);
         if (!instance) await _createErrorPromise(404);
         await instance.destroy();
         return attachReply(204);
@@ -414,20 +361,18 @@ module.exports = (models) => {
       }
     });
 
-    getAssociatedModelNames(model).forEach(associationName => {
-      const association = _getAssociationByName(model, associationName);
+    model.getAssociatedModelNames().forEach(associationName => {
+      const association = model.getAssociationByName(associationName);
       const target = association.target;
       const source = association.source;
       const targetRoute = association.options.name.singular;
-      const removeIllegalTargetAttributes = _removeIllegalAttributes.bind(null, target);
-      const fillMissingUpdateableTargetAttributes = _fillMissingUpdateableAttributes.bind(null, target, association, source);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
 
       const unlinkRelations = (req, res, next, setterFunctionName) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
 
-        source.findById(req.params.id).then(sourceInstance => {
+        source.findByPk(req.params.id).then(sourceInstance => {
           if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
           return sourceInstance[setterFunctionName](null).then(_ => {
             return attachReply(204);
@@ -440,7 +385,7 @@ module.exports = (models) => {
         return (req, res, next) => {
           const attachReply = _attachReply.bind(null, req, res, next);
           const handleError = _handleError.bind(null, next);
-          source.findById(req.params.id).then(sourceInstance => {
+          source.findByPk(req.params.id).then(sourceInstance => {
             if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
             return sourceInstance[association.accessors.get]().then(targetInstance => {
               if (!targetInstance) return _createErrorPromise(404, 'target not found.');
@@ -467,9 +412,9 @@ module.exports = (models) => {
           router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-            source.findById(req.params.id).then(sourceInstance => {
+            source.findByPk(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.create](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
             }).then(instance => {
               if (association.associationType === 'BelongsTo') {
                 return instance[association.accessors.get]().then(createdTargetInstance => {
@@ -484,12 +429,12 @@ module.exports = (models) => {
           });
           router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
             await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
-              return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
+              return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
             });
           });
           router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
             await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
-              return removeIllegalTargetAttributes(body);
+              return target.removeIllegalAttributes(body);
             });
           });
           router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
@@ -533,7 +478,7 @@ module.exports = (models) => {
             }
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-            source.findById(req.params.id).then(sourceInstance => {
+            source.findByPk(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
@@ -546,9 +491,9 @@ module.exports = (models) => {
           router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
-            source.findById(req.params.id).then(sourceInstance => {
+            source.findByPk(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.create](removeIllegalTargetAttributes(req.body));
+              return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
             }).then(instance => {
               return attachReply(201, instance.get({plain: true}));
             }).catch(err => {
@@ -558,13 +503,13 @@ module.exports = (models) => {
           router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
             _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
               (body) => {
-                return fillMissingUpdateableTargetAttributes(removeIllegalTargetAttributes(body));
+                return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
               });
           });
           router.patch(`/:id/${targetRoute}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
             _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
               (body) => {
-                return removeIllegalTargetAttributes(body);
+                return target.removeIllegalAttributes(body);
               });
           });
           router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
@@ -574,7 +519,7 @@ module.exports = (models) => {
             const attachReply = _attachReply.bind(null, req, res, next);
             const handleError = _handleError.bind(null, next);
 
-            source.findById(req.params.id).then(sourceInstance => {
+            source.findByPk(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
                 const targetInstance = targetInstances[0];

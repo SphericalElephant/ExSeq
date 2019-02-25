@@ -80,12 +80,9 @@ const modelExtension = require('../lib/model');
   AllRelationsTarget2
 ].forEach(modelExtension);
 
-const _removeIllegalAttributes = _exseq.__get__('_removeIllegalAttributes');
-const _fillMissingUpdateableAttributes = _exseq.__get__('_fillMissingUpdateableAttributes');
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
-const _getAssociationByModel = _exseq.__get__('_getAssociationByModel');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 const unauthorizedError = new Error();
@@ -155,7 +152,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      console.log(err)
+      console.log(err);
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -444,17 +441,17 @@ describe('index.js', () => {
     });
   });
 
-  describe('_getAssociationByModel', () => {
+  describe('Model.getAssociationByModel', () => {
     it('should be able to handle normal plurals', () => {
-      expect(_getAssociationByModel(TestModel4, TestModel5)).to.equal(testModel4Testmodel5Association);
+      expect(TestModel4.getAssociationByModel(TestModel5)).to.equal(testModel4Testmodel5Association);
     });
     it('should be able to handle irregular plurals', () => {
-      expect(_getAssociationByModel(AliasParent, AliasChild)).to.equal(aliasParentAliasChildAssociation);
+      expect(AliasParent.getAssociationByModel(AliasChild)).to.equal(aliasParentAliasChildAssociation);
     });
   });
 
   describe('_getUpdateableAttributes', () => {
-    const M1 = database.sequelize.define('M1', {x: {allowNull: false, type: database.Sequelize.STRING}});
+    const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
     const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
     M1.hasMany(M2);
     modelExtension(M1);
@@ -465,16 +462,16 @@ describe('index.js', () => {
       ]);
     });
     it('should not strip attributes that are relevant for relations', () => {
-      expect(M2.exseqGetUpdateableAttributes().M1Id).to.exist;
+      expect(M2.exseqGetUpdateableAttributes().filter(attr => attr.attribute === 'M1Id')).to.have.lengthOf(1);
     });
   });
 
   describe('_removeIllegalAttributes', () => {
     it('should remove illegal arguments.', () => {
-      expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1})).to.deep.equal({});
+      expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1})).to.deep.equal({});
     });
     it('should retain legal arguments.', () => {
-      expect(_removeIllegalAttributes(TestModel, {this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
+      expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
         .to.deep.equal({value1: 'should stay'});
     });
   });
@@ -532,14 +529,14 @@ describe('index.js', () => {
 
   describe('_fillMissingUpdateableAttributes', () => {
     it('should fill up missing model members with null.', () => {
-      expect(_fillMissingUpdateableAttributes(TestModel, null, null, {})).to.deep.equal({
+      expect(TestModel.fillMissingUpdateableAttributes(null, null, {})).to.deep.equal({
         value1: null,
         value2: null,
         value3: null
       });
     });
     it('should not overwrite existing members.', () => {
-      expect(_fillMissingUpdateableAttributes(TestModel, null, null, {value1: 'test'})).to.deep.equal({
+      expect(TestModel.fillMissingUpdateableAttributes(null, null, {value1: 'test'})).to.deep.equal({
         value1: 'test',
         value2: null,
         value3: null
@@ -896,7 +893,7 @@ describe('index.js', () => {
         })
         .expect(204)
         .then(response => {
-          return TestModel2.findById(5).then(testModel2Instance => {
+          return TestModel2.findByPk(5).then(testModel2Instance => {
             return testModel2Instance.getTestModel().then(testModelInstance => {
               const plainInstance = testModelInstance.get({plain: true});
               expect(plainInstance.value1).to.equal('changed1');
@@ -914,7 +911,7 @@ describe('index.js', () => {
         .send({value1: 'changed1'})
         .expect(204)
         .then(response => {
-          return TestModel2.findById(5).then(testModel2Instance => {
+          return TestModel2.findByPk(5).then(testModel2Instance => {
             return testModel2Instance.getTestModel().then(testModelInstance => {
               const plainInstance = testModelInstance.get({plain: true});
               expect(plainInstance.value1).to.equal('changed1');
@@ -931,7 +928,7 @@ describe('index.js', () => {
         .delete('/TestModel2/5/TestModel/')
         .expect(204)
         .then(response => {
-          return TestModel2.findById(5).then(testModel2Instance => {
+          return TestModel2.findByPk(5).then(testModel2Instance => {
             return testModel2Instance.getTestModel().then(testModelInstance => {
               expect(testModelInstance).to.not.exist;
             });
@@ -974,7 +971,7 @@ describe('index.js', () => {
         })
         .expect(204)
         .then(response => {
-          return TestModel.findById(5).then(testModelInstance => {
+          return TestModel.findByPk(5).then(testModelInstance => {
             return testModelInstance.getTestModel3().then(testModel3Instance => {
               const plainInstance = testModel3Instance.get({plain: true});
               expect(plainInstance.value1).to.equal('changed1');
@@ -991,7 +988,7 @@ describe('index.js', () => {
         .send({value1: 'changed'})
         .expect(204)
         .then(response => {
-          return TestModel.findById(5).then(testModelInstance => {
+          return TestModel.findByPk(5).then(testModelInstance => {
             return testModelInstance.getTestModel3().then(testModel3Instance => {
               const plainInstance = testModel3Instance.get({plain: true});
               expect(plainInstance.value1).to.equal('changed');
@@ -1007,7 +1004,7 @@ describe('index.js', () => {
         .delete('/TestModel/5/TestModel3/')
         .expect(204)
         .then(response => {
-          return TestModel.findById(5).then(testModelInstance => {
+          return TestModel.findByPk(5).then(testModelInstance => {
             return testModelInstance.getTestModel3().then(testModel3Instance => {
               expect(testModel3Instance).to.not.exist;
             });
@@ -1145,7 +1142,7 @@ describe('index.js', () => {
               .send({name: 'changed1'})
               .expect(204)
               .then(response => {
-                return manyRelation.source.findById(1).then(sourceInstance => {
+                return manyRelation.source.findByPk(1).then(sourceInstance => {
                   return sourceInstance[manyRelation.association.accessors.get]({where: {name: 'changed1'}}).then(targetInstances => {
                     const plainInstance = targetInstances[0].get({plain: true});
                     expect(plainInstance.name).to.equal('changed1');
@@ -1162,7 +1159,7 @@ describe('index.js', () => {
               .send({name: 'changed'})
               .expect(204)
               .then(response => {
-                return manyRelation.source.findById(1).then(sourceInstance => {
+                return manyRelation.source.findByPk(1).then(sourceInstance => {
                   return sourceInstance[manyRelation.association.accessors.get]({where: {id: 1}}).then(targetInstances => {
                     const plainInstance = targetInstances[0].get({plain: true});
                     expect(plainInstance.name).to.equal('changed');
@@ -1178,7 +1175,7 @@ describe('index.js', () => {
               .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}`)
               .expect(204)
               .then(response => {
-                return manyRelation.source.findById(1).then(sourceInstance => {
+                return manyRelation.source.findByPk(1).then(sourceInstance => {
                   return sourceInstance[manyRelation.association.accessors.get]().then(targetInstances => {
                     expect(targetInstances).to.have.lengthOf(0);
                   });
@@ -1191,7 +1188,7 @@ describe('index.js', () => {
             .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1`)
             .expect(204)
             .then(response => {
-              return manyRelation.source.findById(1).then(sourceInstance => {
+              return manyRelation.source.findByPk(1).then(sourceInstance => {
                 return sourceInstance[manyRelation.association.accessors.get]().then(targetInstances => {
                   expect(targetInstances).to.have.lengthOf(2);
                 });
