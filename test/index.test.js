@@ -279,13 +279,14 @@ describe('index.js', () => {
       MultiSource.belongsTo(BelongsToTarget);
       MultiSource.belongsToMany(BelongsToManyTarget, {through: MultiSourceThrough});
 
-      [
+      const models = [
         HasOneSource, HasOneTarget,
         HasManySource, HasManyTarget,
         BelongsToSource, BelongsToTarget,
         BelongsToManySource, BelongsToManyTarget,
         MultiSource
-      ].forEach(m => {
+      ];
+      models.forEach(m => {
         modelExtension(m);
       });
 

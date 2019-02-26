@@ -1,13 +1,29 @@
 'use strict';
 
 /**
- * A middleware that attaches all models which have been referenced by a foreignkey inside req.body in the following manner:
+ * A middleware that attaches a function that can be used to obtain association information for any loaded model.
  *
- * [{model: model, key: foreignKey}] - key and model can then be used to check if the caller has access to the entity.
+ * The information contains: source model, target model, association type,
+ * fk field and for belongstomany associations fk source, fk target and through model.
  */
-module.exports = (model) => {
+module.exports = (models) => {
   return async (req, res, next) => {
-    req.__exseqRelatedModels = model.getModelAssociations();
+    const associationInformation = models.reduce((acc, model) => {
+      const associations = model.getModelAssociations();
+      for (const association of associations) {
+        const sourceKey = association.source.name;
+        const targetKey = association.target.name;
+        if (!acc[sourceKey]) acc[sourceKey] = [];
+        if (!acc[targetKey]) acc[targetKey] = [];
+        acc[sourceKey].push(association);
+        acc[targetKey].push(association);
+      }
+      return acc;
+    }, {});
+
+    associationInformation.getAssociationInformationOn = function (model) {
+      return this[model.name];
+    };
     next();
   };
 };

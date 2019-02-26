@@ -258,6 +258,7 @@ module.exports = (models) => {
       router
     });
   });
+  const associationMiddleWare = relationShipMiddlewareFactory(models);
   // second pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
@@ -265,6 +266,8 @@ module.exports = (models) => {
     const update = _update.bind(null, model);
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
+    router.use(associationMiddleWare);
+
     router.post('/', auth('CREATE'), (req, res, next) => {
       const attachReply = _attachReply.bind(null, req, res, next);
       const handleError = _handleError.bind(null, next);
@@ -397,7 +400,6 @@ module.exports = (models) => {
           });
         };
       };
-      router.use(relationShipMiddlewareFactory(model));
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
