@@ -251,6 +251,77 @@ describe('index.js', () => {
     return database.reset();
   });
 
+  describe('Model', () => {
+    describe('getModelAssociations', () => {
+      const HasOneSource = database.sequelize.define('HasOneSource', {});
+      const HasOneTarget = database.sequelize.define('HasOneTarget', {});
+      HasOneSource.hasOne(HasOneTarget);
+      const HasManySource = database.sequelize.define('HasManySource', {});
+      const HasManyTarget = database.sequelize.define('HasManyTarget', {});
+      HasManySource.hasMany(HasManyTarget);
+      const BelongsToSource = database.sequelize.define('BelongsToSource', {});
+      const BelongsToTarget = database.sequelize.define('BelongsToTarget', {});
+      BelongsToSource.belongsTo(BelongsToTarget);
+
+      [HasOneSource, HasOneTarget, HasManySource, HasManyTarget, BelongsToSource, BelongsToTarget].forEach(m => {
+        modelExtension(m);
+      });
+
+      it('should return a list of all relationships, include the foreign key fields of a model', () => {
+        console.log('HasOneSource', HasOneSource.getModelAssociations());
+        console.log('HasOneTarget', HasOneTarget.getModelAssociations());
+      });
+    });
+    describe('getAssociationByModel', () => {
+      it('should be able to handle normal plurals', () => {
+        expect(TestModel4.getAssociationByModel(TestModel5)).to.equal(testModel4Testmodel5Association);
+      });
+      it('should be able to handle irregular plurals', () => {
+        expect(AliasParent.getAssociationByModel(AliasChild)).to.equal(aliasParentAliasChildAssociation);
+      });
+    });
+    describe('getUpdateableAttributes', () => {
+      const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
+      const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
+      M1.hasMany(M2);
+      modelExtension(M1);
+      modelExtension(M2);
+      it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
+        expect(M1.getUpdateableAttributes()).to.deep.equal([
+          {attribute: 'x', allowNull: true}
+        ]);
+      });
+      it('should not strip attributes that are relevant for relations', () => {
+        expect(M2.getUpdateableAttributes().filter(attr => attr.attribute === 'M1Id')).to.have.lengthOf(1);
+      });
+    });
+    describe('removeIllegalAttributes', () => {
+      it('should remove illegal arguments.', () => {
+        expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1})).to.deep.equal({});
+      });
+      it('should retain legal arguments.', () => {
+        expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
+          .to.deep.equal({value1: 'should stay'});
+      });
+    });
+    describe('fillMissingUpdateableAttributes', () => {
+      it('should fill up missing model members with null.', () => {
+        expect(TestModel.fillMissingUpdateableAttributes(null, null, {})).to.deep.equal({
+          value1: null,
+          value2: null,
+          value3: null
+        });
+      });
+      it('should not overwrite existing members.', () => {
+        expect(TestModel.fillMissingUpdateableAttributes(null, null, {value1: 'test'})).to.deep.equal({
+          value1: 'test',
+          value2: null,
+          value3: null
+        });
+      });
+    });
+  });
+
   describe('exseq', () => {
     it('should not allow registering the same model twice.', () => {
       expect(exseq.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
@@ -441,41 +512,6 @@ describe('index.js', () => {
     });
   });
 
-  describe('Model.getAssociationByModel', () => {
-    it('should be able to handle normal plurals', () => {
-      expect(TestModel4.getAssociationByModel(TestModel5)).to.equal(testModel4Testmodel5Association);
-    });
-    it('should be able to handle irregular plurals', () => {
-      expect(AliasParent.getAssociationByModel(AliasChild)).to.equal(aliasParentAliasChildAssociation);
-    });
-  });
-
-  describe('_getUpdateableAttributes', () => {
-    const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
-    const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
-    M1.hasMany(M2);
-    modelExtension(M1);
-    modelExtension(M2);
-    it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
-      expect(M1.getUpdateableAttributes()).to.deep.equal([
-        {attribute: 'x', allowNull: true}
-      ]);
-    });
-    it('should not strip attributes that are relevant for relations', () => {
-      expect(M2.getUpdateableAttributes().filter(attr => attr.attribute === 'M1Id')).to.have.lengthOf(1);
-    });
-  });
-
-  describe('_removeIllegalAttributes', () => {
-    it('should remove illegal arguments.', () => {
-      expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1})).to.deep.equal({});
-    });
-    it('should retain legal arguments.', () => {
-      expect(TestModel.removeIllegalAttributes({this: 1, is: 1, a: 1, test: 1, value1: 'should stay'}))
-        .to.deep.equal({value1: 'should stay'});
-    });
-  });
-
   const rules = [
     {
       method: 'GET',
@@ -524,23 +560,6 @@ describe('index.js', () => {
     it('it should undefined if no rule matching the inquiry was found.', () => {
       expect(_obtainExcludeRule(rules, 'POST', 'r2')).to.be.undefined;
       expect(_obtainExcludeRule(rules, 'GET', 'r3', false)).to.be.undefined;
-    });
-  });
-
-  describe('_fillMissingUpdateableAttributes', () => {
-    it('should fill up missing model members with null.', () => {
-      expect(TestModel.fillMissingUpdateableAttributes(null, null, {})).to.deep.equal({
-        value1: null,
-        value2: null,
-        value3: null
-      });
-    });
-    it('should not overwrite existing members.', () => {
-      expect(TestModel.fillMissingUpdateableAttributes(null, null, {value1: 'test'})).to.deep.equal({
-        value1: 'test',
-        value2: null,
-        value3: null
-      });
     });
   });
 

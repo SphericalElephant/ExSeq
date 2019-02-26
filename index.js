@@ -398,19 +398,6 @@ module.exports = (models) => {
         };
       };
       router.use(relationShipMiddlewareFactory(model));
-      router.use((req, res, next) => {
-        if (association.associationType === 'HasOne') {
-          console.log('ASSOC', source.name, 'HasOne', target.name, req.__exseqRelatedModels);
-        } else {
-          console.log('ASSOC', target.name, 'BelongsTo', source.name, req.__exseqRelatedModels);
-        }
-        if (association.associationType === 'HasMany') {
-          console.log('ASSOC', source.name, 'HasMany', target.name, req.__exseqRelatedModels);
-        } else {
-          console.log('ASSOC', target.name, 'BelongsToMany', source.name, req.__exseqRelatedModels);
-        }
-        next();
-      });
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
