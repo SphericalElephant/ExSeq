@@ -255,21 +255,50 @@ describe('index.js', () => {
     describe('getModelAssociations', () => {
       const HasOneSource = database.sequelize.define('HasOneSource', {});
       const HasOneTarget = database.sequelize.define('HasOneTarget', {});
-      HasOneSource.hasOne(HasOneTarget);
+
       const HasManySource = database.sequelize.define('HasManySource', {});
       const HasManyTarget = database.sequelize.define('HasManyTarget', {});
-      HasManySource.hasMany(HasManyTarget);
+
       const BelongsToSource = database.sequelize.define('BelongsToSource', {});
       const BelongsToTarget = database.sequelize.define('BelongsToTarget', {});
-      BelongsToSource.belongsTo(BelongsToTarget);
 
-      [HasOneSource, HasOneTarget, HasManySource, HasManyTarget, BelongsToSource, BelongsToTarget].forEach(m => {
+      const BelongsToManySource = database.sequelize.define('BelongsToManySource', {});
+      const BelongsToManyTarget = database.sequelize.define('BelongsToManyTarget', {});
+      const BelongsToManyThrough = database.sequelize.define('BelongsToManyThrough', {});
+
+      const MultiSource = database.sequelize.define('MultiSource', {});
+      const MultiSourceThrough = database.sequelize.define('MultiSourceThrough', {});
+
+      HasOneSource.hasOne(HasOneTarget);
+      HasManySource.hasMany(HasManyTarget);
+      BelongsToSource.belongsTo(BelongsToTarget);
+      BelongsToManySource.belongsToMany(BelongsToManyTarget, {through: BelongsToManyThrough});
+
+      MultiSource.hasOne(HasOneTarget);
+      MultiSource.hasMany(HasManyTarget);
+      MultiSource.belongsTo(BelongsToTarget);
+      MultiSource.belongsToMany(BelongsToManyTarget, {through: MultiSourceThrough});
+
+      [
+        HasOneSource, HasOneTarget,
+        HasManySource, HasManyTarget,
+        BelongsToSource, BelongsToTarget,
+        BelongsToManySource, BelongsToManyTarget,
+        MultiSource
+      ].forEach(m => {
         modelExtension(m);
       });
 
       it('should return a list of all relationships, include the foreign key fields of a model', () => {
+        console.log('MultiSource', MultiSource.getModelAssociations());
         console.log('HasOneSource', HasOneSource.getModelAssociations());
         console.log('HasOneTarget', HasOneTarget.getModelAssociations());
+        console.log('HasManySource', HasManySource.getModelAssociations());
+        console.log('HasManyTarget', HasManyTarget.getModelAssociations());
+        console.log('BelongsToSource', BelongsToSource.getModelAssociations());
+        console.log('BelongsToTarget', BelongsToTarget.getModelAssociations());
+        console.log('BelongsToManySource', BelongsToManySource.getModelAssociations());
+        console.log('BelongsToManyTarget', BelongsToManyTarget.getModelAssociations());
       });
     });
     describe('getAssociationByModel', () => {
