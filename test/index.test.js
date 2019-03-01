@@ -279,27 +279,87 @@ describe('index.js', () => {
       MultiSource.belongsTo(BelongsToTarget);
       MultiSource.belongsToMany(BelongsToManyTarget, {through: MultiSourceThrough});
 
+      const CustomFKSource = database.sequelize.define('CustomFKSource', {});
+      const CustomFKTarget = database.sequelize.define('CustomFKTarget', {});
+      CustomFKSource.hasOne(CustomFKTarget, {as: 'target', foreignKey: 'target_id'});
+
       const models = [
         HasOneSource, HasOneTarget,
         HasManySource, HasManyTarget,
         BelongsToSource, BelongsToTarget,
         BelongsToManySource, BelongsToManyTarget,
-        MultiSource
+        MultiSource,
+        CustomFKSource, CustomFKTarget
       ];
       models.forEach(m => {
         modelExtension(m);
       });
 
       it('should return a list of all relationships, include the foreign key fields of a model', () => {
-        console.log('MultiSource', MultiSource.getModelAssociations());
-        console.log('HasOneSource', HasOneSource.getModelAssociations());
-        console.log('HasOneTarget', HasOneTarget.getModelAssociations());
-        console.log('HasManySource', HasManySource.getModelAssociations());
-        console.log('HasManyTarget', HasManyTarget.getModelAssociations());
-        console.log('BelongsToSource', BelongsToSource.getModelAssociations());
-        console.log('BelongsToTarget', BelongsToTarget.getModelAssociations());
-        console.log('BelongsToManySource', BelongsToManySource.getModelAssociations());
-        console.log('BelongsToManyTarget', BelongsToManyTarget.getModelAssociations());
+        expect(MultiSource.getModelAssociations()).to.deep.equal([{
+          source: MultiSource,
+          target: HasOneTarget,
+          associationType: 'HasOne',
+          fk: 'MultiSourceId'
+        },
+        {
+          source: MultiSource,
+          target: HasManyTarget,
+          associationType: 'HasMany',
+          fk: 'MultiSourceId'
+        },
+        {
+          source: MultiSource,
+          target: BelongsToTarget,
+          associationType: 'BelongsTo',
+          fk: 'BelongsToTargetId'
+        },
+        {
+          source: MultiSource,
+          target: BelongsToManyTarget,
+          associationType: 'BelongsToMany',
+          through: MultiSourceThrough,
+          sourceFk: 'MultiSourceId',
+          targetFk: 'BelongsToManyTargetId'
+        }]);
+        expect(HasOneSource.getModelAssociations()).to.deep.equal(
+          [{
+            source: HasOneSource,
+            target: HasOneTarget,
+            associationType: 'HasOne',
+            fk: 'HasOneSourceId'
+          }]
+        );
+        expect(HasManySource.getModelAssociations()).to.deep.equal(
+          [{
+            source: HasManySource,
+            target: HasManyTarget,
+            associationType: 'HasMany',
+            fk: 'HasManySourceId'
+          }]
+        );
+        expect(BelongsToSource.getModelAssociations()).to.deep.equal(
+          [{
+            source: BelongsToSource,
+            target: BelongsToTarget,
+            associationType: 'BelongsTo',
+            fk: 'BelongsToTargetId'
+          }]
+        );
+
+        expect(BelongsToManySource.getModelAssociations()).to.deep.equal(
+          [{
+            source: BelongsToManySource,
+            target: BelongsToManyTarget,
+            associationType: 'BelongsToMany',
+            through: BelongsToManyThrough,
+            sourceFk: 'BelongsToManySourceId',
+            targetFk: 'BelongsToManyTargetId'
+          }]
+        );
+      });
+      it('should be able to handle custom foreign keys', () => {
+        expect(CustomFKSource.getModelAssociations()[0].fk).to.equal('target_id');
       });
     });
     describe('getAssociationByModel', () => {

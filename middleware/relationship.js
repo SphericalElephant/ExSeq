@@ -21,7 +21,7 @@ module.exports = (models) => {
       return acc;
     }, {});
 
-    associationInformation.getAssociationInformationOn = function (model) {
+    associationInformation.getAssociationInformation = function (model) {
       return this[model.name];
     };
     next();
