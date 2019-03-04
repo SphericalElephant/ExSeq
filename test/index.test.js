@@ -55,6 +55,7 @@ const bodyParser = require('body-parser');
 const _exseq = rewire('../index.js');
 const exseq = require('../index');
 const modelExtension = require('../lib/model');
+const AssociationInformation = require('../lib/association-information');
 
 [
   TestModel,
@@ -152,7 +153,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      //console.log(err);
+      // console.log(err);
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -360,6 +361,54 @@ describe('index.js', () => {
       });
       it('should be able to handle custom foreign keys', () => {
         expect(CustomFKSource.getModelAssociations()[0].fk).to.equal('target_id');
+      });
+      describe('AssociationInformation', () => {
+        it('should check check for null models', () => {
+          try {
+            new AssociationInformation(null);
+          } catch (err) {
+            expect(err.message).to.equal('no models provided.');
+          }
+        });
+        describe('createAssociationInformation', () => {
+          const associationInformation = new AssociationInformation(models);
+          associationInformation.createAssociationInformation();
+          it('should create a lookup table that maps all models to their respective association.', () => {
+            expect(associationInformation.getAssociationInformation(HasOneTarget)).to.deep.equal(
+              [{
+                source: HasOneSource,
+                target: HasOneTarget,
+                associationType: 'HasOne',
+                fk: 'HasOneSourceId'
+              },
+              {
+                source: MultiSource,
+                target: HasOneTarget,
+                associationType: 'HasOne',
+                fk: 'MultiSourceId'
+              }]
+            );
+            expect(associationInformation.getAssociationInformation(CustomFKTarget)).to.deep.equal(
+              [{
+                source: CustomFKSource,
+                target: CustomFKTarget,
+                associationType: 'HasOne',
+                fk: 'target_id'
+              }]
+            );
+          });
+          it('should check for invalid models', () => {
+            const associationInformation = new AssociationInformation([{}]);
+            expect(associationInformation.createAssociationInformation.bind(associationInformation)).to.throw('invalid model');
+          });
+        });
+        describe('getAssociationInformation', () => {
+          it('should throw an error if the association information was not created yet', () => {
+            const associationInformation = new AssociationInformation(models);
+            expect(associationInformation.getAssociationInformation.bind(associationInformation, HasOneTarget))
+              .to.throw('association information not initialized!');
+          });
+        });
       });
     });
     describe('getAssociationByModel', () => {
