@@ -241,7 +241,70 @@ Symbol (will not work due to JSON.stringify "limitations"):
 }
 ```
 
+## Foreign Key Authorization
 
+Starting from 1.3.0, ExSeq features body foreign key support and unopinionated foreign key based authorization. To enable foreign key authorization support instantiate ExSeq as shown below.
+
+```javascript
+const exseq = require('exseq');
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+
+app.use(bodyParser.json({}));
+
+exseq([
+  {model: Car, opts: {}},
+  {model: Tire, opts: {}},
+], {
+  middleware: {
+    associationMiddleware: {
+      fieldName: 'someField'
+    }
+  }
+}).forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
+
+If enabled, the middleware will attach in instance of ```AssociationInformation``` to the ```req``` object, using ```fieldName``` as a key. If ```fieldName``` has not been provided, the default key ```associationInformation``` is used.
+
+You can now use the following code to obtain information about the relationships of a model, either by using the model or a valid foreign key.
+
+```javascript
+
+router.post('/my-route/:fk', (req, res, next) => {
+  const information = req
+    .associationInformation
+    .getAssociationInformation(req.params.fk);
+});
+```
+
+The information returned by ```getAssociationInformation``` will look as follows.
+
+For hasOne, hasMany and belongsTo:
+
+```javascript
+[{
+  source: HasManySource,
+  target: HasManyTarget,
+  associationType: 'HasMany',
+  fk: 'HasManySourceId'
+}]
+```
+
+For belongsToMany:
+
+```javascript
+[{
+  source: BelongsToManySource,
+  target: BelongsToManyTarget,
+  associationType: 'BelongsToMany',
+  through: BelongsToManyThrough,
+  sourceFk: 'BelongsToManySourceId',
+  targetFk: 'BelongsToManyTargetId'
+}]
+```
 
 [npm-image]: https://img.shields.io/npm/v/@sphericalelephant/exseq.svg
 [npm-url]: https://npmjs.org/package/@sphericalelephant/exseq
