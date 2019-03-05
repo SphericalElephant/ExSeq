@@ -273,11 +273,12 @@ You can now use the following code to obtain information about the relationships
 
 ```javascript
 
-router.post('/my-route/:fk', (req, res, next) => {
+const authorizationMiddleware = (req, res, next) => {
   const information = req
     .associationInformation
     .getAssociationInformation(req.params.fk);
-});
+  // TODO: handle authorization here!
+};
 ```
 
 The information returned by ```getAssociationInformation``` will look as follows.
