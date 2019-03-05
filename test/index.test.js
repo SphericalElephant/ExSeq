@@ -56,6 +56,7 @@ const _exseq = rewire('../index.js');
 const exseq = require('../index');
 const modelExtension = require('../lib/model');
 const AssociationInformation = require('../lib/association-information');
+const associationMiddleware = require('../middleware/relationship');
 
 [
   TestModel,
@@ -252,6 +253,24 @@ describe('index.js', () => {
     return database.reset();
   });
 
+  describe('Middleware', () => {
+    describe('associationMiddleware', () => {
+      it('should respect config settings', () => {
+        const middleware = associationMiddleware([TestModel], {
+          fieldName: 'test'
+        });
+        const toTest = {};
+        middleware(toTest, {}, () => {});
+        expect(toTest['test']).to.not.be.null;
+      });
+      it('should use a default name if no fieldName was specified', () => {
+        const middleware = associationMiddleware([TestModel]);
+        const toTest = {};
+        middleware(toTest, {}, () => {});
+        expect(toTest['associationInformation']).to.not.be.null;
+      });
+    });
+  });
   describe('Model', () => {
     describe('getModelAssociations', () => {
       const HasOneSource = database.sequelize.define('HasOneSource', {});
@@ -490,7 +509,8 @@ describe('index.js', () => {
         it('should check if the custom route name has already been registered.', () => {
           expect(exseq.bind(null, [
             {
-              model: TestModel
+              model: TestModel2,
+              opts: {route: 'UseThis'}
             },
             {
               model: TestModel,

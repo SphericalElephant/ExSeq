@@ -240,8 +240,10 @@ const _countAssociations = async (association, query) => {
   }
 };
 
-module.exports = (models) => {
+module.exports = (models, opts) => {
   const routingInformation = [];
+  opts = opts || {};
+  opts.middleware = opts.middleware || {};
 
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
@@ -249,7 +251,9 @@ module.exports = (models) => {
   models.forEach(model => {
     modelExtension(model.model);
     model.opts = model.opts || {};
-    if (_.find(routingInformation, (i) => i.model.model.name === (model.opts.route || model.model.name)))
+    if (_.find(routingInformation, (i) => {
+      return (i.route || i.model.model.name) === (model.opts.route || model.model.name);
+    }))
       throw new Error(`model ${model.model.name} already registered`);
     const router = express.Router();
     routingInformation.push({
@@ -258,7 +262,6 @@ module.exports = (models) => {
       router
     });
   });
-  const associationMiddleWare = relationShipMiddlewareFactory(models);
   // second pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
@@ -266,7 +269,11 @@ module.exports = (models) => {
     const update = _update.bind(null, model);
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
-    router.use(associationMiddleWare);
+
+    if (opts.middleware.associationMiddleware) {
+      const associationMiddleWare = relationShipMiddlewareFactory(models, opts.middleWare.associationMiddleware);
+      router.use(associationMiddleWare);
+    }
 
     router.post('/', auth('CREATE'), (req, res, next) => {
       const attachReply = _attachReply.bind(null, req, res, next);
