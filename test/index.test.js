@@ -496,6 +496,12 @@ describe('index.js', () => {
     it('should not allow registering the same model twice.', () => {
       expect(exseq.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
     });
+    it('should check that models are set', () => {
+      expect(exseq.bind(null, null)).to.throw('models must be set!');
+    });
+    it('should check if the supplied models instance is an array', () => {
+      expect(exseq.bind(null, {})).to.throw('models must be an array')
+    });
     describe('opts', () => {
       describe('opts.route', () => {
         it('should allow setting a custom route name.', () => {
