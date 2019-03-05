@@ -408,6 +408,18 @@ describe('index.js', () => {
             expect(associationInformation.getAssociationInformation.bind(associationInformation, HasOneTarget))
               .to.throw('association information not initialized!');
           });
+          it('should allow foreign key lookups', () => {
+            const associationInformation = new AssociationInformation(models);
+            associationInformation.createAssociationInformation();
+            expect(associationInformation.getAssociationInformation('HasOneSourceId')[0]).to.deep.equal({
+              source: HasOneSource,
+              target: HasOneTarget,
+              associationType: 'HasOne',
+              fk: 'HasOneSourceId'
+            });
+            expect(associationInformation.getAssociationInformation('MultiSourceId')).to.have.lengthOf(3);
+            expect(associationInformation.getAssociationInformation('BelongsToManyTargetId')).to.have.lengthOf(2);
+          });
         });
       });
     });
