@@ -500,7 +500,7 @@ describe('index.js', () => {
       expect(exseq.bind(null, null)).to.throw('models must be set!');
     });
     it('should check if the supplied models instance is an array', () => {
-      expect(exseq.bind(null, {})).to.throw('models must be an array')
+      expect(exseq.bind(null, {})).to.throw('models must be an array');
     });
     describe('opts', () => {
       describe('opts.route', () => {
@@ -1302,6 +1302,26 @@ describe('index.js', () => {
                   result: {
                     value: `${manyRelation.association.associationType}-value-child2`
                   }
+                });
+              });
+          });
+          it('should return 404 if the source was not found', () => {
+            return request(app)
+              .get(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/2`)
+              .expect(404)
+              .then(response => {
+                expect(response.body).to.deep.equal({
+                  message: 'source not found.'
+                });
+              });
+          });
+          it('should return 404 if the target was not found', () => {
+            return request(app)
+              .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1000`)
+              .expect(404)
+              .then(response => {
+                expect(response.body).to.deep.equal({
+                  message: 'target not found.'
                 });
               });
           });

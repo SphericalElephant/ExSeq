@@ -483,12 +483,12 @@ module.exports = (models, opts) => {
             const handleError = _handleError.bind(null, next);
             source.findByPk(req.params.id).then(sourceInstance => {
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+              return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
                 return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
-              }).catch(err => {
-                return handleError(err);
               });
+            }).catch(err => {
+              return handleError(err);
             });
           });
           router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
