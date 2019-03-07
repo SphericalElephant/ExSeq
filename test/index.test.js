@@ -1350,6 +1350,16 @@ describe('index.js', () => {
                   });
               });
           });
+          it('should return a 404 if the source that should be used to create a target does not exist.', async () => {
+            return request(app)
+              .post(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/`)
+              .expect(404)
+              .then(response => {
+                expect(response.body).to.deep.equal({
+                  message: 'source not found.'
+                });
+              });
+          });
         });
         describe('/model/:id/hasManyRelation/ PUT', () => {
           it(`should update a ${manyRelation.association.associationType} relation of the resource`, () => {
