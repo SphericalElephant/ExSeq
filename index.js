@@ -519,7 +519,6 @@ module.exports = (models, opts) => {
             const handleError = _handleError.bind(null, next);
 
             source.findByPk(req.params.id).then(sourceInstance => {
-              console.log(req.params.id, sourceInstance)
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
                 const targetInstance = targetInstances[0];
