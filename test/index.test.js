@@ -927,7 +927,7 @@ describe('index.js', () => {
           expect(response.body).to.deep.equal({result: {value1: 'test0'}});
         });
     });
-    it('should return 404 if the entity was not found.', () => {
+    it('should return 404 if the entity was not found.', async () => {
       return request(app)
         .get('/TestModel/1000')
         .expect(404).then(response => {
@@ -1032,7 +1032,7 @@ describe('index.js', () => {
         });
       });
     });
-    it('should only show attributes that have been specified.', () => {
+    it('should only show attributes that have been specified.', async () => {
       return request(app)
         .get('/lowerCaseModel/1/anotherLowerCaseModel?a=value')
         .expect(200)
@@ -1119,7 +1119,7 @@ describe('index.js', () => {
     });
   });
   describe('/model/:id/belongsToRelation/ DELETE', () => {
-    it('should delete the belongsTo relation of the resource', () => {
+    it('should delete the belongsTo relation of the resource', async () => {
       return request(app)
         .delete('/TestModel2/5/TestModel/')
         .expect(204)
@@ -1178,7 +1178,7 @@ describe('index.js', () => {
     });
   });
   describe('/model/:id/hasOneRelation/ PATCH', () => {
-    it('should update individual attributes of the hasOne relation of the resource', () => {
+    it('should update individual attributes of the hasOne relation of the resource', async () => {
       return request(app)
         .patch('/TestModel/5/TestModel3/')
         .send({value1: 'changed'})
@@ -1242,7 +1242,7 @@ describe('index.js', () => {
           expect(manyRelation.association.options.name.singular).to.equal(manyRelation.associationName);
         });
         describe(`/model/:id/${manyRelation.association.associationType}/ GET`, () => {
-          it(`should return the ${manyRelation.association.associationType} relations of the requested resource.`, () => {
+          it(`should return the ${manyRelation.association.associationType} relations of the requested resource.`, async () => {
             return request(app)
               .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/`)
               .expect(200)
@@ -1293,7 +1293,7 @@ describe('index.js', () => {
                   expect(response.body.result.name).to.equal(`${manyRelation.association.associationType}-child2`);
                 });
             });
-          it('should only show attributes that have been specified.', () => {
+          it('should only show attributes that have been specified.', async () => {
             return request(app)
               .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/2?a=value`)
               .expect(200)
@@ -1305,7 +1305,7 @@ describe('index.js', () => {
                 });
               });
           });
-          it('should return 404 if the source was not found', () => {
+          it('should return 404 if the source was not found', async () => {
             return request(app)
               .get(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/2`)
               .expect(404)
@@ -1315,7 +1315,7 @@ describe('index.js', () => {
                 });
               });
           });
-          it('should return 404 if the target was not found', () => {
+          it('should return 404 if the target was not found', async () => {
             return request(app)
               .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1000`)
               .expect(404)
@@ -1362,7 +1362,7 @@ describe('index.js', () => {
           });
         });
         describe('/model/:id/hasManyRelation/ PUT', () => {
-          it(`should update a ${manyRelation.association.associationType} relation of the resource`, () => {
+          it(`should update a ${manyRelation.association.associationType} relation of the resource`, async () => {
             return request(app)
               .put(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1/`)
               .send({name: 'changed1'})
@@ -1379,7 +1379,7 @@ describe('index.js', () => {
           });
         });
         describe('/model/:id/hasManyRelation/ PATCH', () => {
-          it(`should update individual attributes of a ${manyRelation.association.associationType} relation of the resource`, () => {
+          it(`should update individual attributes of a ${manyRelation.association.associationType} relation of the resource`, async () => {
             return request(app)
               .patch(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1/`)
               .send({name: 'changed'})
@@ -1396,7 +1396,7 @@ describe('index.js', () => {
           });
         });
         describe('/model/:id/hasManyRelation/ DELETE', () => {
-          it(`should delete all ${manyRelation.association.associationType} relations of the resource`, () => {
+          it(`should delete all ${manyRelation.association.associationType} relations of the resource`, async () => {
             return request(app)
               .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}`)
               .expect(204)
@@ -1408,8 +1408,16 @@ describe('index.js', () => {
                 });
               });
           });
+          it('should return a 404 if the source that the target is attached to does not exist.', async () => {
+            return request(app)
+              .delete(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/1`)
+              .expect(404)
+              .then(response => {
+                expect(response.body.message).to.equal('source not found.');
+              });
+          });
         });
-        it(`should delete a specific ${manyRelation.association.associationType} relation of the resource`, () => {
+        it(`should delete a specific ${manyRelation.association.associationType} relation of the resource`, async () => {
           return request(app)
             .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/1`)
             .expect(204)
@@ -1421,7 +1429,7 @@ describe('index.js', () => {
               });
             });
         });
-        it(`should return 404 if the ${manyRelation.association.associationType} relation does not exist for the resource`, () => {
+        it(`should return 404 if the ${manyRelation.association.associationType} relation does not exist for the resource`, async () => {
           return request(app)
             .delete(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/5`)
             .expect(404)
@@ -1433,7 +1441,7 @@ describe('index.js', () => {
       // only use AliasParent and AliasParentBelongsToMany for the search
       if (manyRelation.source === AliasParentBelongsToMany || manyRelation.source === AliasParent) {
         describe(`/model/:id/${manyRelation.association.associationType}/search/ POST`, () => {
-          it('should return the instances of the child model that match the search criteria', () => {
+          it('should return the instances of the child model that match the search criteria', async () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({s: {name: manyRelation.searchFor}})
               .expect(200)
@@ -1443,7 +1451,7 @@ describe('index.js', () => {
                 expect(response.body.result[0].name).to.equal(manyRelation.searchFor);
               });
           });
-          it('should return the instances of the child model that match the search criteria 2', () => {
+          it('should return the instances of the child model that match the search criteria 2', async () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({
                 s: {
