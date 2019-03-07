@@ -42,10 +42,6 @@ const _formatValidationError = (err) => {
   });
 };
 
-const _getRouterForModel = (routingInformation, model) => {
-  return (_.find(routingInformation, (i) => i.model.model.name === model.name) || {router: null}).router;
-};
-
 const _update = async (model, req, res, next, id, createInput) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
@@ -523,6 +519,7 @@ module.exports = (models, opts) => {
             const handleError = _handleError.bind(null, next);
 
             source.findByPk(req.params.id).then(sourceInstance => {
+              console.log(req.params.id, sourceInstance)
               if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
               return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
                 const targetInstance = targetInstances[0];
