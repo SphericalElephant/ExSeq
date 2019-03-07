@@ -503,6 +503,23 @@ describe('index.js', () => {
       expect(exseq.bind(null, {})).to.throw('models must be an array');
     });
     describe('opts', () => {
+      describe('middleware', () => {
+        describe('associationMiddleware', () => {
+          it('should enable the middleware if specified', () => {
+            exseq([{model: TestModel}], {
+              middleware: {
+                associationMiddleware: true
+              }
+            }).forEach(routingInformation => {
+              expect(routingInformation.router.stack.filter((layer) => {
+                return layer && layer.handle && layer.handle.name === 'associationMiddleware';
+              })).to.have.lengthOf(1);
+            });
+          });
+        });
+      });
+    });
+    describe('model.opts', () => {
       describe('opts.route', () => {
         it('should allow setting a custom route name.', () => {
           expect(exseq([
@@ -525,7 +542,7 @@ describe('index.js', () => {
           ])).to.throw('already registered');
         });
       });
-      describe('opts.authorizeWith', () => {
+      describe('models.opts.authorizeWith', () => {
         it('should not allow illegal auth types.', () => {
           expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
           expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
@@ -574,7 +591,7 @@ describe('index.js', () => {
             )
           ).to.equal(alwaysAllowMiddleware);
         });
-        describe('opts.authorizeWith.useParentForAuthorization', () => {
+        describe('model.opts.authorizeWith.useParentForAuthorization', () => {
           it('should check that the associatedModel is not null', () => {
             expect(_getAuthorizationMiddleWare.bind(null, [
               {model: TestModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
@@ -626,7 +643,7 @@ describe('index.js', () => {
             ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
           });
         });
-        describe('opts.authorizeWith.authorizeForChildren', () => {
+        describe('model.opts.authorizeWith.authorizeForChildren', () => {
           it('should obtain the parent\'s authorization', () => {
             expect(_getAuthorizationMiddleWare([
               {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},

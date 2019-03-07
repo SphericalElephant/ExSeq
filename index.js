@@ -267,8 +267,10 @@ module.exports = (models, opts) => {
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
 
     if (opts.middleware.associationMiddleware) {
-      const associationMiddleWare = relationShipMiddlewareFactory(models, opts.middleWare.associationMiddleware);
-      router.use(associationMiddleWare);
+      const associationMiddleware = relationShipMiddlewareFactory(
+        models.map(modelDefinition => modelDefinition.model), opts.middleware.associationMiddleware
+      );
+      router.use(associationMiddleware);
     }
 
     router.post('/', auth('CREATE'), (req, res, next) => {

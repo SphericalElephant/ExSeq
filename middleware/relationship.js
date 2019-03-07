@@ -12,7 +12,7 @@ module.exports = (models, opts) => {
   opts = opts || {};
   const associationInformation = new AssociationInformation(models);
   associationInformation.createAssociationInformation();
-  return async (req, res, next) => {
+  return async function associationMiddleware(req, res, next) {
     req[opts.fieldName || 'associationInformation'] = associationInformation;
     next();
   };
