@@ -505,15 +505,27 @@ describe('index.js', () => {
     describe('opts', () => {
       describe('middleware', () => {
         describe('associationMiddleware', () => {
+          const exseqResult = exseq([{model: TestModel}], {
+            middleware: {
+              associationMiddleware: true
+            }
+          });
+          function getAssocMiddleware(routingInformation) {
+            return routingInformation.router.stack.filter((layer) => {
+              return layer && layer.handle && layer.handle.name === 'associationMiddleware';
+            });
+          }
           it('should enable the middleware if specified', () => {
-            exseq([{model: TestModel}], {
-              middleware: {
-                associationMiddleware: true
-              }
-            }).forEach(routingInformation => {
-              expect(routingInformation.router.stack.filter((layer) => {
-                return layer && layer.handle && layer.handle.name === 'associationMiddleware';
-              })).to.have.lengthOf(1);
+            exseqResult.forEach(routingInformation => {
+              expect(getAssocMiddleware(routingInformation)).to.have.lengthOf(1);
+            });
+          });
+          it('should attach AssociationInformation to the req object', () => {
+            exseqResult.forEach(routingInformation => {
+              const middleware = getAssocMiddleware(routingInformation)[0].handle;
+              const toCheck = {};
+              middleware(toCheck, null, () => {});
+              expect(toCheck['associationInformation']).to.exist;
             });
           });
         });
