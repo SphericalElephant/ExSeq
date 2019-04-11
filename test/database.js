@@ -2,7 +2,7 @@
 
 const Sequelize = require('sequelize');
 
-let sequelize = new Sequelize('', '', '', {storage: ':memory:', dialect: 'sqlite', logging: false});
+const sequelize = new Sequelize('', '', '', {storage: ':memory:', dialect: 'sqlite', logging: false});
 
 module.exports = {
   reset: sequelize.drop.bind(sequelize),
