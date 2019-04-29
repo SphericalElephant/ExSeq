@@ -1380,23 +1380,25 @@ describe('index.js', () => {
               });
           });
 
-          if(manyRelation.association.associationType === 'BelongsToMany') {
-            it('should link an item to the hasMany relation of the source. ', () => {
+          if (manyRelation.association.associationType === 'BelongsToMany') {
+            it('should link an item to the BelongsToMany.', () => {
+              console.log(manyRelation.source.name, manyRelation.target.name);
               return manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}})
                 .then(sourceInstance => {
-                  console.log('### SOURCE (TEST)', sourceInstance.dataValues)
+                  console.log('### SOURCE (TEST)', sourceInstance.dataValues);
 
                   return manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`})
                     .then(targetInstance => {
-                      console.log('### TARGET (TEST)', targetInstance.dataValues)
+                      console.log('### TARGET (TEST)', targetInstance.dataValues);
 
                       return request(app)
-                        .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/`)
+                        .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`)
                         .then(res => {
                           // console.log('### BIND RESULT (TEST)', res)
+                          // TODO: check if target is linked here
                         })
                         .catch(err => {
-                          console.log('### ERROR (TEST)', err)
+                          console.log('### ERROR (TEST)', err);
                         });
                     });
                 });
