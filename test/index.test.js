@@ -1379,6 +1379,30 @@ describe('index.js', () => {
                   });
               });
           });
+
+          if(manyRelation.association.associationType === 'BelongsToMany') {
+            it('should link an item to the hasMany relation of the source. ', () => {
+              return manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}})
+                .then(sourceInstance => {
+                  console.log('### SOURCE (TEST)', sourceInstance.dataValues)
+
+                  return manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`})
+                    .then(targetInstance => {
+                      console.log('### TARGET (TEST)', targetInstance.dataValues)
+
+                      return request(app)
+                        .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/`)
+                        .then(res => {
+                          // console.log('### BIND RESULT (TEST)', res)
+                        })
+                        .catch(err => {
+                          console.log('### ERROR (TEST)', err)
+                        });
+                    });
+                });
+            });
+          }
+
           it('should return a 404 if the source that should be used to create a target does not exist.', async () => {
             return request(app)
               .post(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/`)

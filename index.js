@@ -501,6 +501,37 @@ module.exports = (models, opts) => {
               return handleError(err);
             });
           });
+          if (association.associationType === 'BelongsToMany') {
+            router.post(`/:id/${targetRoute}/:targetId`, auth('CREATE'), (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+
+              source.findByPk(req.params.id).then(sourceInstance => {
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                console.log('@@@ SOURCE', sourceInstance.dataValues)
+
+                return target.findByPk(req.params.targetId).then(targetInstance => {
+                  console.log('@@@ TARGET', targetInstance ? targetInstance.dataValues : 'TARGET INSTANCE IS NULL')
+
+                  console.log('@@@ RRRETURNER', association.accessors.add, target.removeIllegalAttributes(req.body))
+
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+
+                  return sourceInstance[association.accessors.add](target.removeIllegalAttributes(req.body));
+                }).catch(err => {
+                  return handleError(err);
+                });
+              }).then(instance => {
+                console.log('@@@ INSTANCE', instance)
+
+                return attachReply(201, instance.get({plain: true}));
+              }).catch(err => {
+                return handleError(err);
+              });
+            });
+          }
           router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
             _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
               (body) => {
