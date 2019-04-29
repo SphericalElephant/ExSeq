@@ -1379,32 +1379,35 @@ describe('index.js', () => {
                   });
               });
           });
-
           if (manyRelation.association.associationType === 'BelongsToMany') {
-            it('should link an item to the BelongsToMany.', () => {
-              console.log(manyRelation.source.name, manyRelation.target.name);
-              return manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}})
-                .then(sourceInstance => {
-                  console.log('### SOURCE (TEST)', sourceInstance.dataValues);
+            it('should link an item to the BelongsToMany.', async () => {
+              const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
+              const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
 
-                  return manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`})
-                    .then(targetInstance => {
-                      console.log('### TARGET (TEST)', targetInstance.dataValues);
+              const {status} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              expect(status).to.equal(204);
 
-                      return request(app)
-                        .post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`)
-                        .then(res => {
-                          // console.log('### BIND RESULT (TEST)', res)
-                          // TODO: check if target is linked here
-                        })
-                        .catch(err => {
-                          console.log('### ERROR (TEST)', err);
-                        });
-                    });
-                });
+              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              expect(isLinked).to.be.true;
+            });
+
+            it('should unlink an item from the BelongsToMany.', async () => {
+              const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
+              const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
+
+              const {status: createStatus} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              expect(createStatus).to.equal(204);
+
+              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              expect(isLinked).to.be.true;
+
+              const {status: deleteStatus} = await request(app).delete(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/unlink`);
+              expect(deleteStatus).to.equal(204);
+
+              const isLinkedAfterDelete = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              expect(isLinkedAfterDelete).to.be.false;
             });
           }
-
           it('should return a 404 if the source that should be used to create a target does not exist.', async () => {
             return request(app)
               .post(`/${manyRelation.source.name}/1000/${manyRelation.association.options.name.singular}/`)

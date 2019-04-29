@@ -509,24 +509,32 @@ module.exports = (models, opts) => {
                 const sourceInstance = await source.findByPk(req.params.id);
                 if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
 
-                console.log('@@@ SOURCE', sourceInstance.get({plain: true}));
-
                 const targetInstance = await target.findByPk(req.params.targetId);
-                console.log('@@@ TARGET', targetInstance ? targetInstance.dataValues : 'TARGET INSTANCE IS NULL');
-
-                console.log('@@@ RETURNER', association.accessors.add, target.removeIllegalAttributes(req.body));
-
                 if (!targetInstance) return _createErrorPromise(404, 'target not found.');
 
-                const result = await sourceInstance[association.accessors.add](targetInstance);
-                console.log('@@@ RESULT', result);
-                return attachReply(201, result.get({plain: true}));
+                await sourceInstance[association.accessors.add](targetInstance);
+
+                return attachReply(204);
               } catch (err) {
                 return handleError(err);
               }
             });
             router.delete(`/:id/${targetRoute}/:targetId/unlink`, auth('CREATE'), async (req, res, next) => {
-              // TODO: implement
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              try {
+                const sourceInstance = await source.findByPk(req.params.id);
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                const targetInstance = await target.findByPk(req.params.targetId);
+                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+                await sourceInstance[association.accessors.remove](targetInstance);
+
+                return attachReply(204);
+              } catch (err) {
+                return handleError(err);
+              }
             });
           }
           router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
