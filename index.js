@@ -119,16 +119,15 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
   const {include = [], ...where} = s.s;
 
   const includeWithAttachedModel = include.map((i) => {
-    const modelToAttach = models.find((m) => i.model === m.model.name)
+    const modelToAttach = models.find((m) => i.model === m.model.name);
     if (modelToAttach) {
       return {
         ...i,
-        model: modelToAttach.model,
-      }
+        model: modelToAttach.model
+      };
     }
-    return i
-  })
-
+    return i;
+  });
 
   let newQuery = Object.assign({}, query);
   newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
