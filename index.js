@@ -113,13 +113,25 @@ const _createQuery = async (req, source = 'query') => {
   return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
 };
 
-const _attachSearchToQuery = async (req, source = 'query', query) => {
+const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
+  const {include = [], ...where} = s.s;
 
-  const where = s.s;
+  const includeWithAttachedModel = include.map((i) => {
+    const modelToAttach = models.find((m) => i.model === m.model.name)
+    if (modelToAttach) {
+      return {
+        ...i,
+        model: modelToAttach.model,
+      }
+    }
+    return i
+  })
+
+
   let newQuery = Object.assign({}, query);
-  newQuery = Object.assign(newQuery, {where});
+  newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
   return Promise.resolve(newQuery);
 };
 
@@ -314,10 +326,10 @@ module.exports = (models, opts) => {
       const handleError = _handleError.bind(null, next);
       try {
         const query = await _createQuery(req, 'body');
-        const searchQuery = await _attachSearchToQuery(req, 'body', query);
+        const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
         const results = await model.findAll(searchQuery);
 
-        res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {})));
+        res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
         if (results.length === 0) {
           return attachReply(204);
         } else {

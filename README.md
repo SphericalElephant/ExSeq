@@ -241,6 +241,8 @@ Symbol (will not work due to JSON.stringify "limitations"):
 }
 ```
 
+> Note: When using the `include` attribtue to query data, be aware that the associated models can be fetched without explicit authorization.
+
 ## Foreign Key Authorization
 
 Starting from 1.3.0, ExSeq features body foreign key support and unopinionated foreign key based authorization. To enable foreign key authorization support instantiate ExSeq as shown below.
