@@ -826,6 +826,35 @@ describe('index.js', () => {
           expect(response.body.result.length).to.equal(10);
         });
     });
+    it('should find instance that match the search query with include', () => {
+      return request(app)
+        .post('/TestModel6/search')
+        .send({
+          s: {
+            include: [{
+              model: 'TestModel7',
+              where: {
+                '$or': [{
+                  name: {'$like': '%child1%'}
+                }]
+              }
+            }]
+          }
+        })
+        .expect(200)
+        .then(response => {
+          expect(response.header['x-total-count']).to.equal('1');
+          expect(response.body.result.length).to.equal(1);
+
+          const testModel6Id = response.body.result[0].id;
+          const testModel7Id = response.body.result[0].TestModel7s[0].id;
+          const testModel6TestModel7TestModel6Id = response.body.result[0].TestModel7s[0].TestModel6TestModel7.TestModel6Id;
+          const testModel6TestModel7TestModel7Id = response.body.result[0].TestModel7s[0].TestModel6TestModel7.TestModel7Id;
+
+          expect(testModel6Id).to.equal(testModel6TestModel7TestModel6Id);
+          expect(testModel7Id).to.equal(testModel6TestModel7TestModel7Id);
+        });
+    });
     it('should return a 204 if no items where found', () => {
       return request(app)
         .post('/TestModel/search')
