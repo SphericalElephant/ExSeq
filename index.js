@@ -137,7 +137,7 @@ const SEARCH_REQUEST_BODY = {
       }
     }
   }
-}
+};
 const X_TOTAL_COUNT_SPECIFICATION = {
   description: 'Contains the count of all results for the search query',
   schema: {
@@ -157,7 +157,7 @@ const EMPTY_RESPONSE = {
 };
 
 class OpenApiHelper {
-  constructor (model, basePath, opts) {
+  constructor(model, basePath, opts) {
     this.model = model;
     this.basePath = basePath;
     this.opts = opts;
@@ -165,7 +165,7 @@ class OpenApiHelper {
     this.modelRef = {$ref: `#/components/schemas/${model.name}`};
   }
 
-  static createIdParameterSpecification (model) {
+  static createIdParameterSpecification(model) {
     if (Object.keys(model.primaryKeys).length != 1) {
       throw new Error(`Model must have exactly one primary key field. Model: ${model.name}`);
     }
@@ -178,13 +178,13 @@ class OpenApiHelper {
         type: TYPE_MAP[model.primaryKeys[Object.keys(model.primaryKeys)[0]].type.constructor.name]
       }
     };
-  };
+  }
 
-  getPathOptions (path) {
+  getPathOptions(path) {
     return this.opts[path] || {};
   }
 
-  createPathItemStub (path) {
+  createPathItemStub(path) {
     const pathOpts = this.getPathOptions(path);
     // $ref is not supported
     return {
@@ -193,9 +193,9 @@ class OpenApiHelper {
       servers: pathOpts.servers || [],
       parameters: pathOpts.parameters || []
     };
-  };
+  }
 
-  createBasePathSpecification (path, operation) {
+  createBasePathSpecification(path, operation) {
     const pathOpts = this.getPathOptions(path)[operation] || {};
     const baseSpecification = {
       tags: ['exseq', this.model.name],
@@ -211,7 +211,7 @@ class OpenApiHelper {
     return baseSpecification;
   }
 
-  createModelPathSpecification (operation) {
+  createModelPathSpecification(operation) {
     const baseSpecification = this.createBasePathSpecification('/', operation);
     switch (operation) {
       case 'get':
@@ -273,10 +273,10 @@ class OpenApiHelper {
           }
         };
       default: throw new Error(`Operation ${operation} not supported for path '/'`);
-    };
+    }
   }
 
-  createCountModelPathSpecification () {
+  createCountModelPathSpecification() {
     const baseSpecification = this.createBasePathSpecification('/count', 'get');
     return {
       ...baseSpecification,
@@ -307,7 +307,7 @@ class OpenApiHelper {
     };
   }
 
-  createSearchModelPathSpecification () {
+  createSearchModelPathSpecification() {
     const baseSpecification = this.createBasePathSpecification('/search', 'post');
     return {
       ...baseSpecification,
@@ -360,7 +360,7 @@ class OpenApiHelper {
     };
   }
 
-  createInstancePathSpecification (operation) {
+  createInstancePathSpecification(operation) {
     const path = '/:id';
     const baseSpecification = this.createBasePathSpecification(path, operation);
     switch (operation) {
@@ -442,16 +442,16 @@ class OpenApiHelper {
             404: {description: 'entity not found'},
             500: {description: 'internal server error'}
           }
-        }
+        };
       default: throw new Error(`Operation ${operation} not supported for path ${path}`);
-    };
+    }
   }
 
-  createHasOneOrBelongsToPathSpecification (operation, target, targetPath) {
+  createHasOneOrBelongsToPathSpecification(operation, target, targetPath) {
     if (!target) {
       throw new Error('target must not be null');
     }
-    const path = `/:id/${targetPath || target.name}`
+    const path = `/:id/${targetPath || target.name}`;
     const targetRef = {$ref: `#/components/schemas/${target.name}`};
     const baseSpecification = this.createBasePathSpecification(path, operation);
     switch (operation) {
@@ -555,8 +555,8 @@ class OpenApiHelper {
       case 'delete':
         return {
           ...baseSpecification,
-          summary: `Remove the association`,
-          description: `Remove the association`,
+          summary: 'Remove the association',
+          description: 'Remove the association',
           parameters: [this.idParameter],
           responses: {
             204: EMPTY_RESPONSE,
@@ -564,13 +564,13 @@ class OpenApiHelper {
             404: {description: 'entity not found'},
             500: {description: 'internal server error'}
           }
-        }
+        };
       default:
         throw new Error(`Operation ${operation} not supported for path ${path}`);
-    };
+    }
   }
 
-  createHasManyOrBelongsToManyPathSpecfication (operation, target, targetPath) {
+  createHasManyOrBelongsToManyPathSpecfication(operation, target, targetPath) {
     if (!target) {
       throw new Error('target must not be null');
     }
@@ -611,7 +611,7 @@ class OpenApiHelper {
         };
       case 'post':
         return {
-          ...baseSpecificationm,
+          ...baseSpecification,
           summary: `Creates and associates a new ${target.name} instance`,
           description: `Creates and associates a new ${target.name} instance`,
           parameters: [this.idParameter],
@@ -643,8 +643,8 @@ class OpenApiHelper {
       case 'delete':
         return {
           ...baseSpecification,
-          summary: `Removes all associations`,
-          description: `Removes all associations`,
+          summary: 'Removes all associations',
+          description: 'Removes all associations',
           parameters: [this.idParameter],
           responses: {
             204: EMPTY_RESPONSE,
@@ -652,13 +652,13 @@ class OpenApiHelper {
             404: {description: 'entity not found'},
             500: {description: 'internal server error'}
           }
-        }
+        };
       default:
         throw new Error(`Operation ${operation} not supported for path ${path}`);
-    };
+    }
   }
 
-  createCountHasManyOrBelongsToManyPathSpecfication (target, targetPath) {
+  createCountHasManyOrBelongsToManyPathSpecfication(target, targetPath) {
     if (!target) {
       throw new Error('target must not be null');
     }
@@ -693,7 +693,7 @@ class OpenApiHelper {
     };
   }
 
-  createSearchHasManyOrBelongsToManyPathSpecfication (target, targetPath) {
+  createSearchHasManyOrBelongsToManyPathSpecfication(target, targetPath) {
     if (!target) {
       throw new Error('target must not be null');
     }
@@ -751,11 +751,11 @@ class OpenApiHelper {
     };
   }
 
-  createHasManyOrBelongsToManyInstancePathSpecfication (operation, target, targetPath) {
+  createHasManyOrBelongsToManyInstancePathSpecfication(operation, target, targetPath) {
     if (!target) {
       throw new Error('target must not be null');
     }
-    const path = `/:id/${targetPath || target.name}/:targetId`
+    const path = `/:id/${targetPath || target.name}/:targetId`;
     const targetRef = {$ref: `#/components/schemas/${target.name}`};
     const baseSpecification = this.createBasePathSpecification(path, operation);
     const targetIdParameter = {
@@ -852,9 +852,65 @@ class OpenApiHelper {
             404: {description: 'entity not found'},
             500: {description: 'internal server error'}
           }
-        }
+        };
       default: throw new Error(`Operation ${operation} not supported for path ${path}`);
     }
+  }
+
+  createLinkBelongsToManyPathSpecification(target, targetPath) {
+    if (!target) {
+      throw new Error('target must not be null');
+    }
+    const path = `/:id/${targetPath || target.name}/:targetId`;
+    const baseSpecification = this.createBasePathSpecification(path, 'post');
+    const targetIdParameter = {
+      ...this.createIdParameterSpecification(target),
+      name: 'targetId',
+      description: 'The target instance\'s id'
+    };
+    return {
+      ...baseSpecification,
+      summary: `Link existing ${this.model.name} and ${target.name} instances`,
+      description: `Link existing ${this.model.name} and ${target.name} instances`,
+      parameters: [
+        this.idParameter,
+        targetIdParameter
+      ],
+      responses: {
+        204: EMPTY_RESPONSE,
+        401: {description: 'authorization error'},
+        404: {description: 'entity not found'},
+        500: {description: 'internal server error'}
+      }
+    };
+  }
+
+  createUnlinkBelongsToManyPathSpecification(target, targetPath) {
+    if (!target) {
+      throw new Error('target must not be null');
+    }
+    const path = `/:id/${targetPath || target.name}/:targetId`;
+    const baseSpecification = this.createBasePathSpecification(path, 'delete');
+    const targetIdParameter = {
+      ...this.createIdParameterSpecification(target),
+      name: 'targetId',
+      description: 'The target instance\'s id'
+    };
+    return {
+      ...baseSpecification,
+      summary: `Unlink existing ${this.model.name} and ${target.name} instances`,
+      description: `Unlink existing ${this.model.name} and ${target.name} instances`,
+      parameters: [
+        this.idParameter,
+        targetIdParameter
+      ],
+      responses: {
+        204: EMPTY_RESPONSE,
+        401: {description: 'authorization error'},
+        404: {description: 'entity not found'},
+        500: {description: 'internal server error'}
+      }
+    };
   }
 }
 
@@ -963,13 +1019,24 @@ const _createQuery = async (req, source = 'query') => {
   return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
 };
 
-const _attachSearchToQuery = async (req, source = 'query', query) => {
+const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
+  const {include = [], ...where} = s.s;
 
-  const where = s.s;
+  const includeWithAttachedModel = include.map((i) => {
+    const modelToAttach = models.find((m) => i.model === m.model.name);
+    if (modelToAttach) {
+      return {
+        ...i,
+        model: modelToAttach.model
+      };
+    }
+    return i;
+  });
+
   let newQuery = Object.assign({}, query);
-  newQuery = Object.assign(newQuery, {where});
+  newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
   return Promise.resolve(newQuery);
 };
 
@@ -1135,8 +1202,8 @@ module.exports = (models, opts) => {
     const update = _update.bind(null, model);
     const exposedRoutes = routing.opts.exposed || {};
     const openApiHelper = routing.openApiHelper;
-    
-    [{path: '/'}, {path: '/count'}, {path: '/search'}, {path:'/{id}', alternative: '/:id'}].forEach(p => {
+
+    [{path: '/'}, {path: '/count'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
       const pathName = `${routing.route}${p.path}`.replace(/\/$/, '');
       const optName = p.alternative || p.path;
       if (!openApiDocument.paths[pathName]) {
@@ -1158,7 +1225,6 @@ module.exports = (models, opts) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
         const input = model.removeIllegalAttributes(req.body);
-  
         model
           .create(input)
           .then(modelInstance => {
@@ -1171,7 +1237,7 @@ module.exports = (models, opts) => {
         openApiDocument.paths[routing.route].post = openApiHelper.createModelPathSpecification('post');
       }
     }
-    
+
     if (!exposedRoutes['/count'] || !exposedRoutes['/count'].get === false) {
       router.get('/count', auth('READ'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
@@ -1203,17 +1269,17 @@ module.exports = (models, opts) => {
         openApiDocument.paths[routing.route].get = openApiHelper.createModelPathSpecification('get');
       }
     }
-    
+
     if (!exposedRoutes['/search'] || !exposedRoutes['/search'].get === false) {
       router.post('/search', auth('SEARCH'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
         try {
           const query = await _createQuery(req, 'body');
-          const searchQuery = await _attachSearchToQuery(req, 'body', query);
+          const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
           const results = await model.findAll(searchQuery);
 
-          res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {})));
+          res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
           if (results.length === 0) {
             return attachReply(204);
           } else {
@@ -1252,9 +1318,9 @@ module.exports = (models, opts) => {
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].put === false) {
       router.put('/:id', auth('UPDATE'), async (req, res, next) => {
-      await update(req, res, next, req.params.id, (body) => {
-        return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
-      });
+        await update(req, res, next, req.params.id, (body) => {
+          return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
+        });
       });
       if (!openApiDocument.paths[`${routing.route}/{id}`].put) {
         openApiDocument.paths[`${routing.route}/{id}`].put = openApiHelper.createInstancePathSpecification('put');
@@ -1286,7 +1352,7 @@ module.exports = (models, opts) => {
         }
       });
       if (!openApiDocument.paths[`${routing.route}/{id}`].delete) {
-        openApiDocument.paths[`${routing.route}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete'); 
+        openApiDocument.paths[`${routing.route}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete');
       }
     }
 
@@ -1328,7 +1394,14 @@ module.exports = (models, opts) => {
 
       const baseTargetRouteOpt = `/:id/${targetRoute}`;
       const baseTargetPath = `${routing.route}/{id}/${targetRoute}`;
-      [{path: '/'}, {path: `/count`}, {path: '/search'}, {path:'/{targetId}', alternative: '/:targetId'}].forEach(p => {
+      [
+        {path: '/'},
+        {path: '/count'},
+        {path: '/search'},
+        {path: '/{targetId}', alternative: '/:targetId'},
+        {path: '/{targetId}/link', alternative: '/:targetId/link'},
+        {path: '/{targetId}/unlink', alternative: '/:targetId/unlink'}
+      ].forEach(p => {
         const pathName = `${baseTargetPath}${p.path}`.replace(/\/$/, '');
         const optName = `${baseTargetRouteOpt}${p.alternative || p.path}`;
         if (!openApiDocument.paths[pathName]) {
@@ -1343,7 +1416,8 @@ module.exports = (models, opts) => {
             router.get(`/:id/${targetRoute}`, auth('READ'),
               relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
             if (!openApiDocument.paths[baseTargetPath].get) {
-              openApiDocument.paths[baseTargetPath].get = openApiHelper.createHasOneOrBelongsToPathSpecification('get', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].get = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('get', target, targetRoute);
             }
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
@@ -1366,7 +1440,8 @@ module.exports = (models, opts) => {
               });
             });
             if (!openApiDocument.paths[baseTargetPath].post) {
-              openApiDocument.paths[baseTargetPath].post = openApiHelper.createHasOneOrBelongsToPathSpecification('post', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].post = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('post', target, targetRoute);
             }
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].put === false) {
@@ -1376,7 +1451,8 @@ module.exports = (models, opts) => {
               });
             });
             if (!openApiDocument.paths[baseTargetPath].put) {
-              openApiDocument.paths[baseTargetPath].put = openApiHelper.createHasOneOrBelongsToPathSpecification('put', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].put = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('put', target, targetRoute);
             }
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].patch === false) {
@@ -1386,7 +1462,8 @@ module.exports = (models, opts) => {
               });
             });
             if (!openApiDocument.paths[baseTargetPath].patch) {
-              openApiDocument.paths[baseTargetPath].patch = openApiHelper.createHasOneOrBelongsToPathSpecification('patch', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].patch = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('patch', target, targetRoute);
             }
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
@@ -1394,7 +1471,8 @@ module.exports = (models, opts) => {
               unlinkRelations(req, res, next, association.accessors.set);
             });
             if (!openApiDocument.paths[baseTargetPath].delete) {
-              openApiDocument.paths[baseTargetPath].delete = openApiHelper.createHasOneOrBelongsToPathSpecification('delete', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].delete = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('delete', target, targetRoute);
             }
           }
           break;
@@ -1407,7 +1485,8 @@ module.exports = (models, opts) => {
               return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
             }));
             if (!openApiDocument.paths[baseTargetPath].get) {
-              openApiDocument.paths[baseTargetPath].get = openApiHelper.createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute);
+              openApiDocument.paths[baseTargetPath].get = openApiHelper
+                .createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute);
             }
           }
           if (!exposedRoutes[`${baseTargetRouteOpt}/count`] || !exposedRoutes[`${baseTargetRouteOpt}/count`].get === false) {
@@ -1421,10 +1500,11 @@ module.exports = (models, opts) => {
               }
             });
             if (!openApiDocument.paths[`${baseTargetPath}/count`]) {
-              openApiDocument.paths[`${baseTargetPath}/count`].get = openApiHelper.createCountHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
+              openApiDocument.paths[`${baseTargetPath}/count`].get = openApiHelper
+                .createCountHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
             }
           }
-          
+
           if (!exposedRoutes[`${baseTargetRouteOpt}/search`] || !exposedRoutes[`${baseTargetRouteOpt}/search`].post === false) {
             router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
@@ -1444,7 +1524,8 @@ module.exports = (models, opts) => {
               }
             });
             if (!openApiDocument.paths[`${baseTargetPath}/search`]) {
-              openApiDocument.paths[`${baseTargetPath}/search`].post = openApiHelper.createSearchHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
+              openApiDocument.paths[`${baseTargetPath}/search`].post = openApiHelper
+                .createSearchHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
             }
           }
 
@@ -1484,8 +1565,58 @@ module.exports = (models, opts) => {
                 return handleError(err);
               });
             });
-            if (!openApiDocument.paths[baseTargetPath].get) {
-              openApiDocument.paths[baseTargetPath].post = openApiHelper.createHasManyOrBelongsToManyPathSpecfication('post', target, targetRoute);
+            if (!openApiDocument.paths[baseTargetPath].post) {
+              openApiDocument.paths[baseTargetPath].post = openApiHelper
+                .createHasManyOrBelongsToManyPathSpecfication('post', target, targetRoute);
+            }
+          }
+          if (association.associationType === 'BelongsToMany') {
+            if (!exposedRoutes[`${instanceTargetRouteOpt}/link`] || !exposedRoutes[`${instanceTargetRouteOpt}/link`].post === false) {
+              router.post(`/:id/${targetRoute}/:targetId/link`, auth('CREATE'), async (req, res, next) => {
+                const attachReply = _attachReply.bind(null, req, res, next);
+                const handleError = _handleError.bind(null, next);
+                try {
+                  const sourceInstance = await source.findByPk(req.params.id);
+                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                  const targetInstance = await target.findByPk(req.params.targetId);
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+                  await sourceInstance[association.accessors.add](targetInstance);
+
+                  return attachReply(204);
+                } catch (err) {
+                  return handleError(err);
+                }
+              });
+              if (!openApiDocument.paths[`${instanceTargetPath}/link`].post) {
+                openApiDocument.paths[`${instanceTargetPath}/link`].post = openApiHelper
+                  .createLinkBelongsToManyPathSpecification(target, targetRoute);
+              }
+            }
+
+            if (!exposedRoutes[`${instanceTargetRouteOpt}/unlink`] || !exposedRoutes[`${instanceTargetRouteOpt}/unlink`].delete === false) {
+              router.delete(`/:id/${targetRoute}/:targetId/unlink`, auth('CREATE'), async (req, res, next) => {
+                const attachReply = _attachReply.bind(null, req, res, next);
+                const handleError = _handleError.bind(null, next);
+                try {
+                  const sourceInstance = await source.findByPk(req.params.id);
+                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                  const targetInstance = await target.findByPk(req.params.targetId);
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+                  await sourceInstance[association.accessors.remove](targetInstance);
+
+                  return attachReply(204);
+                } catch (err) {
+                  return handleError(err);
+                }
+              });
+              if (!openApiDocument.paths[`${instanceTargetPath}/unlink`].delete) {
+                openApiDocument.paths[`${instanceTargetPath}/unlink`].delete = openApiHelper
+                  .createUnlinkBelongsToManyPathSpecification(target, targetRoute);
+              }
             }
           }
 

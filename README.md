@@ -191,6 +191,8 @@ The label of the first segment of the route is determined by ```source.name``` o
 |  PUT   | HasMany / BelongsToMany | /source/:id/target/:targetId |     UPDATE     |          Replaces all values of the *target* instance           |
 | PATCH  | HasMany / BelongsToMany | /source/:id/target/:targetId | UPDATE_PARTIAL |        Replaces selected values of the *target* instance        |
 | DELETE | HasMany / BelongsToMany | /source/:id/target/:targetId |     DELETE     |             Deletes the specified *target* instance             |
+| POST   | HasMany / BelongsToMany | /source/:id/target/:targetId/link | CREATE    | Link existing *source* and *target* instances |
+| POST   | HasMany / BelongsToMany | /source/:id/target/:targetId/unlink | CREATE  | Unlink existing *source* and *target* instances |
 
 ### Respose Headers
 
@@ -240,6 +242,8 @@ Symbol (will not work due to JSON.stringify "limitations"):
   }
 }
 ```
+
+> Note: When using the `include` attribtue to query data, be aware that the associated models can be fetched without explicit authorization.
 
 ## Foreign Key Authorization
 
