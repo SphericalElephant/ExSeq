@@ -1,7 +1,5 @@
 'use strict';
 
-const modelExtension = require('../../lib/model');
-
 module.exports = (sequelize, DataTypes) => {
   const TestModel = sequelize.define('TestModel', {
     value1: {
@@ -17,8 +15,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     }
   });
-
-  modelExtension(TestModel);
 
   return TestModel;
 };

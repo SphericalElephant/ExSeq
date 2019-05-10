@@ -163,7 +163,32 @@ describe('index.js', () => {
     done();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await database.init();
+    for (let i = 0; i < 49; i++) {
+      const testModel = await TestModel.create({value1: 'test' + i, value2: i, value3: 'no null!'});
+      const testModel2 = await TestModel2.create();
+      console.log('foobar1', TestModel.associations.TestModel3.foreignKey);
+      await testModel2.setTestModel(testModel);
+      console.log('foobar2');
+      const testModel3 = await TestModel3.create({value1: 'test' + i, value2: 3});
+      console.log('foobar3');
+      try {
+        console.log(3, await database.sequelize.query('PRAGMA table_info(TestModel3s)', {type: database.Sequelize.QueryTypes.SELECT, raw: true}))
+        console.log(2, await database.sequelize.query('PRAGMA table_info(TestModel2s)', {type: database.Sequelize.QueryTypes.SELECT, raw: true}))
+        console.log(1, await database.sequelize.query('PRAGMA table_info(TestModels)', {type: database.Sequelize.QueryTypes.SELECT, raw: true}))
+        
+        console.log(await database.sequelize.query('SELECT * FROM TestModel3s', {type: database.Sequelize.QueryTypes.SELECT, raw: true}))
+      await testModel.setTestModel3(testModel3, {logging: true});
+      }catch(err) {
+        console.log(testModel3);
+
+        //console.log(require('util').inspect(TestModel3,{customInspect:false}))
+        console.log(err)
+        process.exit()
+      }
+      console.log('foobar4');
+    }
     return database.init().then(() => {
       const testModelPromises = [];
       for (let i = 0; i < 49; i++) {
@@ -180,9 +205,9 @@ describe('index.js', () => {
           })
         );
       }
-      testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
-      testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
-      testModelPromises.push(TestModel4.create({name: 'HasMany-parent1'}).then(testModel4 => {
+      //testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
+      //testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
+      /* testModelPromises.push(TestModel4.create({name: 'HasMany-parent1'}).then(testModel4 => {
         return Promise.each(
           [
             TestModel5.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
@@ -193,8 +218,8 @@ describe('index.js', () => {
         ).spread((one, two, three) => {
           return Promise.join(testModel4.addTestModel5(one), testModel4.addTestModel5(two), testModel4.addTestModel5(three));
         });
-      }));
-      testModelPromises.push(TestModel6.create({name: 'BelongsToMany-parent1'}).then(testModel6 => {
+      })); */
+      /* testModelPromises.push(TestModel6.create({name: 'BelongsToMany-parent1'}).then(testModel6 => {
         return Promise.each(
           [
             TestModel7.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
@@ -205,8 +230,8 @@ describe('index.js', () => {
         ).spread((one, two, three) => {
           return Promise.join(testModel6.addTestModel7(one), testModel6.addTestModel7(two), testModel6.addTestModel7(three));
         });
-      }));
-      testModelPromises.push(AliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'}).then(aliasParentBelongsToMany => {
+      })); */
+      /* testModelPromises.push(AliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'}).then(aliasParentBelongsToMany => {
         return Promise.each(
           [
             AliasChildBelongsToMany.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
@@ -221,15 +246,15 @@ describe('index.js', () => {
             aliasParentBelongsToMany.addChild(three)
           );
         });
-      }));
-      testModelPromises.push(lowerCaseModel.create({name: 'lowercase-belongsto'}).then(lowerCaseModelInstance => {
+      })); */
+      /* testModelPromises.push(lowerCaseModel.create({name: 'lowercase-belongsto'}).then(lowerCaseModelInstance => {
         anotherLowercaseModel.create(
           {name: 'anotherlowercase-belongsto', value: 'anotherlowercase-belongsto-value'}
         ).then(anotherLowercaseModelInstance => {
           return lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
         });
-      }));
-      testModelPromises.push(AliasParent.create({name: 'HasMany-parent1'}).then(aliasParentInstance => {
+      })); */
+      /* testModelPromises.push(AliasParent.create({name: 'HasMany-parent1'}).then(aliasParentInstance => {
         return Promise.each(
           [
             AliasChild.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
@@ -244,7 +269,7 @@ describe('index.js', () => {
             aliasParentInstance.addChild(three)
           );
         });
-      }));
+      })); */
       return Promise.all(testModelPromises);
     });
   });

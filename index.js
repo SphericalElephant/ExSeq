@@ -759,7 +759,7 @@ class OpenApiHelper {
     const targetRef = {$ref: `#/components/schemas/${target.name}`};
     const baseSpecification = this.createBasePathSpecification(path, operation);
     const targetIdParameter = {
-      ...this.createIdParameterSpecification(target),
+      ...OpenApiHelper.createIdParameterSpecification(target),
       name: 'targetId',
       description: 'The target instance\'s id'
     };
@@ -864,7 +864,7 @@ class OpenApiHelper {
     const path = `/:id/${targetPath || target.name}/:targetId`;
     const baseSpecification = this.createBasePathSpecification(path, 'post');
     const targetIdParameter = {
-      ...this.createIdParameterSpecification(target),
+      ...OpenApiHelper.createIdParameterSpecification(target),
       name: 'targetId',
       description: 'The target instance\'s id'
     };
@@ -892,7 +892,7 @@ class OpenApiHelper {
     const path = `/:id/${targetPath || target.name}/:targetId`;
     const baseSpecification = this.createBasePathSpecification(path, 'delete');
     const targetIdParameter = {
-      ...this.createIdParameterSpecification(target),
+      ...OpenApiHelper.createIdParameterSpecification(target),
       name: 'targetId',
       description: 'The target instance\'s id'
     };
