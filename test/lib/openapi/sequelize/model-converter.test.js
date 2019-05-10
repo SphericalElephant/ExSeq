@@ -2,7 +2,7 @@
 
 const expect = require('chai').expect;
 
-const convertModel = require('../../../../lib/openapi/sequelize/model-converter');
+const {convertModel} = require('../../../../lib/openapi/sequelize/model-converter');
 const database = require('../../../database');
 const testModel = require('../../../model/test-model');
 const testModel3 = require('../../../model/test-model3');
