@@ -272,7 +272,7 @@ describe('index.js', () => {
     });
   });
   describe('Model', () => {
-    describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI BUG!!', () => {
+    describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI', () => {
       const HasOneSource = database.sequelize.define('HasOneSource', {});
       const HasOneTarget = database.sequelize.define('HasOneTarget', {});
 
