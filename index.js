@@ -4,7 +4,7 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 const modelExtension = require('./lib/model');
-const {OpenApi, OpenApiDocument} = require('./lib/openapi');
+const {OpenApi, OpenApiDocument, validateOpenApiSchema} = require('./lib/openapi');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -770,6 +770,9 @@ module.exports = (models, opts) => {
       }
     });
   });
+  if (!openApiDocument.valid(openApiDocument)) {
+    throw new Error('lukas fucked up!');
+  }
   return {
     exspec: openApiDocument,
     routingInformation: routingInformation.map(routing => {

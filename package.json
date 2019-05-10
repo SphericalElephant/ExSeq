@@ -19,7 +19,6 @@
     "joi": "^13.1.2",
     "mime-types": "^2.1.18",
     "semver-regex": "^1.0.0",
-    "validator": "^9.4.1",
     "express": "^4.16.4",
     "lodash": "^4.17.11",
     "sequelize": "^4.42.0"
