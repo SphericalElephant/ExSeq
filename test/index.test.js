@@ -106,7 +106,7 @@ describe('index.js', () => {
   before(done => {
     app.use(bodyParser.json({}));
 
-    exseq([
+    const apiData = exseq([
       {model: TestModel, opts: {}},
       {model: TestModel2, opts: {}},
       {model: TestModel4, opts: {}},
@@ -139,7 +139,9 @@ describe('index.js', () => {
       {model: AliasChildBelongsToMany, opts: {}},
       {model: AllRelationsSource1, opts: {}},
       {model: AllRelationsTarget1, opts: {}}
-    ]).forEach((routing) => {
+    ]);
+
+    apiData.routingInformation.forEach((routing) => {
       app.use(routing.route, routing.router);
     });
 
@@ -521,7 +523,7 @@ describe('index.js', () => {
             middleware: {
               associationMiddleware: true
             }
-          });
+          }).routingInformation;
           function getAssocMiddleware(routingInformation) {
             return routingInformation.router.stack.filter((layer) => {
               return layer && layer.handle && layer.handle.name === 'associationMiddleware';
@@ -551,7 +553,7 @@ describe('index.js', () => {
               model: TestModel,
               opts: {route: 'UseThis'}
             }
-          ])[0].route).to.equal('/UseThis');
+          ]).routingInformation[0].route).to.equal('/UseThis');
         });
         it('should check if the custom route name has already been registered.', () => {
           expect(exseq.bind(null, [

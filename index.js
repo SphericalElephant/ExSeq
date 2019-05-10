@@ -770,7 +770,10 @@ module.exports = (models, opts) => {
       }
     });
   });
-  return routingInformation.map(routing => {
-    return {route: '/' + routing.route, router: routing.router};
-  });
+  return {
+    exspec: openApiDocument,
+    routingInformation: routingInformation.map(routing => {
+      return {route: '/' + routing.route, router: routing.router};
+    })
+  };
 };
