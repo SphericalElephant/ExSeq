@@ -5,14 +5,7 @@ const expect = require('chai').expect;
 const {convertModel} = require('../../../../lib/openapi/sequelize/model-converter');
 const database = require('../../../database');
 const testModel = require('../../../model/test-model');
-const testModel3 = require('../../../model/test-model3');
 const TestModel = testModel(database.sequelize, database.Sequelize);
-const TestModel3 = testModel3(database.sequelize, database.Sequelize);
-
-//const modelExtension = require('../../../../lib/model');
-//modelExtension(TestModel);
-
-//TestModel.belongsTo(TestModel3, {as: 'foobar'});
 
 describe('lib/openapi/sequelize/model-converter.js', () => {
   it('should check if a model is provided.', () => {
