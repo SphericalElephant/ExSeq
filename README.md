@@ -324,6 +324,19 @@ For belongsToMany:
 [downloads-image]: https://img.shields.io/npm/dm/@sphericalelephant/exseq.svg
 [downloads-url]: https://npmjs.org/package/@sphericalelephant/exseq
 
+## OpenAPI support
+
+Starting from 2.0.0, ExSeq supports OpenAPI 3.0.2. The OpenAPI document can be found in ```apiData.exspec```;
+
+```javascript
+const apiData = exseq([
+  ...
+]);
+app.get('/my-api-docs', (req,res,next) => {
+  res.status(200).send(apiData.exspec);
+});
+```
+
 ## Update Instructions
 
 ## 1.x.x to 2.x.x
