@@ -5,7 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/SphericalElephant/ExSeq/badge.svg?branch=master)](https://coveralls.io/github/SphericalElephant/ExSeq?branch=master)
 
 ## About
-ExSeq uses Sequelize models to generate a REST API using the Express web framework.
+ExSeq uses Sequelize models to generate a REST API using the Express web framework. The following documentation always reflects the most recent release version of ExSeq.
 
 ## Installation
 
@@ -315,6 +315,34 @@ For belongsToMany:
 [npm-url]: https://npmjs.org/package/@sphericalelephant/exseq
 [downloads-image]: https://img.shields.io/npm/dm/@sphericalelephant/exseq.svg
 [downloads-url]: https://npmjs.org/package/@sphericalelephant/exseq
+
+## Update Instructions
+
+## 1.x.x to 2.x.x
+
+Calling ```exseq``` does not return an array of routing information any more.
+
+Change your 1.x.x code:
+
+```javascript
+exseq([
+  ...
+]).forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
+
+To:
+
+```javascript
+const apiData = exseq([
+  ...
+]);
+
+apiData.routingInformation.forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
 
 ## License
 [MIT](LICENSE)
