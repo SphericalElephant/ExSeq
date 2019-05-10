@@ -180,8 +180,8 @@ describe('index.js', () => {
           })
         );
       }
-      //testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
-      //testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
+      testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
+      testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
       testModelPromises.push(TestModel4.create({name: 'HasMany-parent1'}).then(testModel4 => {
         return Promise.each(
           [

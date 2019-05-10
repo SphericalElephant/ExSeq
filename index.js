@@ -9,8 +9,6 @@ const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
 
-// OPEN API STUFF
-
 const _attachReply = (req, res, next, status, result, message) => {
   res.__payload = {status, result, message};
   next();
@@ -272,7 +270,6 @@ module.exports = (models, opts) => {
       throw new Error(`model ${model.model.name} already registered`);
     const router = express.Router();
     const route = model.opts.route || model.model.name;
-    console.log(OpenApi);
     routingInformation.push({
       model,
       route,
@@ -292,8 +289,9 @@ module.exports = (models, opts) => {
     const exposedRoutes = routing.opts.exposed || {};
     const openApiHelper = routing.openApiHelper;
 
+    const openApiBaseName = `/${routing.route}`;
     [{path: '/'}, {path: '/count'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
-      const pathName = `${routing.route}${p.path}`.replace(/\/$/, '');
+      const pathName = `${openApiBaseName}${p.path}`.replace(/\/$/, '');
       const optName = p.alternative || p.path;
       if (!openApiDocument.paths[pathName]) {
         openApiDocument.paths[pathName] = openApiHelper.createPathItemStub(optName);
@@ -322,8 +320,9 @@ module.exports = (models, opts) => {
             return handleError(err);
           });
       });
-      if (!openApiDocument.paths[routing.route].post) {
-        openApiDocument.paths[routing.route].post = openApiHelper.createModelPathSpecification('post');
+      console.log(openApiDocument.paths, routing.route, openApiBaseName, openApiDocument.paths[openApiBaseName]);
+      if (!openApiDocument.paths[openApiBaseName].post) {
+        openApiDocument.paths[openApiBaseName].post = openApiHelper.createModelPathSpecification('post');
       }
     }
 
@@ -337,8 +336,8 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${routing.route}/count`].get) {
-        openApiDocument.paths[`${routing.route}/count`].get = openApiHelper.createCountModelPathSpecification();
+      if (!openApiDocument.paths[`${openApiBaseName}/count`].get) {
+        openApiDocument.paths[`${openApiBaseName}/count`].get = openApiHelper.createCountModelPathSpecification();
       }
     }
 
@@ -354,8 +353,8 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[routing.route].get) {
-        openApiDocument.paths[routing.route].get = openApiHelper.createModelPathSpecification('get');
+      if (!openApiDocument.paths[openApiBaseName].get) {
+        openApiDocument.paths[openApiBaseName].get = openApiHelper.createModelPathSpecification('get');
       }
     }
 
@@ -378,8 +377,8 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${routing.route}/search`]) {
-        openApiDocument.paths[`${routing.route}/search`].post = openApiHelper.createSearchModelPathSpecification();
+      if (!openApiDocument.paths[`${openApiBaseName}/search`]) {
+        openApiDocument.paths[`${openApiBaseName}/search`].post = openApiHelper.createSearchModelPathSpecification();
       }
     }
 
@@ -400,8 +399,8 @@ module.exports = (models, opts) => {
           return handleError(err);
         });
       });
-      if (!openApiDocument.paths[`${routing.route}/{id}`].get) {
-        openApiDocument.paths[`${routing.route}/{id}`].get = openApiHelper.createInstancePathSpecification('get');
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].get) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].get = openApiHelper.createInstancePathSpecification('get');
       }
     }
 
@@ -411,8 +410,8 @@ module.exports = (models, opts) => {
           return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
         });
       });
-      if (!openApiDocument.paths[`${routing.route}/{id}`].put) {
-        openApiDocument.paths[`${routing.route}/{id}`].put = openApiHelper.createInstancePathSpecification('put');
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].put) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].put = openApiHelper.createInstancePathSpecification('put');
       }
     }
 
@@ -422,8 +421,8 @@ module.exports = (models, opts) => {
           return model.removeIllegalAttributes(body);
         });
       });
-      if (!openApiDocument.paths[`${routing.route}/{id}`].patch) {
-        openApiDocument.paths[`${routing.route}/{id}`].patch = openApiHelper.createInstancePathSpecification('patch');
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].patch) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].patch = openApiHelper.createInstancePathSpecification('patch');
       }
     }
 
@@ -440,8 +439,8 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${routing.route}/{id}`].delete) {
-        openApiDocument.paths[`${routing.route}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete');
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].delete) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete');
       }
     }
 
@@ -482,7 +481,7 @@ module.exports = (models, opts) => {
       };
 
       const baseTargetRouteOpt = `/:id/${targetRoute}`;
-      const baseTargetPath = `${routing.route}/{id}/${targetRoute}`;
+      const baseTargetPath = `${openApiBaseName}/{id}/${targetRoute}`;
       [
         {path: '/'},
         {path: '/count'},
