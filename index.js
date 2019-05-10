@@ -320,7 +320,6 @@ module.exports = (models, opts) => {
             return handleError(err);
           });
       });
-      console.log(openApiDocument.paths, routing.route, openApiBaseName, openApiDocument.paths[openApiBaseName]);
       if (!openApiDocument.paths[openApiBaseName].post) {
         openApiDocument.paths[openApiBaseName].post = openApiHelper.createModelPathSpecification('post');
       }

@@ -272,7 +272,7 @@ describe('index.js', () => {
     });
   });
   describe('Model', () => {
-    describe('getModelAssociations', () => {
+    describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI BUG!!', () => {
       const HasOneSource = database.sequelize.define('HasOneSource', {});
       const HasOneTarget = database.sequelize.define('HasOneTarget', {});
 
@@ -320,19 +320,22 @@ describe('index.js', () => {
           source: MultiSource,
           target: HasOneTarget,
           associationType: 'HasOne',
-          fk: 'MultiSourceId'
+          fk: 'MultiSourceId',
+          as: 'HasOneTarget'
         },
         {
           source: MultiSource,
           target: HasManyTarget,
           associationType: 'HasMany',
-          fk: 'MultiSourceId'
+          fk: 'MultiSourceId',
+          as: 'HasManyTargets'
         },
         {
           source: MultiSource,
           target: BelongsToTarget,
           associationType: 'BelongsTo',
-          fk: 'BelongsToTargetId'
+          fk: 'BelongsToTargetId',
+          as: 'BelongsToTarget'
         },
         {
           source: MultiSource,
@@ -340,14 +343,16 @@ describe('index.js', () => {
           associationType: 'BelongsToMany',
           through: MultiSourceThrough,
           sourceFk: 'MultiSourceId',
-          targetFk: 'BelongsToManyTargetId'
+          targetFk: 'BelongsToManyTargetId',
+          as: 'BelongsToManyTargets'
         }]);
         expect(HasOneSource.getModelAssociations()).to.deep.equal(
           [{
             source: HasOneSource,
             target: HasOneTarget,
             associationType: 'HasOne',
-            fk: 'HasOneSourceId'
+            fk: 'HasOneSourceId',
+            as: 'HasOneTarget'
           }]
         );
         expect(HasManySource.getModelAssociations()).to.deep.equal(
@@ -355,7 +360,8 @@ describe('index.js', () => {
             source: HasManySource,
             target: HasManyTarget,
             associationType: 'HasMany',
-            fk: 'HasManySourceId'
+            fk: 'HasManySourceId',
+            as: 'HasManyTargets'
           }]
         );
         expect(BelongsToSource.getModelAssociations()).to.deep.equal(
@@ -363,7 +369,8 @@ describe('index.js', () => {
             source: BelongsToSource,
             target: BelongsToTarget,
             associationType: 'BelongsTo',
-            fk: 'BelongsToTargetId'
+            fk: 'BelongsToTargetId',
+            as: 'BelongsToTarget'
           }]
         );
 
@@ -374,7 +381,8 @@ describe('index.js', () => {
             associationType: 'BelongsToMany',
             through: BelongsToManyThrough,
             sourceFk: 'BelongsToManySourceId',
-            targetFk: 'BelongsToManyTargetId'
+            targetFk: 'BelongsToManyTargetId',
+            as: 'BelongsToManyTargets'
           }]
         );
       });
@@ -398,13 +406,15 @@ describe('index.js', () => {
                 source: HasOneSource,
                 target: HasOneTarget,
                 associationType: 'HasOne',
-                fk: 'HasOneSourceId'
+                fk: 'HasOneSourceId',
+                as: 'HasOneTarget'
               },
               {
                 source: MultiSource,
                 target: HasOneTarget,
                 associationType: 'HasOne',
-                fk: 'MultiSourceId'
+                fk: 'MultiSourceId',
+                as: 'HasOneTarget'
               }]
             );
             expect(associationInformation.getAssociationInformation(CustomFKTarget)).to.deep.equal(
@@ -412,7 +422,8 @@ describe('index.js', () => {
                 source: CustomFKSource,
                 target: CustomFKTarget,
                 associationType: 'HasOne',
-                fk: 'target_id'
+                fk: 'target_id',
+                as: 'target'
               }]
             );
           });
@@ -434,7 +445,8 @@ describe('index.js', () => {
               source: HasOneSource,
               target: HasOneTarget,
               associationType: 'HasOne',
-              fk: 'HasOneSourceId'
+              fk: 'HasOneSourceId',
+              as: 'HasOneTarget'
             });
             expect(associationInformation.getAssociationInformation('MultiSourceId')).to.have.lengthOf(3);
             expect(associationInformation.getAssociationInformation('BelongsToManyTargetId')).to.have.lengthOf(2);
