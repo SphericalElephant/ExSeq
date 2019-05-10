@@ -51,9 +51,11 @@ exseq([
 Define a custom name for a *source*:
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {model: Person, opts: {route: 'User'}}
-]).forEach((routing) => {
+])
+
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -72,7 +74,7 @@ const deny = (req, res, next) => {
   err.status = 401;
   return next(err);
 }
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -91,7 +93,8 @@ exseq([
       }
     }
   }
-]).forEach((routing) => {
+]);
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -99,7 +102,7 @@ exseq([
 authorizeForChildren - All Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -117,7 +120,8 @@ exseq([
     }
   },
   {model: Tire, opts: {}}
-]).forEach((routing) => {
+]);
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -125,7 +129,7 @@ exseq([
 useParentForAuthorization - All Car related Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -143,7 +147,8 @@ exseq([
       }
     }
   }
-]).forEach((routing) => {
+])
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -257,7 +262,7 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.json({}));
 
-exseq([
+const apiData = exseq([
   {model: Car, opts: {}},
   {model: Tire, opts: {}},
 ], {
@@ -266,7 +271,8 @@ exseq([
       fieldName: 'someField'
     }
   }
-}).forEach((routing) => {
+})
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -294,7 +300,8 @@ For hasOne, hasMany and belongsTo:
   source: HasManySource,
   target: HasManyTarget,
   associationType: 'HasMany',
-  fk: 'HasManySourceId'
+  fk: 'HasManySourceId',
+  as: 'HasManyTarget'
 }]
 ```
 
@@ -307,7 +314,8 @@ For belongsToMany:
   associationType: 'BelongsToMany',
   through: BelongsToManyThrough,
   sourceFk: 'BelongsToManySourceId',
-  targetFk: 'BelongsToManyTargetId'
+  targetFk: 'BelongsToManyTargetId',
+  as: 'BelongsToManyTarget'
 }]
 ```
 
