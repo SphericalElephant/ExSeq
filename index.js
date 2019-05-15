@@ -129,6 +129,12 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
     return i;
   });
 
+  // reject if one of the models could not be resolved
+  const modelToReject = includeWithAttachedModel.find((i) => typeof i.model === 'string');
+  if (modelToReject) {
+    return _createErrorPromise(404, `unable to resolve model ${modelToReject.model}`);
+  }
+
   let newQuery = Object.assign({}, query);
   newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
   return Promise.resolve(newQuery);

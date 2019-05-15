@@ -26,6 +26,13 @@ TestModel.hasOne(TestModel3);
 const testModel4Testmodel5Association = TestModel4.hasMany(TestModel5);
 TestModel7.belongsToMany(TestModel6, {through: 'TestModel6TestModel7'});
 const testModel6TestModel7Association = TestModel6.belongsToMany(TestModel7, {through: 'TestModel6TestModel7'});
+const TestModel9 = nameStringValueString('TestModel9', database.sequelize, database.Sequelize);
+const TestModel10 = nameStringValueString('TestModel10', database.sequelize, database.Sequelize);
+const TestModel11 = nameStringValueString('TestModel11', database.sequelize, database.Sequelize);
+TestModel10.belongsToMany(TestModel9, {through: 'TestModel9TestModel10'});
+const testModel9TestModel10Association = TestModel9.belongsToMany(TestModel10, {through: 'TestModel9TestModel10'});
+TestModel11.belongsTo(TestModel9);
+TestModel9.hasOne(TestModel11);
 const AuthorizationAssocChild = valueString('AuthorizationAssocChild', database.sequelize, database.Sequelize);
 const AuthorizationAssocParent = valueString('AuthorizationAssocParent', database.sequelize, database.Sequelize);
 const AuthorizationAssocParent2 = valueString('AuthorizationAssocParent2', database.sequelize, database.Sequelize);
@@ -67,6 +74,9 @@ const associationMiddleware = require('../middleware/relationship');
   TestModel6,
   TestModel7,
   TestModel8,
+  TestModel9,
+  TestModel10,
+  TestModel11,
   AuthorizationAssocChild,
   AuthorizationAssocParent,
   AuthorizationAssocParent2,
@@ -114,6 +124,9 @@ describe('index.js', () => {
       {model: TestModel6, opts: {}},
       {model: TestModel7, opts: {}},
       {model: TestModel8, opts: {}},
+      {model: TestModel9, opts: {}},
+      {model: TestModel10, opts: {}},
+      {model: TestModel11, opts: {}},
       {model: AuthorizationAssocChild, opts: {}},
       {
         model: AuthorizationAssocParent, opts: {
@@ -175,6 +188,29 @@ describe('index.js', () => {
               }),
               TestModel3.create({value1: 'test' + i, value2: 3}).then(testModel3 => {
                 return testModel.setTestModel3(testModel3);
+              })
+            );
+          })
+        );
+      }
+      for (let i = 0; i < 2; i++) {
+        testModelPromises.push(
+          TestModel9.create({name: 'supername' + i, value: 'supervalue' + i}).then(testModel9 => {
+            return Promise.join(
+              // create belongs to instances
+              TestModel11.create({name: 'supername', value: 'supervalue'}).then(testModel11 => {
+                return testModel11.setTestModel9(testModel9);
+              }),
+              // create belongs to many instances
+              Promise.each(
+                [
+                  TestModel10.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
+                  TestModel10.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
+                  TestModel10.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
+                ],
+                () => {}
+              ).spread((one, two, three) => {
+                return Promise.join(testModel9.addTestModel10(one), testModel9.addTestModel10(two), testModel9.addTestModel10(three));
               })
             );
           })
@@ -855,6 +891,85 @@ describe('index.js', () => {
           expect(testModel7Id).to.equal(testModel6TestModel7TestModel7Id);
         });
     });
+    it('should find instance that match the search query with include 2', async () => {
+      return request(app)
+        .post('/TestModel9/search')
+        .send({
+          s: {
+            name: {
+              '$like': '%name1%'
+            },
+            include: [
+              {
+                model: 'TestModel10',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%child%'
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                model: 'TestModel11',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%supername%'
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        })
+        .expect(200);
+    });
+    it('should throw an error if a non-existent model is passed as an include', async () => {
+      return request(app)
+        .post('/TestModel9/search')
+        .send({
+          s: {
+            name: {
+              '$like': '%name1%'
+            },
+            include: [
+              {
+                model: 'TestModel14', // non-existent model
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%child%'
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                model: 'TestModel11',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%supername%'
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        })
+        .expect(404)
+        .then(response => {
+          expect(response.body.message).to.equal('unable to resolve model TestModel14');
+        });
+    });
     it('should return a 204 if no items where found', () => {
       return request(app)
         .post('/TestModel/search')
@@ -1283,6 +1398,10 @@ describe('index.js', () => {
       {
         source: TestModel6, sourceName: 'TestModel6', target: TestModel7,
         association: testModel6TestModel7Association, associationName: 'TestModel7'
+      },
+      {
+        source: TestModel9, sourceName: 'TestModel9', target: TestModel10,
+        association: testModel9TestModel10Association, associationName: 'TestModel10'
       },
       // test proper aliasing and pluralization
       {
