@@ -4,7 +4,7 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 const modelExtension = require('./lib/model');
-const {OpenApi, OpenApiDocument, validateOpenApiSchema} = require('./lib/openapi');
+const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -252,14 +252,14 @@ module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
   opts.middleware = opts.middleware || {};
+  opts.openapi = opts.openapi || {};
 
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
-  // TODO: make sure that every referenced schema actually exists in openApiDocument.components.schemas
+
+  const openApiDocument = new OpenApiDocument(opts.openapi);
+
   // first pass, register all models
-
-  const openApiDocument = new OpenApiDocument();
-
   models.forEach(model => {
     modelExtension(model.model);
     model.opts = model.opts || {};
@@ -278,9 +278,10 @@ module.exports = (models, opts) => {
       openApiHelper: new OpenApi(model.model, route, model.opts.openapi)
     });
     if (!openApiDocument.components.schemas[model.model.name]) {
-      openApiDocument.components.schemas[model.model.name] = OpenApi.convert(model.model);
+      openApiDocument.components.schemas = OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas);
     }
   });
+
   // second pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
@@ -770,8 +771,8 @@ module.exports = (models, opts) => {
       }
     });
   });
-  if (!openApiDocument.valid(openApiDocument)) {
-    throw new Error('patrick fucked up!');
+  if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: true})) {
+    throw new Error('Invalid OpenApiDocument!');
   }
   return {
     exspec: openApiDocument,
