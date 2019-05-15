@@ -771,7 +771,7 @@ module.exports = (models, opts) => {
     });
   });
   if (!openApiDocument.valid(openApiDocument)) {
-    throw new Error('lukas fucked up!');
+    throw new Error('patrick fucked up!');
   }
   return {
     exspec: openApiDocument,
