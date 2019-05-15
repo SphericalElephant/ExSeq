@@ -195,7 +195,7 @@ describe('index.js', () => {
       }
       for (let i = 0; i < 2; i++) {
         testModelPromises.push(
-          TestModel9.create({name: 'supername' + i, value: 'supervalue' + i}).then(testModel9 => {
+          TestModel9.create({name: 'BelongsToMany-parent1', value: 'BelongsToMany-value-parent1'}).then(testModel9 => {
             return Promise.join(
               // create belongs to instances
               TestModel11.create({name: 'supername', value: 'supervalue'}).then(testModel11 => {
@@ -897,7 +897,7 @@ describe('index.js', () => {
         .send({
           s: {
             name: {
-              '$like': '%name1%'
+              '$like': '%parent1%'
             },
             include: [
               {
@@ -1456,7 +1456,12 @@ describe('index.js', () => {
               .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/count`)
               .expect(200)
               .then(response => {
-                expect(response.body.result).to.equal(3);
+                // test model 9 is a special case with 6 instances
+                if (manyRelation.source.name === 'TestModel9') {
+                  expect(response.body.result).to.equal(6);
+                } else {
+                  expect(response.body.result).to.equal(3);
+                }
               });
           });
         });
