@@ -194,7 +194,7 @@ The label of the first segment of the route is determined by ```source.name``` o
 | POST   | HasMany / BelongsToMany | /source/:id/target/:targetId/link | CREATE    | Link existing *source* and *target* instances |
 | POST   | HasMany / BelongsToMany | /source/:id/target/:targetId/unlink | CREATE  | Unlink existing *source* and *target* instances |
 
-### Respose Headers
+### Response Headers
 
 |           Route           |        Relation         |    Header     |                          Info                          |
 | :-----------------------: | :---------------------: | :-----------: | :----------------------------------------------------: |
