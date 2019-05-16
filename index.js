@@ -4,6 +4,7 @@ const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
 const modelExtension = require('./lib/model');
+const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -257,29 +258,52 @@ module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
   opts.middleware = opts.middleware || {};
+  opts.openapi = opts.openapi || {};
 
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
+
+  const openApiDocument = new OpenApiDocument(opts.openapi);
+
   // first pass, register all models
   models.forEach(model => {
     modelExtension(model.model);
     model.opts = model.opts || {};
+    model.opts.openapi = model.opts.openapi || {};
     if (_.find(routingInformation, (i) => {
       return (i.route || i.model.model.name) === (model.opts.route || model.model.name);
     }))
       throw new Error(`model ${model.model.name} already registered`);
     const router = express.Router();
+    const route = model.opts.route || model.model.name;
     routingInformation.push({
       model,
-      route: model.opts.route || model.model.name,
-      router
+      route,
+      router,
+      opts: model.opts,
+      openApiHelper: new OpenApi(model.model, route, model.opts.openapi)
     });
+    if (!openApiDocument.components.schemas[model.model.name]) {
+      openApiDocument.components.schemas = OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas);
+    }
   });
+
   // second pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
     const model = routing.model.model;
     const update = _update.bind(null, model);
+    const exposedRoutes = routing.opts.exposed || {};
+    const openApiHelper = routing.openApiHelper;
+
+    const openApiBaseName = `/${routing.route}`;
+    [{path: '/'}, {path: '/count'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
+      const pathName = `${openApiBaseName}${p.path}`.replace(/\/$/, '');
+      const optName = p.alternative || p.path;
+      if (!openApiDocument.paths[pathName]) {
+        openApiDocument.paths[pathName] = openApiHelper.createPathItemStub(optName);
+      }
+    });
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
 
@@ -290,102 +314,141 @@ module.exports = (models, opts) => {
       router.use(associationMiddleware);
     }
 
-    router.post('/', auth('CREATE'), (req, res, next) => {
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-      const input = model.removeIllegalAttributes(req.body);
+    if (!exposedRoutes['/'] || !exposedRoutes['/'].post === false) {
+      router.post('/', auth('CREATE'), (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+        const input = model.removeIllegalAttributes(req.body);
+        model
+          .create(input)
+          .then(modelInstance => {
+            return attachReply(201, model.filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
+          }).catch(err => {
+            return handleError(err);
+          });
+      });
+      if (!openApiDocument.paths[openApiBaseName].post) {
+        openApiDocument.paths[openApiBaseName].post = openApiHelper.createModelPathSpecification('post');
+      }
+    }
 
-      model
-        .create(input)
-        .then(modelInstance => {
-          return attachReply(201, model.filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
+    if (!exposedRoutes['/count'] || !exposedRoutes['/count'].get === false) {
+      router.get('/count', auth('READ'), async (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+        try {
+          return attachReply(200, await model.count(), `Count for ${model.name} obtained!`);
+        } catch (err) {
+          return handleError(err);
+        }
+      });
+      if (!openApiDocument.paths[`${openApiBaseName}/count`].get) {
+        openApiDocument.paths[`${openApiBaseName}/count`].get = openApiHelper.createCountModelPathSpecification();
+      }
+    }
+
+    if (!exposedRoutes['/'] || !exposedRoutes['/'].get === false) {
+      router.get('/', auth('READ'), async (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+        try {
+          const query = await _createQuery(req, 'query');
+          const results = await model.findAll(query);
+          return attachReply(200, results.map(instance => instance.get({plain: true})));
+        } catch (err) {
+          return handleError(err);
+        }
+      });
+      if (!openApiDocument.paths[openApiBaseName].get) {
+        openApiDocument.paths[openApiBaseName].get = openApiHelper.createModelPathSpecification('get');
+      }
+    }
+
+    if (!exposedRoutes['/search'] || !exposedRoutes['/search'].get === false) {
+      router.post('/search', auth('SEARCH'), async (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+        try {
+          const query = await _createQuery(req, 'body');
+          const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
+          const results = await model.findAll(searchQuery);
+
+          res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
+          if (results.length === 0) {
+            return attachReply(204);
+          } else {
+            return attachReply(200, results.map(instance => instance.get({plain: true})));
+          }
+        } catch (err) {
+          return handleError(err);
+        }
+      });
+      if (!openApiDocument.paths[`${openApiBaseName}/search`]) {
+        openApiDocument.paths[`${openApiBaseName}/search`].post = openApiHelper.createSearchModelPathSpecification();
+      }
+    }
+
+    if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].get === false) {
+      router.get('/:id', auth('READ'), (req, res, next) => {
+        const id = req.params.id;
+        if (id === 'count') {
+          return next();
+        }
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+
+        const attributes = req.query.a ? req.query.a.split('|') : undefined;
+        model.findOne({where: {id}, attributes}).then(modelInstance => {
+          if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
+          return attachReply(200, modelInstance);
         }).catch(err => {
           return handleError(err);
         });
-    });
-
-    router.get('/count', auth('READ'), async (req, res, next) => {
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-      try {
-        return attachReply(200, await model.count(), `Count for ${model.name} obtained!`);
-      } catch (err) {
-        return handleError(err);
+      });
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].get) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].get = openApiHelper.createInstancePathSpecification('get');
       }
-    });
+    }
 
-    router.get('/', auth('READ'), async (req, res, next) => {
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-      try {
-        const query = await _createQuery(req, 'query');
-        const results = await model.findAll(query);
-        return attachReply(200, results.map(instance => instance.get({plain: true})));
-      } catch (err) {
-        return handleError(err);
+    if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].put === false) {
+      router.put('/:id', auth('UPDATE'), async (req, res, next) => {
+        await update(req, res, next, req.params.id, (body) => {
+          return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
+        });
+      });
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].put) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].put = openApiHelper.createInstancePathSpecification('put');
       }
-    });
+    }
 
-    router.post('/search', auth('SEARCH'), async (req, res, next) => {
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-      try {
-        const query = await _createQuery(req, 'body');
-        const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
-        const results = await model.findAll(searchQuery);
+    if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].patch === false) {
+      router.patch('/:id', auth('UPDATE_PARTIAL'), async (req, res, next) => {
+        await update(req, res, next, req.params.id, (body) => {
+          return model.removeIllegalAttributes(body);
+        });
+      });
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].patch) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].patch = openApiHelper.createInstancePathSpecification('patch');
+      }
+    }
 
-        res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
-        if (results.length === 0) {
+    if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].delete === false) {
+      router.delete('/:id', auth('DELETE'), async (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+        try {
+          const instance = await model.findByPk(req.params.id);
+          if (!instance) await _createErrorPromise(404);
+          await instance.destroy();
           return attachReply(204);
-        } else {
-          return attachReply(200, results.map(instance => instance.get({plain: true})));
+        } catch (err) {
+          return handleError(err);
         }
-      } catch (err) {
-        return handleError(err);
-      }
-    });
-
-    router.get('/:id', auth('READ'), (req, res, next) => {
-      const id = req.params.id;
-      if (id === 'count') {
-        return next();
-      }
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-
-      const attributes = req.query.a ? req.query.a.split('|') : undefined;
-      model.findOne({where: {id}, attributes}).then(modelInstance => {
-        if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
-        return attachReply(200, modelInstance);
-      }).catch(err => {
-        return handleError(err);
       });
-    });
-
-    router.put('/:id', auth('UPDATE'), async (req, res, next) => {
-      await update(req, res, next, req.params.id, (body) => {
-        return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
-      });
-    });
-
-    router.patch('/:id', auth('UPDATE_PARTIAL'), async (req, res, next) => {
-      await update(req, res, next, req.params.id, (body) => {
-        return model.removeIllegalAttributes(body);
-      });
-    });
-
-    router.delete('/:id', auth('DELETE'), async (req, res, next) => {
-      const attachReply = _attachReply.bind(null, req, res, next);
-      const handleError = _handleError.bind(null, next);
-      try {
-        const instance = await model.findByPk(req.params.id);
-        if (!instance) await _createErrorPromise(404);
-        await instance.destroy();
-        return attachReply(204);
-      } catch (err) {
-        return handleError(err);
+      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].delete) {
+        openApiDocument.paths[`${openApiBaseName}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete');
       }
-    });
+    }
 
     model.getAssociatedModelNames().forEach(associationName => {
       const association = model.getAssociationByName(associationName);
@@ -422,175 +485,305 @@ module.exports = (models, opts) => {
           });
         };
       };
+
+      const baseTargetRouteOpt = `/:id/${targetRoute}`;
+      const baseTargetPath = `${openApiBaseName}/{id}/${targetRoute}`;
+      [
+        {path: '/'},
+        {path: '/count'},
+        {path: '/search'},
+        {path: '/{targetId}', alternative: '/:targetId'},
+        {path: '/{targetId}/link', alternative: '/:targetId/link'},
+        {path: '/{targetId}/unlink', alternative: '/:targetId/unlink'}
+      ].forEach(p => {
+        const pathName = `${baseTargetPath}${p.path}`.replace(/\/$/, '');
+        const optName = `${baseTargetRouteOpt}${p.alternative || p.path}`;
+        if (!openApiDocument.paths[pathName]) {
+          openApiDocument.paths[pathName] = openApiHelper.createPathItemStub(optName);
+        }
+      });
+
       switch (association.associationType) {
         case 'HasOne':
         case 'BelongsTo':
-          router.get(`/:id/${targetRoute}`, auth('READ'),
-            relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
-          router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            source.findByPk(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
-            }).then(instance => {
-              if (association.associationType === 'BelongsTo') {
-                return instance[association.accessors.get]().then(createdTargetInstance => {
-                  return attachReply(201, createdTargetInstance.get({plain: true}));
-                });
-              } else {
-                return attachReply(201, instance.get({plain: true}));
-              }
-            }).catch(err => {
-              return handleError(err);
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
+            router.get(`/:id/${targetRoute}`, auth('READ'),
+              relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
+            if (!openApiDocument.paths[baseTargetPath].get) {
+              openApiDocument.paths[baseTargetPath].get = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('get', target, targetRoute);
+            }
+          }
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
+            router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              source.findByPk(req.params.id).then(sourceInstance => {
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
+              }).then(instance => {
+                if (association.associationType === 'BelongsTo') {
+                  return instance[association.accessors.get]().then(createdTargetInstance => {
+                    return attachReply(201, createdTargetInstance.get({plain: true}));
+                  });
+                } else {
+                  return attachReply(201, instance.get({plain: true}));
+                }
+              }).catch(err => {
+                return handleError(err);
+              });
             });
-          });
-          router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
-            await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
-              return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
+            if (!openApiDocument.paths[baseTargetPath].post) {
+              openApiDocument.paths[baseTargetPath].post = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('post', target, targetRoute);
+            }
+          }
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].put === false) {
+            router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
+              await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+                return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
+              });
             });
-          });
-          router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
-            await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
-              return target.removeIllegalAttributes(body);
+            if (!openApiDocument.paths[baseTargetPath].put) {
+              openApiDocument.paths[baseTargetPath].put = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('put', target, targetRoute);
+            }
+          }
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].patch === false) {
+            router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
+              await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+                return target.removeIllegalAttributes(body);
+              });
             });
-          });
-          router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, association.accessors.set);
-          });
+            if (!openApiDocument.paths[baseTargetPath].patch) {
+              openApiDocument.paths[baseTargetPath].patch = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('patch', target, targetRoute);
+            }
+          }
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
+            router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+              unlinkRelations(req, res, next, association.accessors.set);
+            });
+            if (!openApiDocument.paths[baseTargetPath].delete) {
+              openApiDocument.paths[baseTargetPath].delete = openApiHelper
+                .createHasOneOrBelongsToPathSpecification('delete', target, targetRoute);
+            }
+          }
           break;
         case 'HasMany':
         case 'BelongsToMany':
-          router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
-            return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
-          }));
-          router.get(`/:id/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            try {
-              return attachReply(200, await _countAssociations(association), `Count for ${model.name} obtained!`);
-            } catch (err) {
-              return handleError(err);
+          const instanceTargetRouteOpt = `${baseTargetRouteOpt}/:targetId`;
+          const instanceTargetPath = `${baseTargetPath}/{targetId}`;
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
+            router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
+              return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+            }));
+            if (!openApiDocument.paths[baseTargetPath].get) {
+              openApiDocument.paths[baseTargetPath].get = openApiHelper
+                .createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute);
             }
-          });
-          router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            try {
-              const query = await _createQuery(req, 'body');
-              const searchQuery = await _attachSearchToQuery(req, 'body', query);
-              const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
-              res.set('X-Total-Count', await _countAssociations(association, searchOptions));
-              if (results.length === 0) {
-                return attachReply(204);
-              } else {
-                return attachReply(200, results);
-              }
-            } catch (err) {
-              return handleError(err);
-            }
-          });
-          router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
-            if (req.params.targetId === 'count') {
-              return next();
-            }
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            source.findByPk(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
-                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
-              });
-            }).catch(err => {
-              return handleError(err);
-            });
-          });
-          router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-            source.findByPk(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
-            }).then(instance => {
-              return attachReply(201, instance.get({plain: true}));
-            }).catch(err => {
-              return handleError(err);
-            });
-          });
-          if (association.associationType === 'BelongsToMany') {
-            router.post(`/:id/${targetRoute}/:targetId/link`, auth('CREATE'), async (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
-              try {
-                const sourceInstance = await source.findByPk(req.params.id);
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-
-                const targetInstance = await target.findByPk(req.params.targetId);
-                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-
-                await sourceInstance[association.accessors.add](targetInstance);
-
-                return attachReply(204);
-              } catch (err) {
-                return handleError(err);
-              }
-            });
-            router.delete(`/:id/${targetRoute}/:targetId/unlink`, auth('CREATE'), async (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
-              try {
-                const sourceInstance = await source.findByPk(req.params.id);
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-
-                const targetInstance = await target.findByPk(req.params.targetId);
-                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-
-                await sourceInstance[association.accessors.remove](targetInstance);
-
-                return attachReply(204);
-              } catch (err) {
-                return handleError(err);
-              }
-            });
           }
-          router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
-            _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
-              (body) => {
-                return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
-              });
-          });
-          router.patch(`/:id/${targetRoute}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
-            _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
-              (body) => {
-                return target.removeIllegalAttributes(body);
-              });
-          });
-          router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-            unlinkRelations(req, res, next, association.accessors.set);
-          });
-          router.delete(`/:id/${targetRoute}/:targetId`, auth('DELETE'), (req, res, next) => {
-            const attachReply = _attachReply.bind(null, req, res, next);
-            const handleError = _handleError.bind(null, next);
-
-            source.findByPk(req.params.id).then(sourceInstance => {
-              if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-              return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
-                const targetInstance = targetInstances[0];
-                if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                return sourceInstance[association.accessors.remove](targetInstance);
-              }).then(() => {
-                return attachReply(204);
-              });
-            }).catch(err => {
-              return handleError(err);
+          if (!exposedRoutes[`${baseTargetRouteOpt}/count`] || !exposedRoutes[`${baseTargetRouteOpt}/count`].get === false) {
+            router.get(`/:id/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              try {
+                return attachReply(200, await _countAssociations(association), `Count for ${model.name} obtained!`);
+              } catch (err) {
+                return handleError(err);
+              }
             });
-          });
+            if (!openApiDocument.paths[`${baseTargetPath}/count`]) {
+              openApiDocument.paths[`${baseTargetPath}/count`].get = openApiHelper
+                .createCountHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[`${baseTargetRouteOpt}/search`] || !exposedRoutes[`${baseTargetRouteOpt}/search`].post === false) {
+            router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              try {
+                const query = await _createQuery(req, 'body');
+                const searchQuery = await _attachSearchToQuery(req, 'body', query);
+                const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
+                res.set('X-Total-Count', await _countAssociations(association, searchOptions));
+                if (results.length === 0) {
+                  return attachReply(204);
+                } else {
+                  return attachReply(200, results);
+                }
+              } catch (err) {
+                return handleError(err);
+              }
+            });
+            if (!openApiDocument.paths[`${baseTargetPath}/search`]) {
+              openApiDocument.paths[`${baseTargetPath}/search`].post = openApiHelper
+                .createSearchHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].get === false) {
+            router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
+              if (req.params.targetId === 'count') {
+                return next();
+              }
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              source.findByPk(req.params.id).then(sourceInstance => {
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                  return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+                });
+              }).catch(err => {
+                return handleError(err);
+              });
+            });
+            if (!openApiDocument.paths[instanceTargetPath]) {
+              openApiDocument.paths[instanceTargetPath].get = openApiHelper
+                .createHasManyOrBelongsToManyInstancePathSpecfication('get', target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
+            router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+              source.findByPk(req.params.id).then(sourceInstance => {
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
+              }).then(instance => {
+                return attachReply(201, instance.get({plain: true}));
+              }).catch(err => {
+                return handleError(err);
+              });
+            });
+            if (!openApiDocument.paths[baseTargetPath].post) {
+              openApiDocument.paths[baseTargetPath].post = openApiHelper
+                .createHasManyOrBelongsToManyPathSpecfication('post', target, targetRoute);
+            }
+          }
+          if (association.associationType === 'BelongsToMany') {
+            if (!exposedRoutes[`${instanceTargetRouteOpt}/link`] || !exposedRoutes[`${instanceTargetRouteOpt}/link`].post === false) {
+              router.post(`/:id/${targetRoute}/:targetId/link`, auth('CREATE'), async (req, res, next) => {
+                const attachReply = _attachReply.bind(null, req, res, next);
+                const handleError = _handleError.bind(null, next);
+                try {
+                  const sourceInstance = await source.findByPk(req.params.id);
+                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                  const targetInstance = await target.findByPk(req.params.targetId);
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+                  await sourceInstance[association.accessors.add](targetInstance);
+
+                  return attachReply(204);
+                } catch (err) {
+                  return handleError(err);
+                }
+              });
+              if (!openApiDocument.paths[`${instanceTargetPath}/link`].post) {
+                openApiDocument.paths[`${instanceTargetPath}/link`].post = openApiHelper
+                  .createLinkBelongsToManyPathSpecification(target, targetRoute);
+              }
+            }
+
+            if (!exposedRoutes[`${instanceTargetRouteOpt}/unlink`] || !exposedRoutes[`${instanceTargetRouteOpt}/unlink`].delete === false) {
+              router.delete(`/:id/${targetRoute}/:targetId/unlink`, auth('CREATE'), async (req, res, next) => {
+                const attachReply = _attachReply.bind(null, req, res, next);
+                const handleError = _handleError.bind(null, next);
+                try {
+                  const sourceInstance = await source.findByPk(req.params.id);
+                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+
+                  const targetInstance = await target.findByPk(req.params.targetId);
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+
+                  await sourceInstance[association.accessors.remove](targetInstance);
+
+                  return attachReply(204);
+                } catch (err) {
+                  return handleError(err);
+                }
+              });
+              if (!openApiDocument.paths[`${instanceTargetPath}/unlink`].delete) {
+                openApiDocument.paths[`${instanceTargetPath}/unlink`].delete = openApiHelper
+                  .createUnlinkBelongsToManyPathSpecification(target, targetRoute);
+              }
+            }
+          }
+
+          if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].put === false) {
+            router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
+              _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+                (body) => {
+                  return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
+                });
+            });
+            if (!openApiDocument.paths[instanceTargetPath]) {
+              openApiDocument.paths[instanceTargetPath].put = openApiHelper
+                .createHasManyOrBelongsToManyInstancePathSpecfication('put', target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].patch === false) {
+            router.patch(`/:id/${targetRoute}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
+              _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+                (body) => {
+                  return target.removeIllegalAttributes(body);
+                });
+            });
+            if (!openApiDocument.paths[instanceTargetPath]) {
+              openApiDocument.paths[instanceTargetPath].patch = openApiHelper
+                .createHasManyOrBelongsToManyInstancePathSpecfication('patch', target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
+            router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+              unlinkRelations(req, res, next, association.accessors.set);
+            });
+            if (!openApiDocument.paths[baseTargetPath].delete) {
+              openApiDocument.paths[baseTargetPath].delete = openApiHelper
+                .createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute);
+            }
+          }
+
+          if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].delete === false) {
+            router.delete(`/:id/${targetRoute}/:targetId`, auth('DELETE'), (req, res, next) => {
+              const attachReply = _attachReply.bind(null, req, res, next);
+              const handleError = _handleError.bind(null, next);
+
+              source.findByPk(req.params.id).then(sourceInstance => {
+                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
+                  const targetInstance = targetInstances[0];
+                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                  return sourceInstance[association.accessors.remove](targetInstance);
+                }).then(() => {
+                  return attachReply(204);
+                });
+              }).catch(err => {
+                return handleError(err);
+              });
+            });
+            if (!openApiDocument.paths[instanceTargetPath]) {
+              openApiDocument.paths[instanceTargetPath].delete = openApiHelper
+                .createHasManyOrBelongsToManyInstancePathSpecfication('delete', target, targetRoute);
+            }
+          }
           break;
       }
     });
   });
-  return routingInformation.map(routing => {
-    return {route: '/' + routing.route, router: routing.router};
-  });
+  if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: true})) {
+    throw new Error('Invalid OpenApiDocument!');
+  }
+  return {
+    exspec: openApiDocument,
+    routingInformation: routingInformation.map(routing => {
+      return {route: '/' + routing.route, router: routing.router};
+    })
+  };
 };

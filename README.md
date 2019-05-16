@@ -5,7 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/SphericalElephant/ExSeq/badge.svg?branch=master)](https://coveralls.io/github/SphericalElephant/ExSeq?branch=master)
 
 ## About
-ExSeq uses Sequelize models to generate a REST API using the Express web framework.
+ExSeq uses Sequelize models to generate a REST API using the Express web framework. The following documentation always reflects the most recent release version of ExSeq.
 
 ## Installation
 
@@ -51,9 +51,11 @@ exseq([
 Define a custom name for a *source*:
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {model: Person, opts: {route: 'User'}}
-]).forEach((routing) => {
+])
+
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -72,7 +74,7 @@ const deny = (req, res, next) => {
   err.status = 401;
   return next(err);
 }
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -91,7 +93,8 @@ exseq([
       }
     }
   }
-]).forEach((routing) => {
+]);
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -99,7 +102,7 @@ exseq([
 authorizeForChildren - All Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -117,7 +120,8 @@ exseq([
     }
   },
   {model: Tire, opts: {}}
-]).forEach((routing) => {
+]);
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -125,7 +129,7 @@ exseq([
 useParentForAuthorization - All Car related Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
-exseq([
+const apiData = exseq([
   {
     model: Car, opts: {
       authorizeWith: {
@@ -143,7 +147,8 @@ exseq([
       }
     }
   }
-]).forEach((routing) => {
+])
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -257,7 +262,7 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.json({}));
 
-exseq([
+const apiData = exseq([
   {model: Car, opts: {}},
   {model: Tire, opts: {}},
 ], {
@@ -266,7 +271,8 @@ exseq([
       fieldName: 'someField'
     }
   }
-}).forEach((routing) => {
+})
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -294,7 +300,8 @@ For hasOne, hasMany and belongsTo:
   source: HasManySource,
   target: HasManyTarget,
   associationType: 'HasMany',
-  fk: 'HasManySourceId'
+  fk: 'HasManySourceId',
+  as: 'HasManyTarget'
 }]
 ```
 
@@ -307,7 +314,8 @@ For belongsToMany:
   associationType: 'BelongsToMany',
   through: BelongsToManyThrough,
   sourceFk: 'BelongsToManySourceId',
-  targetFk: 'BelongsToManyTargetId'
+  targetFk: 'BelongsToManyTargetId',
+  as: 'BelongsToManyTarget'
 }]
 ```
 
@@ -315,6 +323,47 @@ For belongsToMany:
 [npm-url]: https://npmjs.org/package/@sphericalelephant/exseq
 [downloads-image]: https://img.shields.io/npm/dm/@sphericalelephant/exseq.svg
 [downloads-url]: https://npmjs.org/package/@sphericalelephant/exseq
+
+## OpenAPI support
+
+Starting from 2.0.0, ExSeq supports OpenAPI 3.0.2. The OpenAPI document can be found in ```apiData.exspec```;
+
+```javascript
+const apiData = exseq([
+  ...
+]);
+app.get('/my-api-docs', (req,res,next) => {
+  res.status(200).send(apiData.exspec);
+});
+```
+
+## Update Instructions
+
+## 1.x.x to 2.x.x
+
+Calling ```exseq``` does not return an array of routing information any more.
+
+Change your 1.x.x code:
+
+```javascript
+exseq([
+  ...
+]).forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
+
+To:
+
+```javascript
+const apiData = exseq([
+  ...
+]);
+
+apiData.routingInformation.forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
 
 ## License
 [MIT](LICENSE)

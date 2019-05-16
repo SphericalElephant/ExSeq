@@ -16,9 +16,11 @@
     "url": "https://github.com/SphericalElephant/ExSeq.git"
   },
   "dependencies": {
-    "bluebird": "^3.5.3",
+    "ajv": "^6.10.0",
     "express": "^4.16.4",
     "lodash": "^4.17.11",
+    "mime-types": "^2.1.18",
+    "semver-regex": "^1.0.0",
     "sequelize": "^4.42.0"
   },
   "keywords": [
@@ -33,6 +35,7 @@
     "node": ">=8.12"
   },
   "devDependencies": {
+    "bluebird": "^3.5.3",
     "body-parser": "^1.18.3",
     "chai": "^4.2.0",
     "coveralls": "^3.0.2",

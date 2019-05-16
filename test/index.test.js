@@ -116,7 +116,7 @@ describe('index.js', () => {
   before(done => {
     app.use(bodyParser.json({}));
 
-    exseq([
+    const apiData = exseq([
       {model: TestModel, opts: {}},
       {model: TestModel2, opts: {}},
       {model: TestModel4, opts: {}},
@@ -152,7 +152,9 @@ describe('index.js', () => {
       {model: AliasChildBelongsToMany, opts: {}},
       {model: AllRelationsSource1, opts: {}},
       {model: AllRelationsTarget1, opts: {}}
-    ]).forEach((routing) => {
+    ]);
+
+    apiData.routingInformation.forEach((routing) => {
       app.use(routing.route, routing.router);
     });
 
@@ -176,7 +178,7 @@ describe('index.js', () => {
     done();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     return database.init().then(() => {
       const testModelPromises = [];
       for (let i = 0; i < 49; i++) {
@@ -308,7 +310,7 @@ describe('index.js', () => {
     });
   });
   describe('Model', () => {
-    describe('getModelAssociations', () => {
+    describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI', () => {
       const HasOneSource = database.sequelize.define('HasOneSource', {});
       const HasOneTarget = database.sequelize.define('HasOneTarget', {});
 
@@ -356,19 +358,22 @@ describe('index.js', () => {
           source: MultiSource,
           target: HasOneTarget,
           associationType: 'HasOne',
-          fk: 'MultiSourceId'
+          fk: 'MultiSourceId',
+          as: 'HasOneTarget'
         },
         {
           source: MultiSource,
           target: HasManyTarget,
           associationType: 'HasMany',
-          fk: 'MultiSourceId'
+          fk: 'MultiSourceId',
+          as: 'HasManyTargets'
         },
         {
           source: MultiSource,
           target: BelongsToTarget,
           associationType: 'BelongsTo',
-          fk: 'BelongsToTargetId'
+          fk: 'BelongsToTargetId',
+          as: 'BelongsToTarget'
         },
         {
           source: MultiSource,
@@ -376,14 +381,16 @@ describe('index.js', () => {
           associationType: 'BelongsToMany',
           through: MultiSourceThrough,
           sourceFk: 'MultiSourceId',
-          targetFk: 'BelongsToManyTargetId'
+          targetFk: 'BelongsToManyTargetId',
+          as: 'BelongsToManyTargets'
         }]);
         expect(HasOneSource.getModelAssociations()).to.deep.equal(
           [{
             source: HasOneSource,
             target: HasOneTarget,
             associationType: 'HasOne',
-            fk: 'HasOneSourceId'
+            fk: 'HasOneSourceId',
+            as: 'HasOneTarget'
           }]
         );
         expect(HasManySource.getModelAssociations()).to.deep.equal(
@@ -391,7 +398,8 @@ describe('index.js', () => {
             source: HasManySource,
             target: HasManyTarget,
             associationType: 'HasMany',
-            fk: 'HasManySourceId'
+            fk: 'HasManySourceId',
+            as: 'HasManyTargets'
           }]
         );
         expect(BelongsToSource.getModelAssociations()).to.deep.equal(
@@ -399,7 +407,8 @@ describe('index.js', () => {
             source: BelongsToSource,
             target: BelongsToTarget,
             associationType: 'BelongsTo',
-            fk: 'BelongsToTargetId'
+            fk: 'BelongsToTargetId',
+            as: 'BelongsToTarget'
           }]
         );
 
@@ -410,7 +419,8 @@ describe('index.js', () => {
             associationType: 'BelongsToMany',
             through: BelongsToManyThrough,
             sourceFk: 'BelongsToManySourceId',
-            targetFk: 'BelongsToManyTargetId'
+            targetFk: 'BelongsToManyTargetId',
+            as: 'BelongsToManyTargets'
           }]
         );
       });
@@ -434,13 +444,15 @@ describe('index.js', () => {
                 source: HasOneSource,
                 target: HasOneTarget,
                 associationType: 'HasOne',
-                fk: 'HasOneSourceId'
+                fk: 'HasOneSourceId',
+                as: 'HasOneTarget'
               },
               {
                 source: MultiSource,
                 target: HasOneTarget,
                 associationType: 'HasOne',
-                fk: 'MultiSourceId'
+                fk: 'MultiSourceId',
+                as: 'HasOneTarget'
               }]
             );
             expect(associationInformation.getAssociationInformation(CustomFKTarget)).to.deep.equal(
@@ -448,7 +460,8 @@ describe('index.js', () => {
                 source: CustomFKSource,
                 target: CustomFKTarget,
                 associationType: 'HasOne',
-                fk: 'target_id'
+                fk: 'target_id',
+                as: 'target'
               }]
             );
           });
@@ -470,7 +483,8 @@ describe('index.js', () => {
               source: HasOneSource,
               target: HasOneTarget,
               associationType: 'HasOne',
-              fk: 'HasOneSourceId'
+              fk: 'HasOneSourceId',
+              as: 'HasOneTarget'
             });
             expect(associationInformation.getAssociationInformation('MultiSourceId')).to.have.lengthOf(3);
             expect(associationInformation.getAssociationInformation('BelongsToManyTargetId')).to.have.lengthOf(2);
@@ -545,7 +559,7 @@ describe('index.js', () => {
             middleware: {
               associationMiddleware: true
             }
-          });
+          }).routingInformation;
           function getAssocMiddleware(routingInformation) {
             return routingInformation.router.stack.filter((layer) => {
               return layer && layer.handle && layer.handle.name === 'associationMiddleware';
@@ -575,7 +589,7 @@ describe('index.js', () => {
               model: TestModel,
               opts: {route: 'UseThis'}
             }
-          ])[0].route).to.equal('/UseThis');
+          ]).routingInformation[0].route).to.equal('/UseThis');
         });
         it('should check if the custom route name has already been registered.', () => {
           expect(exseq.bind(null, [

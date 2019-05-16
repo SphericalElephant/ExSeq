@@ -15,5 +15,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     }
   });
+
   return TestModel;
 };
