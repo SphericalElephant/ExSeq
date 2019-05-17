@@ -584,6 +584,28 @@ describe('index.js', () => {
           });
         });
       });
+      describe('opts.route', () => {
+        it('should make the camel cased route name a dashed string.', () => {
+          expect(exseq([
+            {
+              model: TestModel,
+              opts: {}
+            }
+          ], {
+            naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+          }).routingInformation[0].route).to.equal('/test-model');
+        });
+        it('should not change a custom route name.', () => {
+          expect(exseq([
+            {
+              model: TestModel,
+              opts: {route: 'UseThis'}
+            }
+          ], {
+            naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+          }).routingInformation[0].route).to.equal('/UseThis');
+        });
+      });
     });
     describe('model.opts', () => {
       describe('opts.route', () => {
