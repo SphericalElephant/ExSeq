@@ -263,7 +263,8 @@ module.exports = (models, opts) => {
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
 
-  const openApiDocument = new OpenApiDocument(opts.openapi);
+  const openApiDocument = opts.openapi.document && opts.openapi.document instanceof OpenApiDocument ?
+    opts.openapi.document : new OpenApiDocument(opts.openapi.document);
 
   // first pass, register all models
   models.forEach(model => {
@@ -281,10 +282,12 @@ module.exports = (models, opts) => {
       route,
       router,
       opts: model.opts,
-      openApiHelper: new OpenApi(model.model, route, model.opts.openapi)
+      openApiHelper: new OpenApi(
+        model.model, route, {operationIdPrefix: 'exseq', tags: ['exseq'], pathOpts: model.opts.openapi}
+      )
     });
-    if (!openApiDocument.components.schemas[model.model.name]) {
-      openApiDocument.components.schemas = OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas);
+    if (!openApiDocument.schemaExists(model.model.name)) {
+      openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas));
     }
   });
 
@@ -300,9 +303,7 @@ module.exports = (models, opts) => {
     [{path: '/'}, {path: '/count'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
       const pathName = `${openApiBaseName}${p.path}`.replace(/\/$/, '');
       const optName = p.alternative || p.path;
-      if (!openApiDocument.paths[pathName]) {
-        openApiDocument.paths[pathName] = openApiHelper.createPathItemStub(optName);
-      }
+      openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
     });
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
@@ -327,9 +328,7 @@ module.exports = (models, opts) => {
             return handleError(err);
           });
       });
-      if (!openApiDocument.paths[openApiBaseName].post) {
-        openApiDocument.paths[openApiBaseName].post = openApiHelper.createModelPathSpecification('post');
-      }
+      openApiDocument.setOperationIfNotExists(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
     }
 
     if (!exposedRoutes['/count'] || !exposedRoutes['/count'].get === false) {
@@ -342,9 +341,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/count`].get) {
-        openApiDocument.paths[`${openApiBaseName}/count`].get = openApiHelper.createCountModelPathSpecification();
-      }
+      openApiDocument.setOperationIfNotExists(`${openApiBaseName}/count`, 'get', openApiHelper.createCountModelPathSpecification());
     }
 
     if (!exposedRoutes['/'] || !exposedRoutes['/'].get === false) {
@@ -359,9 +356,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[openApiBaseName].get) {
-        openApiDocument.paths[openApiBaseName].get = openApiHelper.createModelPathSpecification('get');
-      }
+      openApiDocument.setOperationIfNotExists(openApiBaseName, 'get', openApiHelper.createModelPathSpecification('get'));
     }
 
     if (!exposedRoutes['/search'] || !exposedRoutes['/search'].get === false) {
@@ -383,9 +378,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/search`]) {
-        openApiDocument.paths[`${openApiBaseName}/search`].post = openApiHelper.createSearchModelPathSpecification();
-      }
+      openApiDocument.setOperationIfNotExists(`${openApiBaseName}/search`, 'post', openApiHelper.createSearchModelPathSpecification());
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].get === false) {
@@ -405,9 +398,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         });
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].get) {
-        openApiDocument.paths[`${openApiBaseName}/{id}`].get = openApiHelper.createInstancePathSpecification('get');
-      }
+      openApiDocument.setOperationIfNotExists(`${openApiBaseName}/{id}`, 'get', openApiHelper.createInstancePathSpecification('get'));
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].put === false) {
@@ -416,7 +407,7 @@ module.exports = (models, opts) => {
           return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
         });
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].put) {
+      if (!openApiDocument.operationExists(`${openApiBaseName}/{id}`, 'put')) {
         openApiDocument.paths[`${openApiBaseName}/{id}`].put = openApiHelper.createInstancePathSpecification('put');
       }
     }
@@ -427,9 +418,7 @@ module.exports = (models, opts) => {
           return model.removeIllegalAttributes(body);
         });
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].patch) {
-        openApiDocument.paths[`${openApiBaseName}/{id}`].patch = openApiHelper.createInstancePathSpecification('patch');
-      }
+      openApiDocument.setOperationIfNotExists(`${openApiBaseName}/{id}`, 'patch', openApiHelper.createInstancePathSpecification('patch'));
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].delete === false) {
@@ -445,9 +434,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      if (!openApiDocument.paths[`${openApiBaseName}/{id}`].delete) {
-        openApiDocument.paths[`${openApiBaseName}/{id}`].delete = openApiHelper.createInstancePathSpecification('delete');
-      }
+      openApiDocument.setOperationIfNotExists(`${openApiBaseName}/{id}`, 'delete', openApiHelper.createInstancePathSpecification('delete'));
     }
 
     model.getAssociatedModelNames().forEach(associationName => {
@@ -498,9 +485,7 @@ module.exports = (models, opts) => {
       ].forEach(p => {
         const pathName = `${baseTargetPath}${p.path}`.replace(/\/$/, '');
         const optName = `${baseTargetRouteOpt}${p.alternative || p.path}`;
-        if (!openApiDocument.paths[pathName]) {
-          openApiDocument.paths[pathName] = openApiHelper.createPathItemStub(optName);
-        }
+        openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
       });
 
       switch (association.associationType) {
@@ -509,10 +494,9 @@ module.exports = (models, opts) => {
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
             router.get(`/:id/${targetRoute}`, auth('READ'),
               relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
-            if (!openApiDocument.paths[baseTargetPath].get) {
-              openApiDocument.paths[baseTargetPath].get = openApiHelper
-                .createHasOneOrBelongsToPathSpecification('get', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'get', openApiHelper.createHasOneOrBelongsToPathSpecification('get', target, targetRoute)
+            );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
             router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
@@ -533,10 +517,9 @@ module.exports = (models, opts) => {
                 return handleError(err);
               });
             });
-            if (!openApiDocument.paths[baseTargetPath].post) {
-              openApiDocument.paths[baseTargetPath].post = openApiHelper
-                .createHasOneOrBelongsToPathSpecification('post', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'post', openApiHelper.createHasOneOrBelongsToPathSpecification('post', target, targetRoute)
+            );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].put === false) {
             router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
@@ -544,10 +527,9 @@ module.exports = (models, opts) => {
                 return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
               });
             });
-            if (!openApiDocument.paths[baseTargetPath].put) {
-              openApiDocument.paths[baseTargetPath].put = openApiHelper
-                .createHasOneOrBelongsToPathSpecification('put', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'put', openApiHelper.createHasOneOrBelongsToPathSpecification('put', target, targetRoute)
+            );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].patch === false) {
             router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
@@ -555,19 +537,17 @@ module.exports = (models, opts) => {
                 return target.removeIllegalAttributes(body);
               });
             });
-            if (!openApiDocument.paths[baseTargetPath].patch) {
-              openApiDocument.paths[baseTargetPath].patch = openApiHelper
-                .createHasOneOrBelongsToPathSpecification('patch', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'patch', openApiHelper.createHasOneOrBelongsToPathSpecification('patch', target, targetRoute)
+            );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
             router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
               unlinkRelations(req, res, next, association.accessors.set);
             });
-            if (!openApiDocument.paths[baseTargetPath].delete) {
-              openApiDocument.paths[baseTargetPath].delete = openApiHelper
-                .createHasOneOrBelongsToPathSpecification('delete', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'delete', openApiHelper.createHasOneOrBelongsToPathSpecification('delete', target, targetRoute)
+            );
           }
           break;
         case 'HasMany':
@@ -578,10 +558,9 @@ module.exports = (models, opts) => {
             router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
               return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
             }));
-            if (!openApiDocument.paths[baseTargetPath].get) {
-              openApiDocument.paths[baseTargetPath].get = openApiHelper
-                .createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'get', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute)
+            );
           }
           if (!exposedRoutes[`${baseTargetRouteOpt}/count`] || !exposedRoutes[`${baseTargetRouteOpt}/count`].get === false) {
             router.get(`/:id/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
@@ -593,10 +572,9 @@ module.exports = (models, opts) => {
                 return handleError(err);
               }
             });
-            if (!openApiDocument.paths[`${baseTargetPath}/count`]) {
-              openApiDocument.paths[`${baseTargetPath}/count`].get = openApiHelper
-                .createCountHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              `${baseTargetPath}/count`, 'get', openApiHelper.createCountHasManyOrBelongsToManyPathSpecfication(target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[`${baseTargetRouteOpt}/search`] || !exposedRoutes[`${baseTargetRouteOpt}/search`].post === false) {
@@ -617,10 +595,9 @@ module.exports = (models, opts) => {
                 return handleError(err);
               }
             });
-            if (!openApiDocument.paths[`${baseTargetPath}/search`]) {
-              openApiDocument.paths[`${baseTargetPath}/search`].post = openApiHelper
-                .createSearchHasManyOrBelongsToManyPathSpecfication(target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              `${baseTargetPath}/search`, 'post', openApiHelper.createSearchHasManyOrBelongsToManyPathSpecfication(target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].get === false) {
@@ -640,10 +617,9 @@ module.exports = (models, opts) => {
                 return handleError(err);
               });
             });
-            if (!openApiDocument.paths[instanceTargetPath]) {
-              openApiDocument.paths[instanceTargetPath].get = openApiHelper
-                .createHasManyOrBelongsToManyInstancePathSpecfication('get', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              instanceTargetPath, 'get', openApiHelper.createHasManyOrBelongsToManyInstancePathSpecfication('get', target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
@@ -659,10 +635,9 @@ module.exports = (models, opts) => {
                 return handleError(err);
               });
             });
-            if (!openApiDocument.paths[baseTargetPath].post) {
-              openApiDocument.paths[baseTargetPath].post = openApiHelper
-                .createHasManyOrBelongsToManyPathSpecfication('post', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'post', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('post', target, targetRoute)
+            );
           }
           if (association.associationType === 'BelongsToMany') {
             if (!exposedRoutes[`${instanceTargetRouteOpt}/link`] || !exposedRoutes[`${instanceTargetRouteOpt}/link`].post === false) {
@@ -683,10 +658,9 @@ module.exports = (models, opts) => {
                   return handleError(err);
                 }
               });
-              if (!openApiDocument.paths[`${instanceTargetPath}/link`].post) {
-                openApiDocument.paths[`${instanceTargetPath}/link`].post = openApiHelper
-                  .createLinkBelongsToManyPathSpecification(target, targetRoute);
-              }
+              openApiDocument.setOperationIfNotExists(
+                `${instanceTargetPath}/link`, 'post', openApiHelper.createLinkBelongsToManyPathSpecification(target, targetRoute)
+              );
             }
 
             if (!exposedRoutes[`${instanceTargetRouteOpt}/unlink`] || !exposedRoutes[`${instanceTargetRouteOpt}/unlink`].delete === false) {
@@ -707,10 +681,9 @@ module.exports = (models, opts) => {
                   return handleError(err);
                 }
               });
-              if (!openApiDocument.paths[`${instanceTargetPath}/unlink`].delete) {
-                openApiDocument.paths[`${instanceTargetPath}/unlink`].delete = openApiHelper
-                  .createUnlinkBelongsToManyPathSpecification(target, targetRoute);
-              }
+              openApiDocument.setOperationIfNotExists(
+                `${instanceTargetPath}/unlink`, 'delete', openApiHelper.createUnlinkBelongsToManyPathSpecification(target, targetRoute)
+              );
             }
           }
 
@@ -721,10 +694,9 @@ module.exports = (models, opts) => {
                   return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
                 });
             });
-            if (!openApiDocument.paths[instanceTargetPath]) {
-              openApiDocument.paths[instanceTargetPath].put = openApiHelper
-                .createHasManyOrBelongsToManyInstancePathSpecfication('put', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              instanceTargetPath, 'put', openApiHelper.createHasManyOrBelongsToManyInstancePathSpecfication('put', target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].patch === false) {
@@ -734,20 +706,18 @@ module.exports = (models, opts) => {
                   return target.removeIllegalAttributes(body);
                 });
             });
-            if (!openApiDocument.paths[instanceTargetPath]) {
-              openApiDocument.paths[instanceTargetPath].patch = openApiHelper
-                .createHasManyOrBelongsToManyInstancePathSpecfication('patch', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              instanceTargetPath, 'patch', openApiHelper.createHasManyOrBelongsToManyInstancePathSpecfication('patch', target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
             router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
               unlinkRelations(req, res, next, association.accessors.set);
             });
-            if (!openApiDocument.paths[baseTargetPath].delete) {
-              openApiDocument.paths[baseTargetPath].delete = openApiHelper
-                .createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              baseTargetPath, 'delete', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute)
+            );
           }
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].delete === false) {
@@ -768,16 +738,17 @@ module.exports = (models, opts) => {
                 return handleError(err);
               });
             });
-            if (!openApiDocument.paths[instanceTargetPath]) {
-              openApiDocument.paths[instanceTargetPath].delete = openApiHelper
-                .createHasManyOrBelongsToManyInstancePathSpecfication('delete', target, targetRoute);
-            }
+            openApiDocument.setOperationIfNotExists(
+              instanceTargetPath, 'delete',
+              openApiHelper.createHasManyOrBelongsToManyInstancePathSpecfication('delete', target, targetRoute)
+            );
           }
           break;
       }
     });
   });
-  if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: true})) {
+  openApiDocument.cleanPaths();
+  if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: {level: 'error'}})) {
     throw new Error('Invalid OpenApiDocument!');
   }
   return {
