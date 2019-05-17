@@ -29,10 +29,12 @@ const bodyParser = require('body-parser');
 
 app.use(bodyParser.json({}));
 
-exseq([
+const apiData = exseq([
   {model: Car, opts: {}},
   {model: Tire, opts: {}},
-]).forEach((routing) => {
+]);
+
+apiData.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
