@@ -10,6 +10,8 @@ const rewire = require('rewire');
 
 const database = require('./database');
 const testModel = require('./model/test-model');
+const testModelVirtualFields = require('./model/test-model-virtual-type');
+const TestModelVirtualFields = testModelVirtualFields(database.sequelize, database.Sequelize);
 const TestModel = testModel(database.sequelize, database.Sequelize);
 const valueString = require('./model/name-string');
 const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);
@@ -89,7 +91,8 @@ const associationMiddleware = require('../middleware/relationship');
   AllRelationsSource1,
   AllRelationsTarget1,
   AllRelationsSource2,
-  AllRelationsTarget2
+  AllRelationsTarget2,
+  TestModelVirtualFields
 ].forEach(modelExtension);
 
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
@@ -151,7 +154,8 @@ describe('index.js', () => {
       {model: AliasParentBelongsToMany, opts: {}},
       {model: AliasChildBelongsToMany, opts: {}},
       {model: AllRelationsSource1, opts: {}},
-      {model: AllRelationsTarget1, opts: {}}
+      {model: AllRelationsTarget1, opts: {}},
+      {model: TestModelVirtualFields, opts: {}}
     ]);
 
     apiData.routingInformation.forEach((routing) => {
