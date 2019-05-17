@@ -34,7 +34,7 @@ const apiData = exseq([
   {model: Tire, opts: {}},
 ]);
 
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -57,7 +57,7 @@ const apiData = exseq([
   {model: Person, opts: {route: 'User'}}
 ])
 
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -96,7 +96,7 @@ const apiData = exseq([
     }
   }
 ]);
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -123,7 +123,7 @@ const apiData = exseq([
   },
   {model: Tire, opts: {}}
 ]);
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -150,7 +150,7 @@ const apiData = exseq([
     }
   }
 ])
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
@@ -274,7 +274,7 @@ const apiData = exseq([
     }
   }
 })
-apiData.forEach((routing) => {
+apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
