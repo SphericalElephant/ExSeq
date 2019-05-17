@@ -259,6 +259,13 @@ module.exports = (models, opts) => {
   opts = opts || {};
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
+  const namingScheme = opts.naming || function (value) { return value; };
+  if (!typeof namingScheme === 'function') {
+    throw new Error('naming scheme must be a function');
+  }
+  if (!typeof namingScheme('foo') === 'string') {
+    throw new Error('naming scheme must return a string');
+  }
 
   if (!models) throw new Error('models must be set!');
   if (!(models instanceof Array)) throw new Error('models must be an array');
@@ -276,7 +283,7 @@ module.exports = (models, opts) => {
     }))
       throw new Error(`model ${model.model.name} already registered`);
     const router = express.Router();
-    const route = model.opts.route || model.model.name;
+    const route = model.opts.route || namingScheme(model.model.name);
     routingInformation.push({
       model,
       route,
@@ -441,7 +448,7 @@ module.exports = (models, opts) => {
       const association = model.getAssociationByName(associationName);
       const target = association.target;
       const source = association.source;
-      const targetRoute = association.options.name.singular;
+      const targetRoute = namingScheme(association.options.name.singular);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
 
       const unlinkRelations = (req, res, next, setterFunctionName) => {
