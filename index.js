@@ -5,6 +5,7 @@ const sequelize = require('sequelize');
 const _ = require('lodash');
 const modelExtension = require('./lib/model');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
+const {RESPONSES} = require('./lib/openapi/openapi-exseq');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -272,6 +273,8 @@ module.exports = (models, opts) => {
 
   const openApiDocument = opts.openapi.document && opts.openapi.document instanceof OpenApiDocument ?
     opts.openapi.document : new OpenApiDocument(opts.openapi.document);
+  // add default responses
+  openApiDocument.addResponses(RESPONSES);
 
   // first pass, register all models
   models.forEach(model => {
