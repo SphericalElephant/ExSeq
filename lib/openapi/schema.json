@@ -490,6 +490,20 @@
             ]
           }
         },
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Schema"
+            },
+            {
+              "$ref": "#/definitions/Reference"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": true
+        },
         "description": {
           "type": "string"
         },
@@ -530,20 +544,7 @@
         "^x-": {
         }
       },
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "$ref": "#/definitions/Schema"
-          },
-          {
-            "$ref": "#/definitions/Reference"
-          },
-          {
-            "type": "boolean"
-          }
-        ],
-        "default": true
-      }
+      "additionalProperties": false
     },
     "Discriminator": {
       "type": "object",
