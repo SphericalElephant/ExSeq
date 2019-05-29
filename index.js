@@ -99,7 +99,7 @@ const _createQuery = async (req, source = 'query') => {
   if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
     return _createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
 
-  if ((!limit || !offset) && limit !== offset) {
+  if ((!limit || (!offset && offset !== 0)) && limit !== offset) {
     return _createErrorPromise(400, 'p or i must be both undefined or both defined.');
   }
 
@@ -118,6 +118,7 @@ const _createQuery = async (req, source = 'query') => {
 const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
+  if (!s.s) return _createErrorPromise(400, 'no search parameter specified');
   const {include = [], ...where} = s.s;
 
   const includeWithAttachedModel = include.map((i) => {

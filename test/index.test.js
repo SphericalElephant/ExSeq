@@ -173,7 +173,6 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
-      // console.log(err);
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -881,6 +880,21 @@ describe('index.js', () => {
   });
 
   describe('/model/search POST', async () => {
+    it('should throw an error if no search query has been given', async () => {
+      await request(app)
+        .post('/TestModel/search')
+        .send({i: 4, p: 0})
+        .expect(400);
+    });
+    it('should accept 0 as a valid value for p', () => {
+      return request(app)
+        .post('/TestModel/search')
+        .send({i: 4, p: 0, s: {value1: {'$like': 'test%'}}})
+        .expect(200)
+        .then(response => {
+          expect(response.body.result).to.have.lengthOf(4);
+        });
+    });
     it('should find instance that match the search query', () => {
       return request(app)
         .post('/TestModel/search')
@@ -1037,6 +1051,14 @@ describe('index.js', () => {
             expect(response.body).to.deep.equal({message: 'p or i must be both undefined or both defined.'});
           })
       );
+    });
+    it('should accept 0 as a valid value for p', () => {
+      return request(app)
+        .get('/TestModel?i=4&p=0')
+        .expect(200)
+        .then(response => {
+          expect(response.body.result).to.have.lengthOf(4);
+        });
     });
     it('should validate that offset and limit are integers.', () => {
       return Promise.join(
