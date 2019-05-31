@@ -7,18 +7,24 @@ const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
 const rewire = require('rewire');
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
 
 const database = require('./database');
-const testModel = require('./model/test-model');
+
+const valueString = require('./model/name-string');
+const nameStringValueString = require('./model/name-string-value-string');
 const testModelVirtualFields = require('./model/test-model-virtual-type');
+const uuidTestModel = require('./model/uuid-model');
+
+const testModel = require('./model/test-model');
 const TestModelVirtualFields = testModelVirtualFields(database.sequelize, database.Sequelize);
 const TestModel = testModel(database.sequelize, database.Sequelize);
-const valueString = require('./model/name-string');
 const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);
 const testModel3 = require('./model/test-model3');
 const TestModel3 = testModel3(database.sequelize, database.Sequelize);
 const TestModel4 = valueString('TestModel4', database.sequelize, database.Sequelize);
-const nameStringValueString = require('./model/name-string-value-string');
 const TestModel5 = nameStringValueString('TestModel5', database.sequelize, database.Sequelize);
 const TestModel6 = valueString('TestModel6', database.sequelize, database.Sequelize);
 const TestModel7 = nameStringValueString('TestModel7', database.sequelize, database.Sequelize);
@@ -54,13 +60,12 @@ const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {})
 const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {name: database.Sequelize.STRING});
 const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
 const AllRelationsTarget2 = database.sequelize.define('AllRelationsTarget2', {});
-const r1 = AllRelationsSource1.hasOne(AllRelationsTarget1);
-const r2 = AllRelationsSource1.hasMany(AllRelationsTarget1);
-const r3 = AllRelationsSource2.belongsTo(AllRelationsTarget2);
-const r4 = AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
-const express = require('express');
-const app = express();
-const bodyParser = require('body-parser');
+AllRelationsSource1.hasOne(AllRelationsTarget1);
+AllRelationsSource1.hasMany(AllRelationsTarget1);
+AllRelationsSource2.belongsTo(AllRelationsTarget2);
+AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
+const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, database.Sequelize);
+
 const _exseq = rewire('../index.js');
 const exseq = require('../index');
 const modelExtension = require('../lib/model');
@@ -581,6 +586,36 @@ describe('index.js', () => {
               expect(toCheck['associationInformation']).to.exist;
             });
           });
+        });
+      });
+      describe('opts.idRegex', () => {
+        it('should support id regex specification', async () => {
+          const instance = await UUIDTestModel.create();
+          const apiData = exseq([
+            {
+              model: UUIDTestModel
+            }
+          ], {
+            idRegex: '[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}'
+          });
+          const app2 = express();
+
+          apiData.routingInformation.forEach((routing) => {
+            app2.use(routing.route, routing.router);
+          });
+
+          app2.use((req, res, next) => {
+            if (res.__payload) {
+              return res.status(res.__payload.status).send({
+                result: res.__payload.result, message: res.__payload.message
+              });
+            }
+            res.status(404).send();
+          });
+
+          return request(app2)
+            .get(`/UUIDTestModel/${instance.id}`)
+            .expect(200);
         });
       });
       describe('opts.route', () => {

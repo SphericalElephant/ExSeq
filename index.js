@@ -261,6 +261,7 @@ module.exports = (models, opts) => {
   opts = opts || {};
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
+  const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
   const namingScheme = opts.naming || function (value) { return value; };
   if (!typeof namingScheme === 'function') {
     throw new Error('naming scheme must be a function');
@@ -396,7 +397,8 @@ module.exports = (models, opts) => {
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].get === false) {
-      router.get('/:id', auth('READ'), (req, res, next) => {
+      router.get(`/:id${idRegex}`, auth('READ'), (req, res, next) => {
+        console.log('WAT?');
         const id = req.params.id;
         if (id === 'count') {
           return next();
@@ -416,7 +418,7 @@ module.exports = (models, opts) => {
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].put === false) {
-      router.put('/:id', auth('UPDATE'), async (req, res, next) => {
+      router.put(`/:id${idRegex}`, auth('UPDATE'), async (req, res, next) => {
         await update(req, res, next, req.params.id, (body) => {
           return model.fillMissingUpdateableAttributes(null, null, model.removeIllegalAttributes(body));
         });
@@ -425,7 +427,7 @@ module.exports = (models, opts) => {
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].patch === false) {
-      router.patch('/:id', auth('UPDATE_PARTIAL'), async (req, res, next) => {
+      router.patch(`/:id${idRegex}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
         await update(req, res, next, req.params.id, (body) => {
           return model.removeIllegalAttributes(body);
         });
@@ -434,7 +436,7 @@ module.exports = (models, opts) => {
     }
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].delete === false) {
-      router.delete('/:id', auth('DELETE'), async (req, res, next) => {
+      router.delete(`/:id${idRegex}`, auth('DELETE'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
         try {
@@ -506,14 +508,14 @@ module.exports = (models, opts) => {
         case 'HasOne':
         case 'BelongsTo':
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
-            router.get(`/:id/${targetRoute}`, auth('READ'),
+            router.get(`/:id${idRegex}/${targetRoute}`, auth('READ'),
               relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'get', openApiHelper.createHasOneOrBelongsToPathSpecification('get', target, targetRoute)
             );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
-            router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
+            router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(sourceInstance => {
@@ -536,7 +538,7 @@ module.exports = (models, opts) => {
             );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].put === false) {
-            router.put(`/:id/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
+            router.put(`/:id${idRegex}/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
               await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
                 return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
               });
@@ -546,7 +548,7 @@ module.exports = (models, opts) => {
             );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].patch === false) {
-            router.patch(`/:id/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
+            router.patch(`/:id${idRegex}/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
               await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
                 return target.removeIllegalAttributes(body);
               });
@@ -556,7 +558,7 @@ module.exports = (models, opts) => {
             );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
-            router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+            router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
               unlinkRelations(req, res, next, association.accessors.set);
             });
             openApiDocument.addOperationAndComponents(
@@ -569,7 +571,7 @@ module.exports = (models, opts) => {
           const instanceTargetRouteOpt = `${baseTargetRouteOpt}/:targetId`;
           const instanceTargetPath = `${baseTargetPath}/{targetId}`;
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
-            router.get(`/:id/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
+            router.get(`/:id${idRegex}/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
               return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
             }));
             openApiDocument.addOperationAndComponents(
@@ -577,7 +579,7 @@ module.exports = (models, opts) => {
             );
           }
           if (!exposedRoutes[`${baseTargetRouteOpt}/count`] || !exposedRoutes[`${baseTargetRouteOpt}/count`].get === false) {
-            router.get(`/:id/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
+            router.get(`/:id${idRegex}/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               try {
@@ -592,7 +594,7 @@ module.exports = (models, opts) => {
           }
 
           if (!exposedRoutes[`${baseTargetRouteOpt}/search`] || !exposedRoutes[`${baseTargetRouteOpt}/search`].post === false) {
-            router.post(`/:id/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
+            router.post(`/:id${idRegex}/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               try {
@@ -615,7 +617,7 @@ module.exports = (models, opts) => {
           }
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].get === false) {
-            router.get(`/:id/${targetRoute}/:targetId`, auth('READ'), (req, res, next) => {
+            router.get(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('READ'), (req, res, next) => {
               if (req.params.targetId === 'count') {
                 return next();
               }
@@ -637,7 +639,7 @@ module.exports = (models, opts) => {
           }
 
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
-            router.post(`/:id/${targetRoute}`, auth('CREATE'), (req, res, next) => {
+            router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(sourceInstance => {
@@ -655,7 +657,7 @@ module.exports = (models, opts) => {
           }
           if (association.associationType === 'BelongsToMany') {
             if (!exposedRoutes[`${instanceTargetRouteOpt}/link`] || !exposedRoutes[`${instanceTargetRouteOpt}/link`].post === false) {
-              router.post(`/:id/${targetRoute}/:targetId/link`, auth('CREATE'), async (req, res, next) => {
+              router.post(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/link`, auth('CREATE'), async (req, res, next) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
                 const handleError = _handleError.bind(null, next);
                 try {
@@ -678,7 +680,7 @@ module.exports = (models, opts) => {
             }
 
             if (!exposedRoutes[`${instanceTargetRouteOpt}/unlink`] || !exposedRoutes[`${instanceTargetRouteOpt}/unlink`].delete === false) {
-              router.delete(`/:id/${targetRoute}/:targetId/unlink`, auth('CREATE'), async (req, res, next) => {
+              router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/unlink`, auth('CREATE'), async (req, res, next) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
                 const handleError = _handleError.bind(null, next);
                 try {
@@ -700,9 +702,8 @@ module.exports = (models, opts) => {
               );
             }
           }
-
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].put === false) {
-            router.put(`/:id/${targetRoute}/:targetId`, auth('UPDATE'), (req, res, next) => {
+            router.put(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('UPDATE'), (req, res, next) => {
               _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
                 (body) => {
                   return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
@@ -714,7 +715,7 @@ module.exports = (models, opts) => {
           }
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].patch === false) {
-            router.patch(`/:id/${targetRoute}/:targetId`, auth('UPDATE_PARTIAL'), (req, res, next) => {
+            router.patch(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
               _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
                 (body) => {
                   return target.removeIllegalAttributes(body);
@@ -726,16 +727,15 @@ module.exports = (models, opts) => {
           }
 
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].delete === false) {
-            router.delete(`/:id/${targetRoute}`, auth('DELETE'), (req, res, next) => {
+            router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
               unlinkRelations(req, res, next, association.accessors.set);
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'delete', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute)
             );
           }
-
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].delete === false) {
-            router.delete(`/:id/${targetRoute}/:targetId`, auth('DELETE'), (req, res, next) => {
+            router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('DELETE'), (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
 

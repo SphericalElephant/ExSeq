@@ -16,6 +16,7 @@ ExSeq uses Sequelize models to generate a REST API using the Express web framewo
 * CRUD API generation, including partial updates.
 * Unopinionated authorization integration via Express middlewares.
 * Supports all association types provided by Sequelize.
+* OpenAPI support
 
 ## Getting Started
 
@@ -39,7 +40,7 @@ apiData.routingInformation.forEach((routing) => {
 });
 ```
 
-### Options (opts)
+### Route Options (opts)
 
 |                     Option                      |                                                                                                                                                                                                                                                   Description                                                                                                                                                                                                                                                   |
 | :---------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
@@ -338,6 +339,15 @@ app.get('/my-api-docs', (req,res,next) => {
   res.status(200).send(apiData.exspec);
 });
 ```
+
+## Exseq Options (opts)
+
+|    Option     | Description |
+|-|-|
+|middleware||
+|middleware.associationMiddleware||
+|openapi||
+|idRegex|The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing ()|
 
 ## Update Instructions
 
