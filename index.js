@@ -398,7 +398,6 @@ module.exports = (models, opts) => {
 
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].get === false) {
       router.get(`/:id${idRegex}`, auth('READ'), (req, res, next) => {
-        console.log('WAT?');
         const id = req.params.id;
         if (id === 'count') {
           return next();
