@@ -79,7 +79,7 @@ const _updateRelation = async (source, target, association, req, res, next, id, 
 };
 
 const _obtainExcludeRule = (excludeRules, method, targetName, all) => {
-  return _.find(excludeRules, (r) => r.method === method && r.relation === targetName && (r.all !== false) === (all !== false));
+  return excludeRules.find((r) => r.method === method && r.relation === targetName && (r.all !== false) === (all !== false));
 };
 
 const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => {
@@ -284,7 +284,7 @@ module.exports = (models, opts) => {
     modelExtension(model.model);
     model.opts = model.opts || {};
     model.opts.openapi = model.opts.openapi || {};
-    if (_.find(routingInformation, (i) => {
+    if (routingInformation.find((i) => {
       return (i.route || i.model.model.name) === (model.opts.route || model.model.name);
     }))
       throw new Error(`model ${model.model.name} already registered`);
