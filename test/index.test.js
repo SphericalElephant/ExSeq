@@ -554,13 +554,13 @@ describe('index.js', () => {
 
   describe('exseq', () => {
     it('should not allow registering the same model twice.', () => {
-      expect(exseq.bind(null, [{model: TestModel}, {model: TestModel}])).to.throw('already registered');
+      expect(exseq.bind(null, [{model: TestModel}, {model: TestModel}], {dataMapper: database.Sequelize})).to.throw('already registered');
     });
     it('should check that models are set', () => {
-      expect(exseq.bind(null, null)).to.throw('models must be set!');
+      expect(exseq.bind(null, null, {dataMapper: database.Sequelize})).to.throw('models must be set!');
     });
     it('should check if the supplied models instance is an array', () => {
-      expect(exseq.bind(null, {})).to.throw('models must be an array');
+      expect(exseq.bind(null, {}, {dataMapper: database.Sequelize})).to.throw('models must be an array');
     });
     describe('opts', () => {
       describe('middleware', () => {
@@ -630,6 +630,7 @@ describe('index.js', () => {
               opts: {}
             }
           ], {
+            dataMapper: database.Sequelize,
             naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
           }).routingInformation[0].route).to.equal('/test-model');
         });
@@ -640,6 +641,7 @@ describe('index.js', () => {
               opts: {route: 'UseThis'}
             }
           ], {
+            dataMapper: database.Sequelize,
             naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
           }).routingInformation[0].route).to.equal('/UseThis');
         });
@@ -653,7 +655,9 @@ describe('index.js', () => {
               model: TestModel,
               opts: {route: 'UseThis'}
             }
-          ]).routingInformation[0].route).to.equal('/UseThis');
+          ], {
+            dataMapper: database.Sequelize
+          }).routingInformation[0].route).to.equal('/UseThis');
         });
         it('should check if the custom route name has already been registered.', () => {
           expect(exseq.bind(null, [
@@ -665,7 +669,9 @@ describe('index.js', () => {
               model: TestModel,
               opts: {route: 'UseThis'}
             }
-          ])).to.throw('already registered');
+          ], {
+            dataMapper: database.Sequelize
+          })).to.throw('already registered');
         });
       });
       describe('models.opts.authorizeWith', () => {

@@ -6,15 +6,15 @@ const {convertModel} = require('../../../../lib/openapi/sequelize/model-converte
 const database = require('../../../database');
 const testModel = require('../../../model/test-model');
 const TestModel = testModel(database.sequelize, database.Sequelize);
+const modelExtension = require('../../../../lib/model')(database.Sequelize);
 
 describe('lib/openapi/sequelize/model-converter.js', () => {
   it('should check if a model is provided.', () => {
     expect(convertModel.bind(null, undefined)).to.throw('no model specified!');
   });
-  it('should check if the supplied entity is indeed a sequelize model.', () => {
-    expect(convertModel.bind(null, 'test')).to.throw('is not a sequelize Model');
-  });
   it.skip('should convert sequelize models to openapi models correctly.', () => {
+    modelExtension(TestModel);
+    console.log(TestModel.getUpdateableAttributes);
     console.log(convertModel(TestModel));
     expect(convertModel(TestModel)).to.deep.equal({
       'type': 'object',
