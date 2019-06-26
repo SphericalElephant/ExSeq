@@ -68,7 +68,7 @@ const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, databas
 
 const _exseq = rewire('../index.js');
 const exseq = require('../index');
-const modelExtension = require('../lib/model');
+const modelExtension = require('../lib/model')(database.Sequelize);
 const AssociationInformation = require('../lib/association-information');
 const associationMiddleware = require('../middleware/relationship');
 
@@ -161,7 +161,9 @@ describe('index.js', () => {
       {model: AllRelationsSource1, opts: {}},
       {model: AllRelationsTarget1, opts: {}},
       {model: TestModelVirtualFields, opts: {}}
-    ]);
+    ], {
+      dataMapper: database.Sequelize
+    });
 
     apiData.routingInformation.forEach((routing) => {
       app.use(routing.route, routing.router);
@@ -564,6 +566,7 @@ describe('index.js', () => {
       describe('middleware', () => {
         describe('associationMiddleware', () => {
           const exseqResult = exseq([{model: TestModel}], {
+            dataMapper: database.Sequelize,
             middleware: {
               associationMiddleware: true
             }
@@ -596,7 +599,8 @@ describe('index.js', () => {
               model: UUIDTestModel
             }
           ], {
-            idRegex: '[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}'
+            idRegex: '[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}',
+            dataMapper: database.Sequelize
           });
           const app2 = express();
 
@@ -1640,7 +1644,6 @@ describe('index.js', () => {
               const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
               expect(isLinked).to.be.true;
             });
-
             it('should unlink an item from the BelongsToMany.', async () => {
               const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
               const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});

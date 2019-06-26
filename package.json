@@ -21,7 +21,7 @@
     "lodash": "^4.17.11",
     "mime-types": "^2.1.18",
     "semver-regex": "^1.0.0",
-    "sequelize": "^4.42.0"
+    "sequelize": "^5.8.12"
   },
   "keywords": [
     "express",

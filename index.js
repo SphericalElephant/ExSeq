@@ -3,7 +3,6 @@
 const express = require('express');
 const sequelize = require('sequelize');
 const _ = require('lodash');
-const modelExtension = require('./lib/model');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
@@ -259,6 +258,11 @@ const _countAssociations = async (association, query) => {
 module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
+  if (!opts.dataMapper) {
+    throw new Error('you must pass a data mapper using opts.dataMapper');
+  }
+  const modelExtension = require('./lib/model')(opts.dataMapper);
+
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
   const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
@@ -762,7 +766,8 @@ module.exports = (models, opts) => {
   });
   openApiDocument.cleanPaths();
   if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: {level: 'error'}})) {
-    throw new Error('Invalid OpenApiDocument!');
+    console.log('Invalid OpenApiDocument');
+    // throw new Error('Invalid OpenApiDocument!');
   }
   return {
     exspec: openApiDocument,
