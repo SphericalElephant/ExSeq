@@ -180,6 +180,7 @@ describe('index.js', () => {
     });
     // simple error handler
     app.use((err, req, res, next) => {
+      console.error(err);
       if (!err.status) {
         return res.status(500).send({message: err.stack});
       }
@@ -934,7 +935,7 @@ describe('index.js', () => {
     it('should accept 0 as a valid value for p', () => {
       return request(app)
         .post('/TestModel/search')
-        .send({i: 4, p: 0, s: {value1: {'$like': 'test%'}}})
+        .send({i: 4, p: 0, s: {value1: {'like': 'test%'}}})
         .expect(200)
         .then(response => {
           expect(response.body.result).to.have.lengthOf(4);
@@ -954,7 +955,7 @@ describe('index.js', () => {
     it('should find instance that match the search query 2', () => {
       return request(app)
         .post('/TestModel/search')
-        .send({s: {value1: {'$like': 'test%'}}})
+        .send({s: {value1: {'like': 'test%'}}})
         .expect(200)
         .then(response => {
           expect(response.header['x-total-count']).to.equal('49');
@@ -970,7 +971,7 @@ describe('index.js', () => {
               model: 'TestModel7',
               where: {
                 '$or': [{
-                  name: {'$like': '%child1%'}
+                  name: {'like': '%child1%'}
                 }]
               }
             }]
@@ -996,16 +997,16 @@ describe('index.js', () => {
         .send({
           s: {
             name: {
-              '$like': '%parent1%'
+              'like': '%parent1%'
             },
             include: [
               {
                 model: 'TestModel10',
                 where: {
-                  '$or': [
+                  'or': [
                     {
                       name: {
-                        '$like': '%child%'
+                        'like': '%child%'
                       }
                     }
                   ]
@@ -1014,10 +1015,10 @@ describe('index.js', () => {
               {
                 model: 'TestModel11',
                 where: {
-                  '$or': [
+                  'or': [
                     {
                       name: {
-                        '$like': '%supername%'
+                        'like': '%supername%'
                       }
                     }
                   ]
@@ -1034,16 +1035,16 @@ describe('index.js', () => {
         .send({
           s: {
             name: {
-              '$like': '%name1%'
+              'like': '%name1%'
             },
             include: [
               {
                 model: 'TestModel14', // non-existent model
                 where: {
-                  '$or': [
+                  'or': [
                     {
                       name: {
-                        '$like': '%child%'
+                        'like': '%child%'
                       }
                     }
                   ]
@@ -1052,10 +1053,10 @@ describe('index.js', () => {
               {
                 model: 'TestModel11',
                 where: {
-                  '$or': [
+                  'or': [
                     {
                       name: {
-                        '$like': '%supername%'
+                        'like': '%supername%'
                       }
                     }
                   ]
@@ -1773,7 +1774,7 @@ describe('index.js', () => {
               .send({
                 s: {
                   name: {
-                    '$like': `%${manyRelation.association.associationType}%`
+                    'like': `%${manyRelation.association.associationType}%`
                   }
                 }
               })

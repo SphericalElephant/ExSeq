@@ -5,6 +5,7 @@ const sequelize = require('sequelize');
 const _ = require('lodash');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
+const {OPERATOR_TABLE} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -118,6 +119,7 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
   if (!s.s) return _createErrorPromise(400, 'no search parameter specified');
+  OPERATOR_TABLE.replace(s);
   const {include = [], ...where} = s.s;
 
   const includeWithAttachedModel = include.map((i) => {
