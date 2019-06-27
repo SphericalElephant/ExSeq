@@ -89,7 +89,6 @@ const _shouldRouteBeExposed = (excludeRules, method, targetName, all = true) => 
 const _createQuery = async (req, source = 'query') => {
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
-
   const limit = s.i;
   const offset = s.p;
   const attributes = s.a ? s.a.split('|') : undefined;
@@ -119,7 +118,6 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
   const s = req[source];
   if (!s) return _createErrorPromise(500, `invalid source ${source}`);
   if (!s.s) return _createErrorPromise(400, 'no search parameter specified');
-  OPERATOR_TABLE.replace(s);
   const {include = [], ...where} = s.s;
 
   const includeWithAttachedModel = include.map((i) => {
@@ -371,6 +369,7 @@ module.exports = (models, opts) => {
         const handleError = _handleError.bind(null, next);
         try {
           const query = await _createQuery(req, 'query');
+          OPERATOR_TABLE.replace(query);
           const results = await model.findAll(query);
           return attachReply(200, results.map(instance => instance.get({plain: true})));
         } catch (err) {
@@ -387,6 +386,7 @@ module.exports = (models, opts) => {
         try {
           const query = await _createQuery(req, 'body');
           const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
+          OPERATOR_TABLE.replace(searchQuery);
           const results = await model.findAll(searchQuery);
 
           res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
@@ -605,6 +605,7 @@ module.exports = (models, opts) => {
               try {
                 const query = await _createQuery(req, 'body');
                 const searchQuery = await _attachSearchToQuery(req, 'body', query);
+                OPERATOR_TABLE.replace(searchQuery);
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
                 res.set('X-Total-Count', await _countAssociations(association, searchOptions));
                 if (results.length === 0) {

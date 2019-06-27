@@ -971,7 +971,9 @@ describe('index.js', () => {
               model: 'TestModel7',
               where: {
                 '$or': [{
-                  name: {'like': '%child1%'}
+                  name: {
+                    like: '%child1%'
+                  }
                 }]
               }
             }]

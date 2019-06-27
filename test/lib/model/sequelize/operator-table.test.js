@@ -1,7 +1,7 @@
 'use strict';
 const database = require('../../../database');
 const {expect} = require('chai');
-const {OPERATOR_TABLE} = require('../../../../lib/model/')(database.Sequelize);
+const {OPERATOR_TABLE} = require('../../../../lib/data-mapper/index');
 describe('operator-table', () => {
   describe('replace', () => {
     it('should replace all keys of an object that have matching operator symbols with the symbol', () => {
@@ -60,7 +60,7 @@ describe('operator-table', () => {
           {
             model: 'Model1',
             where: {
-              and: [
+              [Symbol.for('and')]: [
                 {
                   field1: {
                     [Symbol.for('ne')]: 'ok'
@@ -78,7 +78,7 @@ describe('operator-table', () => {
               {
                 model: 'NestedModel1',
                 where: {
-                  or: [
+                  [Symbol.for('or')]: [
                     {
                       field1: {
                         [Symbol.for('contains')]: 1
