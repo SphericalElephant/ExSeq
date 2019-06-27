@@ -520,23 +520,33 @@ module.exports = (models, opts) => {
             );
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].post === false) {
-            router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), (req, res, next) => {
+            router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), async (req, res, next) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
-              source.findByPk(req.params.id).then(sourceInstance => {
+              try {
+                const sourceInstance = await source.findByPk(req.params.id);
                 if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-                return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
-              }).then(instance => {
+                const instance = await sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
+
                 if (association.associationType === 'BelongsTo') {
-                  return instance[association.accessors.get]().then(createdTargetInstance => {
-                    return attachReply(201, createdTargetInstance.get({plain: true}));
-                  });
+                  if (instance instanceof source) { // 4.x.x
+                    return sourceInstance[association.accessors.get]().then(createdTargetInstance => {
+                      return attachReply(201, createdTargetInstance.get({plain: true}));
+                    });
+                  } else if (instance instanceof target) { // 5.x.x
+                    return attachReply(201, instance.get({plain: true}));
+                  } else {
+                    _createErrorPromise(
+                      500,
+                      'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                    );
+                  }
                 } else {
                   return attachReply(201, instance.get({plain: true}));
                 }
-              }).catch(err => {
-                return handleError(err);
-              });
+              } catch (err) {
+                handleError(err);
+              }
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'post', openApiHelper.createHasOneOrBelongsToPathSpecification('post', target, targetRoute)
@@ -769,8 +779,7 @@ module.exports = (models, opts) => {
   });
   openApiDocument.cleanPaths();
   if (!openApiDocument.valid(opts.openapi.validationOpts || {logErrors: {level: 'error'}})) {
-    console.log('Invalid OpenApiDocument');
-    // throw new Error('Invalid OpenApiDocument!');
+    throw new Error('Invalid OpenApiDocument!');
   }
   return {
     exspec: openApiDocument,
