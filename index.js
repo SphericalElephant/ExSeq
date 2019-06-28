@@ -1,11 +1,10 @@
 'use strict';
 
 const express = require('express');
-const sequelize = require('sequelize');
 const _ = require('lodash');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
-const {OPERATOR_TABLE} = require('./lib/data-mapper/');
+const {OPERATOR_TABLE, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
 require('./lib/string');
@@ -17,7 +16,7 @@ const _attachReply = (req, res, next, status, result, message) => {
 };
 
 const _handleError = (next, err) => {
-  if (err instanceof sequelize.ValidationError)
+  if (ERRORS.ValidationError(err))
     return next(_createError(400, _formatValidationError(err)));
   else if (err.isCreatedError)
     return next(err);
@@ -525,7 +524,7 @@ module.exports = (models, opts) => {
               const handleError = _handleError.bind(null, next);
               try {
                 const sourceInstance = await source.findByPk(req.params.id);
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                if (!sourceInstance) return await _createErrorPromise(404, 'source not found.');
                 const instance = await sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
 
                 if (association.associationType === 'BelongsTo') {
@@ -639,12 +638,25 @@ module.exports = (models, opts) => {
               }
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
-              source.findByPk(req.params.id).then(sourceInstance => {
+              source.findByPk(req.params.id).then(async sourceInstance => {
                 if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-                return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
-                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                  return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
-                });
+
+                const instances = await sourceInstance[association.accessors.get]({where: {id: req.params.targetId}});
+                if (instances.length === 0) return _createErrorPromise(404, 'target not found.');
+
+                if (instances[0] instanceof source) { // 4.x.x
+                  return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
+                    if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                    return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+                  });
+                } else if (instances[0] instanceof target) { // 5.x.x
+                  return attachReply(200, _filterAttributes(req.query.a, instances[0].get({plain: true})));
+                } else {
+                  return _createErrorPromise(
+                    500,
+                    'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                  );
+                }
               }).catch(err => {
                 return handleError(err);
               });

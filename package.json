@@ -19,8 +19,7 @@
     "ajv": "^6.10.0",
     "express": "^4.16.4",
     "lodash": "^4.17.11",
-    "mime-types": "^2.1.18",
-    "sequelize": "^5.8.12"
+    "mime-types": "^2.1.18"
   },
   "keywords": [
     "express",
@@ -43,6 +42,8 @@
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rewire": "^4.0.1",
+    "sequelize4": "npm:sequelize@^4.44.0",
+    "sequelize5": "npm:sequelize@^5.8.12",
     "sqlite3": "^4.0.6",
     "supertest": "^3.4.2"
   }
