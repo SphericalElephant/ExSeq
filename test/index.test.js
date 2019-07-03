@@ -37,8 +37,10 @@ const testModel6TestModel7Association = TestModel6.belongsToMany(TestModel7, {th
 const TestModel9 = nameStringValueString('TestModel9', database.sequelize, database.Sequelize);
 const TestModel10 = nameStringValueString('TestModel10', database.sequelize, database.Sequelize);
 const TestModel11 = nameStringValueString('TestModel11', database.sequelize, database.Sequelize);
+const TestModel12 = nameStringValueString('TestModel12', database.sequelize, database.Sequelize);
 TestModel10.belongsToMany(TestModel9, {through: 'TestModel9TestModel10'});
 const testModel9TestModel10Association = TestModel9.belongsToMany(TestModel10, {through: 'TestModel9TestModel10'});
+TestModel10.hasMany(TestModel12);
 TestModel11.belongsTo(TestModel9);
 TestModel9.hasOne(TestModel11);
 const AuthorizationAssocChild = valueString('AuthorizationAssocChild', database.sequelize, database.Sequelize);
@@ -84,6 +86,7 @@ const associationMiddleware = require('../middleware/relationship');
   TestModel9,
   TestModel10,
   TestModel11,
+  TestModel12,
   AuthorizationAssocChild,
   AuthorizationAssocParent,
   AuthorizationAssocParent2,
@@ -135,6 +138,7 @@ describe('index.js', () => {
       {model: TestModel9, opts: {}},
       {model: TestModel10, opts: {}},
       {model: TestModel11, opts: {}},
+      {model: TestModel12, opts: {}},
       {model: AuthorizationAssocChild, opts: {}},
       {
         model: AuthorizationAssocParent, opts: {
@@ -220,7 +224,12 @@ describe('index.js', () => {
                 ],
                 () => {}
               ).spread((one, two, three) => {
-                return Promise.join(testModel9.addTestModel10(one), testModel9.addTestModel10(two), testModel9.addTestModel10(three));
+                return Promise.join(
+                  one.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
+                  two.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
+                  three.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
+                  testModel9.addTestModel10(one), testModel9.addTestModel10(two), testModel9.addTestModel10(three)
+                );
               })
             );
           })
@@ -1058,6 +1067,58 @@ describe('index.js', () => {
         .then(response => {
           expect(response.body.message).to.equal('unable to resolve model TestModel14');
         });
+    });
+    it('should find instance that match the search query with nested include', async () => {
+      return request(app)
+        .post('/TestModel9/search')
+        .send({
+          s: {
+            name: {
+              '$like': '%parent1%'
+            },
+            include: [
+              {
+                model: 'TestModel10',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%child%'
+                      }
+                    }
+                  ]
+                },
+                include: [
+                  {
+                    model: 'TestModel12',
+                    where: {
+                      '$or': [
+                        {
+                          name: {
+                            '$like': '%child%'
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                model: 'TestModel11',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%supername%'
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        })
+        .expect(200);
     });
     it('should return a 204 if no items where found', () => {
       return request(app)
