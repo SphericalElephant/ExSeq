@@ -603,7 +603,7 @@ module.exports = (models, opts) => {
               const handleError = _handleError.bind(null, next);
               try {
                 const query = await _createQuery(req, 'body');
-                const searchQuery = await _attachSearchToQuery(req, 'body', query);
+                const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
                 res.set('X-Total-Count', await _countAssociations(association, searchOptions));
                 if (results.length === 0) {
