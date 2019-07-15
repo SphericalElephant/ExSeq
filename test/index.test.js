@@ -1806,6 +1806,14 @@ describe('index.js', () => {
       // only use AliasParent and AliasParentBelongsToMany for the search
       if (manyRelation.source === AliasParentBelongsToMany || manyRelation.source === AliasParent) {
         describe(`/model/:id/${manyRelation.association.associationType}/search/ POST`, () => {
+          it('should handle pagination correctly for child models', async () => {
+            return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search/`)
+              .send({i: 1, p: 0, s: {name: {like: '%%'}}})
+              .expect(200)
+              .then(response => {
+                expect(response.body.result).to.have.lengthOf(1);
+              });
+          });
           it('should return the instances of the child model that match the search criteria', async () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({s: {name: manyRelation.searchFor}})
