@@ -222,7 +222,7 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   if (association.associationType === 'BelongsToMany') {
     model = association.source;
     if (association.options.as) {
-      include = [{model: association.target, as: association.options.as.plural}];
+      include = [{model: association.target, as: association.options.as.plural || association.options.as}];
     } else {
       include = [association.target];
     }
@@ -251,7 +251,7 @@ const _countAssociations = async (association, query) => {
   } else if (association.associationType === 'BelongsToMany') {
     const includeOpts = {model: association.target, where};
     if (association.options.as) {
-      includeOpts.as = association.options.as.plural;
+      includeOpts.as = association.options.as.plural || association.options.as;
     }
     return await association.source.count({
       include: [includeOpts]
@@ -667,7 +667,6 @@ module.exports = (models, opts) => {
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
                   if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-
                   const targetInstance = await target.findByPk(req.params.targetId);
                   if (!targetInstance) return _createErrorPromise(404, 'target not found.');
 
