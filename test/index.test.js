@@ -58,6 +58,12 @@ const AliasParentBelongsToMany = valueString('AliasParentBelongsToMany', databas
 const AliasChildBelongsToMany = nameStringValueString('AliasChildBelongsToMany', database.sequelize, database.Sequelize);
 const aliasParentBelongsToManyAliasChildBelongsToManyAssociation = AliasParentBelongsToMany.belongsToMany(AliasChildBelongsToMany,
   {through: 'AliasBelongsToMany', as: {singular: 'Child', plural: 'Children'}});
+const StringAliasParentBelongsToMany = valueString('StringAliasParentBelongsToMany', database.sequelize, database.Sequelize);
+const StringAliasChildBelongsToMany = nameStringValueString('StringAliasChildBelongsToMany', database.sequelize, database.Sequelize);
+const stringAliasParentBelongsToManyAliasChildBelongsToManyAssociation =
+  StringAliasParentBelongsToMany.belongsToMany(StringAliasChildBelongsToMany,
+    {through: 'StringAliasBelongsToMany', as: 'Children'});
+
 const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {});
 const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {name: database.Sequelize.STRING});
 const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
@@ -96,6 +102,8 @@ const associationMiddleware = require('../middleware/relationship');
   AliasChild,
   AliasParentBelongsToMany,
   AliasChildBelongsToMany,
+  StringAliasParentBelongsToMany,
+  StringAliasChildBelongsToMany,
   AllRelationsSource1,
   AllRelationsTarget1,
   AllRelationsSource2,
@@ -162,6 +170,8 @@ describe('index.js', () => {
       {model: AliasChild, opts: {}},
       {model: AliasParentBelongsToMany, opts: {}},
       {model: AliasChildBelongsToMany, opts: {}},
+      {model: StringAliasParentBelongsToMany, opts: {}},
+      {model: StringAliasChildBelongsToMany, opts: {}},
       {model: AllRelationsSource1, opts: {}},
       {model: AllRelationsTarget1, opts: {}},
       {model: TestModelVirtualFields, opts: {}}
@@ -274,6 +284,22 @@ describe('index.js', () => {
             aliasParentBelongsToMany.addChild(one),
             aliasParentBelongsToMany.addChild(two),
             aliasParentBelongsToMany.addChild(three)
+          );
+        });
+      }));
+      testModelPromises.push(StringAliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'}).then(stringAliasParentBelongsToMany => {
+        return Promise.each(
+          [
+            StringAliasChildBelongsToMany.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
+            StringAliasChildBelongsToMany.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
+            StringAliasChildBelongsToMany.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
+          ],
+          () => {}
+        ).spread((one, two, three) => {
+          return Promise.join(
+            stringAliasParentBelongsToMany.addChild(one),
+            stringAliasParentBelongsToMany.addChild(two),
+            stringAliasParentBelongsToMany.addChild(three)
           );
         });
       }));
@@ -1569,6 +1595,14 @@ describe('index.js', () => {
       {
         source: AliasParentBelongsToMany, sourceName: 'AliasParentBelongsToMany', target: AliasChildBelongsToMany,
         association: aliasParentBelongsToManyAliasChildBelongsToManyAssociation, associationName: 'Child', searchFor: 'BelongsToMany-child1'
+      },
+      {
+        source: StringAliasParentBelongsToMany,
+        sourceName: 'StringAliasParentBelongsToMany',
+        target: StringAliasChildBelongsToMany,
+        association: stringAliasParentBelongsToManyAliasChildBelongsToManyAssociation,
+        associationName: 'Child',
+        searchFor: 'BelongsToMany-child1'
       }
     ].forEach(manyRelation => {
       if (manyRelation.source !== AliasParentBelongsToMany) {
@@ -1695,10 +1729,10 @@ describe('index.js', () => {
               const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
               const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
 
-              const {status} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              const {status} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/link`);
               expect(status).to.equal(204);
 
-              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinked = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinked).to.be.true;
             });
 
@@ -1706,16 +1740,16 @@ describe('index.js', () => {
               const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
               const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
 
-              const {status: createStatus} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              const {status: createStatus} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/link`);
               expect(createStatus).to.equal(204);
 
-              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinked = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinked).to.be.true;
 
-              const {status: deleteStatus} = await request(app).delete(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/unlink`);
+              const {status: deleteStatus} = await request(app).delete(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/unlink`);
               expect(deleteStatus).to.equal(204);
 
-              const isLinkedAfterDelete = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinkedAfterDelete = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinkedAfterDelete).to.be.false;
             });
           }
