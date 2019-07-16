@@ -5,11 +5,8 @@ const expect = require('chai').expect;
 const {convertModel} = require('../../../../lib/openapi/sequelize/model-converter');
 const testModel = require('../../../model/test-model');
 
-const sequelizeVersion = process.env.SEQUELIZE_VERSION;
-if (!sequelizeVersion) throw new Error('SEQUELIZE_VERSION not provided!');
-
-describe(`Testing with Sequelize ${sequelizeVersion}`, () => {
-  const database = require('../../../database')(sequelizeVersion);
+module.exports = (Sequelize) => {
+  const database = require('../../../database')(Sequelize);
   const TestModel = testModel(database.sequelize, database.Sequelize);
   const modelExtension = require('../../../../lib/model')(database.Sequelize);
 
@@ -19,8 +16,6 @@ describe(`Testing with Sequelize ${sequelizeVersion}`, () => {
     });
     it.skip('should convert sequelize models to openapi models correctly.', () => {
       modelExtension(TestModel);
-      console.log(TestModel.getUpdateableAttributes);
-      console.log(convertModel(TestModel));
       expect(convertModel(TestModel)).to.deep.equal({
         'type': 'object',
         'required': [
@@ -76,4 +71,4 @@ describe(`Testing with Sequelize ${sequelizeVersion}`, () => {
       });
     });
   });
-});
+};
