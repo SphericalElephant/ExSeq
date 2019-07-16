@@ -37,8 +37,10 @@ const testModel6TestModel7Association = TestModel6.belongsToMany(TestModel7, {th
 const TestModel9 = nameStringValueString('TestModel9', database.sequelize, database.Sequelize);
 const TestModel10 = nameStringValueString('TestModel10', database.sequelize, database.Sequelize);
 const TestModel11 = nameStringValueString('TestModel11', database.sequelize, database.Sequelize);
+const TestModel12 = nameStringValueString('TestModel12', database.sequelize, database.Sequelize);
 TestModel10.belongsToMany(TestModel9, {through: 'TestModel9TestModel10'});
 const testModel9TestModel10Association = TestModel9.belongsToMany(TestModel10, {through: 'TestModel9TestModel10'});
+TestModel10.hasMany(TestModel12);
 TestModel11.belongsTo(TestModel9);
 TestModel9.hasOne(TestModel11);
 const AuthorizationAssocChild = valueString('AuthorizationAssocChild', database.sequelize, database.Sequelize);
@@ -56,6 +58,24 @@ const AliasParentBelongsToMany = valueString('AliasParentBelongsToMany', databas
 const AliasChildBelongsToMany = nameStringValueString('AliasChildBelongsToMany', database.sequelize, database.Sequelize);
 const aliasParentBelongsToManyAliasChildBelongsToManyAssociation = AliasParentBelongsToMany.belongsToMany(AliasChildBelongsToMany,
   {through: 'AliasBelongsToMany', as: {singular: 'Child', plural: 'Children'}});
+const AliasChildBelongsToManyIncludeTest =
+  nameStringValueString('AliasChildBelongsToManyIncludeTest', database.sequelize, database.Sequelize);
+AliasChildBelongsToManyIncludeTest.belongsToMany(AliasChildBelongsToMany, {through: 'AliasChildBelongsToManyIncludeTestThrough'});
+AliasChildBelongsToMany.belongsToMany(AliasChildBelongsToManyIncludeTest, {through: 'AliasChildBelongsToManyIncludeTestThrough'});
+
+const AliasChildBelongsToManyNestedIncludeTest =
+  nameStringValueString('AliasChildBelongsToManyNestedIncludeTest', database.sequelize, database.Sequelize);
+AliasChildBelongsToManyIncludeTest
+  .belongsToMany(AliasChildBelongsToManyNestedIncludeTest, {through: 'AliasChildBelongsToManyNestedIncludeTestThrough'});
+AliasChildBelongsToManyNestedIncludeTest
+  .belongsToMany(AliasChildBelongsToManyIncludeTest, {through: 'AliasChildBelongsToManyNestedIncludeTestThrough'});
+
+const StringAliasParentBelongsToMany = valueString('StringAliasParentBelongsToMany', database.sequelize, database.Sequelize);
+const StringAliasChildBelongsToMany = nameStringValueString('StringAliasChildBelongsToMany', database.sequelize, database.Sequelize);
+const stringAliasParentBelongsToManyAliasChildBelongsToManyAssociation =
+  StringAliasParentBelongsToMany.belongsToMany(StringAliasChildBelongsToMany,
+    {through: 'StringAliasBelongsToMany', as: 'Children'});
+
 const AllRelationsSource1 = database.sequelize.define('AllRelationsSource1', {});
 const AllRelationsTarget1 = database.sequelize.define('AllRelationsTarget1', {name: database.Sequelize.STRING});
 const AllRelationsSource2 = database.sequelize.define('AllRelationsSource2', {});
@@ -84,6 +104,7 @@ const associationMiddleware = require('../middleware/relationship');
   TestModel9,
   TestModel10,
   TestModel11,
+  TestModel12,
   AuthorizationAssocChild,
   AuthorizationAssocParent,
   AuthorizationAssocParent2,
@@ -93,6 +114,8 @@ const associationMiddleware = require('../middleware/relationship');
   AliasChild,
   AliasParentBelongsToMany,
   AliasChildBelongsToMany,
+  StringAliasParentBelongsToMany,
+  StringAliasChildBelongsToMany,
   AllRelationsSource1,
   AllRelationsTarget1,
   AllRelationsSource2,
@@ -135,6 +158,7 @@ describe('index.js', () => {
       {model: TestModel9, opts: {}},
       {model: TestModel10, opts: {}},
       {model: TestModel11, opts: {}},
+      {model: TestModel12, opts: {}},
       {model: AuthorizationAssocChild, opts: {}},
       {
         model: AuthorizationAssocParent, opts: {
@@ -158,6 +182,10 @@ describe('index.js', () => {
       {model: AliasChild, opts: {}},
       {model: AliasParentBelongsToMany, opts: {}},
       {model: AliasChildBelongsToMany, opts: {}},
+      {model: AliasChildBelongsToManyIncludeTest, opts: {}},
+      {model: AliasChildBelongsToManyNestedIncludeTest, opts: {}},
+      {model: StringAliasParentBelongsToMany, opts: {}},
+      {model: StringAliasChildBelongsToMany, opts: {}},
       {model: AllRelationsSource1, opts: {}},
       {model: AllRelationsTarget1, opts: {}},
       {model: TestModelVirtualFields, opts: {}}
@@ -190,112 +218,108 @@ describe('index.js', () => {
   });
 
   beforeEach(async () => {
-    return database.init().then(() => {
-      const testModelPromises = [];
-      for (let i = 0; i < 49; i++) {
-        testModelPromises.push(
-          TestModel.create({value1: 'test' + i, value2: i, value3: 'no null!'}).then(testModel => {
-            return Promise.join(
-              TestModel2.create().then(testModel2 => {
-                return testModel2.setTestModel(testModel);
-              }),
-              TestModel3.create({value1: 'test' + i, value2: 3}).then(testModel3 => {
-                return testModel.setTestModel3(testModel3);
-              })
-            );
-          })
-        );
+    await database.init();
+    for (let i = 0; i < 49; i++) {
+      const testModel = await TestModel.create({value1: 'test' + i, value2: i, value3: 'no null!'});
+      const testModel2 = await TestModel2.create();
+      await testModel2.setTestModel(testModel);
+      const testModel3 = await TestModel3.create({value1: 'test' + i, value2: 3});
+      await testModel.setTestModel3(testModel3);
+    }
+    for (let i = 0; i < 2; i++) {
+      const testModel9 = await TestModel9.create({name: 'BelongsToMany-parent1', value: 'BelongsToMany-value-parent1'});
+      // create belongs to instances
+      const testModel11 = await TestModel11.create({name: 'supername', value: 'supervalue'});
+      await testModel11.setTestModel9(testModel9);
+
+      // create belongs to many instances
+
+      const testModel10One = await TestModel10.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'});
+      const testModel10Two = await TestModel10.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'});
+      const testModel10Three = await TestModel10.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'});
+      await testModel10One.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'});
+      await testModel10Two.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'});
+      await testModel10Three.createTestModel12({name: 'HasMany-child1', value: 'HasMany-value-child1'});
+      await testModel9.addTestModel10(testModel10One);
+      await testModel9.addTestModel10(testModel10Two);
+      await testModel9.addTestModel10(testModel10Three);
+    }
+    await TestModel2.create({name: 'addrelationTestModel2'});
+    await TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'});
+
+    const testModel4 = await TestModel4.create({name: 'HasMany-parent1'});
+
+    const testModel5One = await TestModel5.create({name: 'HasMany-child1', value: 'HasMany-value-child1'});
+    const testModel5Two = await TestModel5.create({name: 'HasMany-child2', value: 'HasMany-value-child2'});
+    const testModel5Three = await TestModel5.create({name: 'HasMany-child3', value: 'HasMany-value-child3'});
+
+    await testModel4.addTestModel5(testModel5One);
+    await testModel4.addTestModel5(testModel5Two);
+    await testModel4.addTestModel5(testModel5Three);
+
+    const testModel6 = await TestModel6.create({name: 'BelongsToMany-parent1'});
+
+    const testModel7One = await TestModel7.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'});
+    const testModel7Two = await TestModel7.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'});
+    const testModel7Three = await TestModel7.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'});
+
+    await testModel6.addTestModel7(testModel7One);
+    await testModel6.addTestModel7(testModel7Two);
+    await testModel6.addTestModel7(testModel7Three);
+
+    const aliasParentBelongsToMany = await AliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'});
+
+    const aliasChildBelongsToManyOne = await AliasChildBelongsToMany
+      .create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'});
+    const aliasChildBelongsToManyTwo = await AliasChildBelongsToMany
+      .create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'});
+    const aliasChildBelongsToManyThree = await AliasChildBelongsToMany
+      .create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'});
+    for (let i = 0; i < 10; i++) {
+      const includeTest = await AliasChildBelongsToManyIncludeTest.create({name: `AliasChildBelongsToManyIncludeTest-${i}`, value: `value-${i}`});
+      await aliasChildBelongsToManyOne.addAliasChildBelongsToManyIncludeTest(includeTest);
+      for (let j = 0; j < 10; j++) {
+        await includeTest.addAliasChildBelongsToManyNestedIncludeTest(await AliasChildBelongsToManyNestedIncludeTest.create({name: `AliasChildBelongsToManyNestedIncludeTest-${j}`, value: `value-${j}`}));
       }
-      for (let i = 0; i < 2; i++) {
-        testModelPromises.push(
-          TestModel9.create({name: 'BelongsToMany-parent1', value: 'BelongsToMany-value-parent1'}).then(testModel9 => {
-            return Promise.join(
-              // create belongs to instances
-              TestModel11.create({name: 'supername', value: 'supervalue'}).then(testModel11 => {
-                return testModel11.setTestModel9(testModel9);
-              }),
-              // create belongs to many instances
-              Promise.each(
-                [
-                  TestModel10.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
-                  TestModel10.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
-                  TestModel10.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
-                ],
-                () => {}
-              ).spread((one, two, three) => {
-                return Promise.join(testModel9.addTestModel10(one), testModel9.addTestModel10(two), testModel9.addTestModel10(three));
-              })
-            );
-          })
-        );
+    }
+    for (let i = 0; i < 5; i++) {
+      const includeTest = await AliasChildBelongsToManyIncludeTest.create({name: `AliasChildBelongsToManyIncludeTest-${i}`, value: `value-${i}`});
+      await aliasChildBelongsToManyTwo.addAliasChildBelongsToManyIncludeTest(includeTest);
+      for (let j = 0; j < 10; j++) {
+        await includeTest.addAliasChildBelongsToManyNestedIncludeTest(await AliasChildBelongsToManyNestedIncludeTest.create({name: `AliasChildBelongsToManyNestedIncludeTest-${j}`, value: `value-${j}`}));
       }
-      testModelPromises.push(TestModel2.create({name: 'addrelationTestModel2'}));
-      testModelPromises.push(TestModel.create({value1: 'addrelationTestModel', value2: 1, value3: 'no null!'}));
-      testModelPromises.push(TestModel4.create({name: 'HasMany-parent1'}).then(testModel4 => {
-        return Promise.each(
-          [
-            TestModel5.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
-            TestModel5.create({name: 'HasMany-child2', value: 'HasMany-value-child2'}),
-            TestModel5.create({name: 'HasMany-child3', value: 'HasMany-value-child3'})
-          ],
-          () => {}
-        ).spread((one, two, three) => {
-          return Promise.join(testModel4.addTestModel5(one), testModel4.addTestModel5(two), testModel4.addTestModel5(three));
-        });
-      }));
-      testModelPromises.push(TestModel6.create({name: 'BelongsToMany-parent1'}).then(testModel6 => {
-        return Promise.each(
-          [
-            TestModel7.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
-            TestModel7.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
-            TestModel7.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
-          ],
-          () => {}
-        ).spread((one, two, three) => {
-          return Promise.join(testModel6.addTestModel7(one), testModel6.addTestModel7(two), testModel6.addTestModel7(three));
-        });
-      }));
-      testModelPromises.push(AliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'}).then(aliasParentBelongsToMany => {
-        return Promise.each(
-          [
-            AliasChildBelongsToMany.create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'}),
-            AliasChildBelongsToMany.create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'}),
-            AliasChildBelongsToMany.create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'})
-          ],
-          () => {}
-        ).spread((one, two, three) => {
-          return Promise.join(
-            aliasParentBelongsToMany.addChild(one),
-            aliasParentBelongsToMany.addChild(two),
-            aliasParentBelongsToMany.addChild(three)
-          );
-        });
-      }));
-      testModelPromises.push(lowerCaseModel.create({name: 'lowercase-belongsto'}).then(lowerCaseModelInstance => {
-        anotherLowercaseModel.create(
-          {name: 'anotherlowercase-belongsto', value: 'anotherlowercase-belongsto-value'}
-        ).then(anotherLowercaseModelInstance => {
-          return lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
-        });
-      }));
-      testModelPromises.push(AliasParent.create({name: 'HasMany-parent1'}).then(aliasParentInstance => {
-        return Promise.each(
-          [
-            AliasChild.create({name: 'HasMany-child1', value: 'HasMany-value-child1'}),
-            AliasChild.create({name: 'HasMany-child2', value: 'HasMany-value-child2'}),
-            AliasChild.create({name: 'HasMany-child3', value: 'HasMany-value-child3'})
-          ],
-          () => {}
-        ).spread((one, two, three) => {
-          return Promise.join(
-            aliasParentInstance.addChild(one),
-            aliasParentInstance.addChild(two),
-            aliasParentInstance.addChild(three)
-          );
-        });
-      }));
-      return Promise.all(testModelPromises);
-    });
+    }
+    await aliasParentBelongsToMany.addChild(aliasChildBelongsToManyOne);
+    await aliasParentBelongsToMany.addChild(aliasChildBelongsToManyTwo);
+    await aliasParentBelongsToMany.addChild(aliasChildBelongsToManyThree);
+
+    const stringAliasParentBelongsToMany = await StringAliasParentBelongsToMany.create({name: 'BelongsToMany-parent1'});
+
+    const stringAliasChildBelongsToManyOne = await StringAliasChildBelongsToMany.
+      create({name: 'BelongsToMany-child1', value: 'BelongsToMany-value-child1'});
+    const stringAliasChildBelongsToManyTwo = await StringAliasChildBelongsToMany
+      .create({name: 'BelongsToMany-child2', value: 'BelongsToMany-value-child2'});
+    const stringAliasChildBelongsToManyThree = await StringAliasChildBelongsToMany
+      .create({name: 'BelongsToMany-child3', value: 'BelongsToMany-value-child3'});
+
+    await stringAliasParentBelongsToMany.addChild(stringAliasChildBelongsToManyOne);
+    await stringAliasParentBelongsToMany.addChild(stringAliasChildBelongsToManyTwo);
+    await stringAliasParentBelongsToMany.addChild(stringAliasChildBelongsToManyThree);
+
+    const lowerCaseModelInstance = await lowerCaseModel.create({name: 'lowercase-belongsto'});
+    const anotherLowercaseModelInstance = await anotherLowercaseModel
+      .create({name: 'anotherlowercase-belongsto', value: 'anotherlowercase-belongsto-value'});
+    await lowerCaseModelInstance.setAnotherLowercaseModel(anotherLowercaseModelInstance);
+
+    const aliasParentInstance = await AliasParent.create({name: 'HasMany-parent1'});
+
+    const aliasChildOne = await AliasChild.create({name: 'HasMany-child1', value: 'HasMany-value-child1'});
+    const aliasChildTwo = await AliasChild.create({name: 'HasMany-child2', value: 'HasMany-value-child2'});
+    const aliasChildThree = await AliasChild.create({name: 'HasMany-child3', value: 'HasMany-value-child3'});
+
+    await aliasParentInstance.addChild(aliasChildOne);
+    await aliasParentInstance.addChild(aliasChildTwo);
+    await aliasParentInstance.addChild(aliasChildThree);
   });
 
   afterEach(() => {
@@ -1072,6 +1096,58 @@ describe('index.js', () => {
           expect(response.body.message).to.equal('unable to resolve model TestModel14');
         });
     });
+    it('should find instance that match the search query with nested include', async () => {
+      return request(app)
+        .post('/TestModel9/search')
+        .send({
+          s: {
+            name: {
+              '$like': '%parent1%'
+            },
+            include: [
+              {
+                model: 'TestModel10',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%child%'
+                      }
+                    }
+                  ]
+                },
+                include: [
+                  {
+                    model: 'TestModel12',
+                    where: {
+                      '$or': [
+                        {
+                          name: {
+                            '$like': '%child%'
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                model: 'TestModel11',
+                where: {
+                  '$or': [
+                    {
+                      name: {
+                        '$like': '%supername%'
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        })
+        .expect(200);
+    });
     it('should return a 204 if no items where found', () => {
       return request(app)
         .post('/TestModel/search')
@@ -1330,7 +1406,7 @@ describe('index.js', () => {
         .get('/TestModel2/5/TestModel/')
         .expect(200)
         .then(response => {
-          expect(response.body.result.id).to.equal(4);
+          expect(response.body.result.id).to.equal(5);
         });
     });
     it('should be able to handle models that start with a lowercase letter.', () => {
@@ -1387,14 +1463,14 @@ describe('index.js', () => {
     it('should update individual attributes of the belongsTo relation of the resource', () => {
       return request(app)
         .patch('/TestModel2/5/TestModel/')
-        .send({value1: 'changed1'})
+        .send({value1: 'changed1', value2: 10})
         .expect(204)
         .then(response => {
           return TestModel2.findByPk(5).then(testModel2Instance => {
             return testModel2Instance.getTestModel().then(testModelInstance => {
               const plainInstance = testModelInstance.get({plain: true});
               expect(plainInstance.value1).to.equal('changed1');
-              expect(plainInstance.value2).to.equal(3);
+              expect(plainInstance.value2).to.equal(10);
               expect(plainInstance.value3).to.equal('no null!');
             });
           });
@@ -1521,6 +1597,14 @@ describe('index.js', () => {
       {
         source: AliasParentBelongsToMany, sourceName: 'AliasParentBelongsToMany', target: AliasChildBelongsToMany,
         association: aliasParentBelongsToManyAliasChildBelongsToManyAssociation, associationName: 'Child', searchFor: 'BelongsToMany-child1'
+      },
+      {
+        source: StringAliasParentBelongsToMany,
+        sourceName: 'StringAliasParentBelongsToMany',
+        target: StringAliasChildBelongsToMany,
+        association: stringAliasParentBelongsToManyAliasChildBelongsToManyAssociation,
+        associationName: 'Child',
+        searchFor: 'BelongsToMany-child1'
       }
     ].forEach(manyRelation => {
       if (manyRelation.source !== AliasParentBelongsToMany) {
@@ -1647,26 +1731,26 @@ describe('index.js', () => {
               const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
               const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
 
-              const {status} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              const {status} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/link`);
               expect(status).to.equal(204);
 
-              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinked = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinked).to.be.true;
             });
             it('should unlink an item from the BelongsToMany.', async () => {
               const sourceInstance = await manyRelation.source.findOne({where: {name: `${manyRelation.association.associationType}-parent1`}});
               const targetInstance = await manyRelation.target.create({name: `${manyRelation.association.associationType}-child4`});
 
-              const {status: createStatus} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/link`);
+              const {status: createStatus} = await request(app).post(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/link`);
               expect(createStatus).to.equal(204);
 
-              const isLinked = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinked = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinked).to.be.true;
 
-              const {status: deleteStatus} = await request(app).delete(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.target.name}/${targetInstance.get({play: true}).id}/unlink`);
+              const {status: deleteStatus} = await request(app).delete(`/${manyRelation.source.name}/${sourceInstance.get({plain: true}).id}/${manyRelation.association.options.name.singular}/${targetInstance.get({play: true}).id}/unlink`);
               expect(deleteStatus).to.equal(204);
 
-              const isLinkedAfterDelete = await sourceInstance[`has${manyRelation.target.name}`](targetInstance);
+              const isLinkedAfterDelete = await sourceInstance[manyRelation.association.accessors.hasSingle](targetInstance);
               expect(isLinkedAfterDelete).to.be.false;
             });
           }
@@ -1761,6 +1845,92 @@ describe('index.js', () => {
       // only use AliasParent and AliasParentBelongsToMany for the search
       if (manyRelation.source === AliasParentBelongsToMany || manyRelation.source === AliasParent) {
         describe(`/model/:id/${manyRelation.association.associationType}/search/ POST`, () => {
+          if (manyRelation.target !== AliasChild) {
+            it('should handle pagination correctly for child models', async () => {
+              return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search/`)
+                .send({i: 1, p: 0, s: {name: {like: '%%'}}})
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(1);
+                });
+            });
+            it('should handle pagination correctly for child models using includes', async () => {
+              return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search/`)
+                .send({
+                  p: 0,
+                  i: 2,
+                  s: {
+                    include: [{
+                      model: 'AliasChildBelongsToManyIncludeTest'
+                    }],
+                    name: {like: '%%'}
+                  }
+                })
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(2);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests).to.have.lengthOf(10);
+                  expect(response.body.result[1].AliasChildBelongsToManyIncludeTests).to.have.lengthOf(5);
+                });
+            });
+            it('should handle pagination correctly for child models using nested includes', async () => {
+              return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search/`)
+                .send({
+                  p: 0,
+                  i: 1,
+                  s: {
+                    include: [{
+                      model: 'AliasChildBelongsToManyIncludeTest',
+                      include: [{
+                        model: 'AliasChildBelongsToManyNestedIncludeTest'
+                      }]
+                    }],
+                    name: {like: '%%'}
+                  }
+                })
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(1);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests).to.have.lengthOf(10);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests[0].AliasChildBelongsToManyNestedIncludeTests)
+                    .to.have.lengthOf(10);
+                });
+            });
+            it('should handle pagination correctly for child models using nested includes and a where statement', async () => {
+              return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search/`)
+                .send({
+                  p: 0,
+                  i: 2,
+                  s: {
+                    include: [{
+                      model: 'AliasChildBelongsToManyIncludeTest',
+                      where: {
+                        name: 'AliasChildBelongsToManyIncludeTest-5'
+                      },
+                      include: [{
+                        model: 'AliasChildBelongsToManyNestedIncludeTest',
+                        where: {
+                          name: 'AliasChildBelongsToManyNestedIncludeTest-3'
+                        }
+                      }]
+                    }],
+                    name: {like: '%%'}
+                  }
+                })
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(1);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests).to.have.lengthOf(1);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests[0].name)
+                    .to.equal('AliasChildBelongsToManyIncludeTest-5');
+
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests[0].AliasChildBelongsToManyNestedIncludeTests)
+                    .to.have.lengthOf(1);
+                  expect(response.body.result[0].AliasChildBelongsToManyIncludeTests[0].AliasChildBelongsToManyNestedIncludeTests[0].name)
+                    .to.equal('AliasChildBelongsToManyNestedIncludeTest-3');
+                });
+            });
+          }
           it('should return the instances of the child model that match the search criteria', async () => {
             return request(app).post(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/search`)
               .send({s: {name: manyRelation.searchFor}})

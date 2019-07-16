@@ -119,7 +119,10 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
   if (!s.s) return _createErrorPromise(400, 'no search parameter specified');
   const {include = [], ...where} = s.s;
 
-  const includeWithAttachedModel = include.map((i) => {
+  const parseInclude = (i) => {
+    if (i.include) {
+      i.include = i.include.map(parseInclude);
+    }
     const modelToAttach = models.find((m) => i.model === m.model.name);
     if (modelToAttach) {
       return {
@@ -128,7 +131,9 @@ const _attachSearchToQuery = async (req, source = 'query', query, models = []) =
       };
     }
     return i;
-  });
+  };
+
+  const includeWithAttachedModel = include.map(parseInclude);
 
   // reject if one of the models could not be resolved
   const modelToReject = includeWithAttachedModel.find((i) => typeof i.model === 'string');
@@ -215,7 +220,7 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   if (association.associationType === 'BelongsToMany') {
     model = association.source;
     if (association.options.as) {
-      include = [{model: association.target, as: association.options.as.plural}];
+      include = [{model: association.target, as: association.options.as.plural || association.options.as}];
     } else {
       include = [association.target];
     }
@@ -244,7 +249,7 @@ const _countAssociations = async (association, query) => {
   } else if (association.associationType === 'BelongsToMany') {
     const includeOpts = {model: association.target, where};
     if (association.options.as) {
-      includeOpts.as = association.options.as.plural;
+      includeOpts.as = association.options.as.plural || association.options.as;
     }
     return await association.source.count({
       include: [includeOpts]
@@ -613,7 +618,7 @@ module.exports = (models, opts) => {
               const handleError = _handleError.bind(null, next);
               try {
                 const query = await _createQuery(req, 'body');
-                const searchQuery = await _attachSearchToQuery(req, 'body', query);
+                const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
                 OPERATOR_TABLE.replace(searchQuery);
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
                 res.set('X-Total-Count', await _countAssociations(association, searchOptions));
@@ -691,7 +696,6 @@ module.exports = (models, opts) => {
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
                   if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
-
                   const targetInstance = await target.findByPk(req.params.targetId);
                   if (!targetInstance) return _createErrorPromise(404, 'target not found.');
 
