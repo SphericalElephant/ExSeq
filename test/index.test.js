@@ -622,6 +622,11 @@ describe(`Testing with Sequelize ${sequelizeVersion}`, () => {
             });
           });
         });
+        describe('opts.dataMapper', () => {
+          it('should require opts.dataMapper to be set', () => {
+            expect(exseq.bind(null)).to.throw('you must pass a data mapper using opts.dataMapper');
+          });
+        });
         describe('opts.idRegex', () => {
           it('should support id regex specification', async () => {
             const instance = await UUIDTestModel.create();
