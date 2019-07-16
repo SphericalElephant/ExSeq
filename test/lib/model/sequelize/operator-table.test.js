@@ -1,5 +1,4 @@
 'use strict';
-const database = require('../../../database');
 const {expect} = require('chai');
 const {OPERATOR_TABLE} = require('../../../../lib/data-mapper/index');
 describe('operator-table', () => {

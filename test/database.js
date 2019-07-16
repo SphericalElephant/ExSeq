@@ -1,19 +1,29 @@
 'use strict';
 
-const sequelizeVersion = 5;
-
-// eslint-disable-next-line max-len
-const Sequelize = sequelizeVersion === 5 ? require('sequelize5') : (sequelizeVersion === 4 ? require('sequelize4') : new Error(`unsupported sequelize verion ${sequelizeVersion}`));
-
-if (Sequelize instanceof Error) {
-  throw Sequelize;
+function getSequelizeVersion(v) {
+  switch (v) {
+    case 'sequelize4':
+    case 'sequelize5':
+      return require(v);
+    default: throw new Error(`unsupported sequelize verion ${v}`);
+  }
 }
 
-const sequelize = new Sequelize('', '', '', {storage: ':memory:', dialect: 'sqlite', logging: false});
-
-module.exports = {
-  reset: sequelize.drop.bind(sequelize),
-  init: sequelize.sync.bind(sequelize),
-  Sequelize,
-  sequelize
+let sequelize;
+function getSequelize(version) {
+  const Sequelize = getSequelizeVersion(version);
+  if (!sequelize) {
+    sequelize = new Sequelize('', '', '', {storage: ':memory:', dialect: 'sqlite', logging: false});
+  }
+  return sequelize;
+}
+module.exports = (version) => {
+  const Sequelize = getSequelizeVersion(version);
+  const sequelize = getSequelize(version);
+  return {
+    reset: sequelize.drop.bind(sequelize),
+    init: sequelize.sync.bind(sequelize),
+    Sequelize,
+    sequelize
+  };
 };

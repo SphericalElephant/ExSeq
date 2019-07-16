@@ -5,9 +5,11 @@
   "main": "index.js",
   "scripts": {
     "lint": "eslint .",
-    "test": "mocha",
-    "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec",
-    "test-ci": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
+    "test4": "NODE_ENV=test SEQUELIZE_VERSION=sequelize4 mocha",
+    "test5": "NODE_ENV=test SEQUELIZE_VERSION=sequelize5 mocha",
+    "test": "npm run test4 && npm run test5",
+    "coverage": "NODE_ENV=test SEQUELIZE_VERSION=sequelize4,sequelize5 istanbul cover _mocha -- -R spec",
+    "test-ci": "SEQUELIZE_VERSION=sequelize5 istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
   "license": "BSD-3-Clause",
@@ -20,8 +22,7 @@
     "express": "^4.16.4",
     "lodash": "^4.17.14",
     "mime-types": "^2.1.18",
-    "semver-regex": "^1.0.0",
-    "sequelize": "4.42.0"
+    "semver-regex": "^1.0.0"
   },
   "keywords": [
     "express",
@@ -44,8 +45,8 @@
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^5.2.0",
     "rewire": "^4.0.1",
-    "sequelize4": "npm:sequelize@^4.44.0",
-    "sequelize5": "npm:sequelize@^5.8.12",
+    "sequelize4": "npm:sequelize@^4.44.2",
+    "sequelize5": "npm:sequelize@^5.10.1",
     "sqlite3": "^4.0.6",
     "supertest": "^3.4.2"
   }
