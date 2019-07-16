@@ -379,7 +379,35 @@ apiData.routingInformation.forEach((routing) => {
 
 # 2.x.x to 3.x.x
 
-opts.dataMapper
+Calling ```exseq``` now requires the ```opts.dataMapper``` option to be present. Currently, the only supported datamapper is Sequelize.
+
+Change your 2.x.x code:
+
+```javascript
+const apiData = exseq([
+  ...
+]);
+
+apiData.routingInformation.forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
+
+To:
+
+```javascript
+const Sequelize = require('sequelize');
+
+const apiData = exseq([
+  ...
+], {
+  dataMapper: Sequelize
+});
+
+apiData.routingInformation.forEach((routing) => {
+  app.use(routing.route, routing.router);
+});
+```
 
 ## License
 [MIT](LICENSE)
