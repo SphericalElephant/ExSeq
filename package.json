@@ -31,7 +31,8 @@
     "restful"
   ],
   "engines": {
-    "node": ">=8.12"
+    "node": ">=8.12",
+    "npm": ">=6.9.0"
   },
   "devDependencies": {
     "bluebird": "^3.5.3",
