@@ -175,7 +175,7 @@ const _getParentAuthorizationForModel = (modelDefinitions, model) => {
 };
 
 const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
-  const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'OTHER']
+  const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'ASSOCIATE', 'OTHER']
     .filter(method => method == type).length === 1;
   const opts = _getModelOpts(modelDefinitions, model);
   if (!isAllowed) {
@@ -690,7 +690,7 @@ module.exports = (models, opts) => {
           }
           if (association.associationType === 'BelongsToMany') {
             if (!exposedRoutes[`${instanceTargetRouteOpt}/link`] || !exposedRoutes[`${instanceTargetRouteOpt}/link`].post === false) {
-              router.post(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/link`, auth('CREATE'), async (req, res, next) => {
+              router.post(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/link`, auth('ASSOCIATE'), async (req, res, next) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
                 const handleError = _handleError.bind(null, next);
                 try {
@@ -712,7 +712,7 @@ module.exports = (models, opts) => {
             }
 
             if (!exposedRoutes[`${instanceTargetRouteOpt}/unlink`] || !exposedRoutes[`${instanceTargetRouteOpt}/unlink`].delete === false) {
-              router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/unlink`, auth('CREATE'), async (req, res, next) => {
+              router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/unlink`, auth('ASSOCIATE'), async (req, res, next) => {
                 const attachReply = _attachReply.bind(null, req, res, next);
                 const handleError = _handleError.bind(null, next);
                 try {
