@@ -39,7 +39,6 @@ module.exports = (Sequelize) => {
   const app = express();
   const database = require('./database')(Sequelize);
   const modelExtension = modelExtensionImport(database.Sequelize);
-  console.log(Sequelize.version);
   const TestModelVirtualFields = testModelVirtualFields(database.sequelize, database.Sequelize);
   const TestModel = testModel(database.sequelize, database.Sequelize);
   const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);
@@ -210,7 +209,7 @@ module.exports = (Sequelize) => {
       });
       // simple error handler
       app.use((err, req, res, next) => {
-        console.error(err);
+        // console.error(err);
         if (!err.status) {
           return res.status(500).send({message: err.stack});
         }
@@ -220,7 +219,6 @@ module.exports = (Sequelize) => {
     });
 
     beforeEach(async () => {
-      console.log(Sequelize.version);
       await database.init();
       for (let i = 0; i < 49; i++) {
         const testModel = await TestModel.create({value1: 'test' + i, value2: i, value3: 'no null!'});
