@@ -58,7 +58,8 @@ const _update = async (model, req, res, next, id, createInput) => {
   }
 };
 
-const _updateRelation = async (source, target, association, req, res, next, id, targetId, prepareBody) => {
+// TODO: this method is a mess, we need to clean it up
+const _updateRelation = async (createReplyObject, source, target, association, req, res, next, id, targetId, prepareBody) => {
   const attachReply = _attachReply.bind(null, req, res, next);
   const handleError = _handleError.bind(null, next);
   try {
@@ -71,7 +72,7 @@ const _updateRelation = async (source, target, association, req, res, next, id, 
     if (!targetInstance) await _createErrorPromise(404, 'target not found.');
     if (targetInstance instanceof Array) // "many" relationsship
       targetInstance = targetInstance[0];
-    await update(req, res, next, targetInstance.get({plain: true}).id, prepareBody);
+    await update(req, res, next, createReplyObject(targetInstance).id, prepareBody);
   } catch (err) {
     handleError(err);
   }
@@ -259,6 +260,27 @@ const _countAssociations = async (association, query) => {
   }
 };
 
+const _createReplyObject = (raw, object) => {
+  let objects;
+  let inputWasArray = false;
+  if (Array.isArray(object)) {
+    inputWasArray = true;
+    objects = object;
+  } else {
+    objects = [object];
+  }
+  const result = objects.map(o => {
+    if (raw) {
+      if (!o.get || !(o.get instanceof Function)) return o;
+      return o.get({plain: true});
+    } else {
+      return o;
+    }
+  });
+  if (!inputWasArray) return result[0];
+  else return result;
+};
+
 module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
@@ -266,7 +288,8 @@ module.exports = (models, opts) => {
     throw new Error('you must pass a data mapper using opts.dataMapper');
   }
   const modelExtension = require('./lib/model')(opts.dataMapper);
-
+  opts.rawDataResponse = opts.rawDataResponse === false ? false : opts.rawDataResponse || true;
+  const createReplyObject = _createReplyObject.bind(null, opts.rawDataResponse);
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
   const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
@@ -346,7 +369,7 @@ module.exports = (models, opts) => {
         model
           .create(input)
           .then(modelInstance => {
-            return attachReply(201, model.filterReferenceAttributesFromModelInstance(modelInstance.get({plain: true})));
+            return attachReply(201, model.filterReferenceAttributesFromModelInstance(createReplyObject(modelInstance)));
           }).catch(err => {
             return handleError(err);
           });
@@ -375,7 +398,7 @@ module.exports = (models, opts) => {
           const query = await _createQuery(req, 'query');
           OPERATOR_TABLE.replace(query);
           const results = await model.findAll(query);
-          return attachReply(200, results.map(instance => instance.get({plain: true})));
+          return attachReply(200, createReplyObject(results));
         } catch (err) {
           return handleError(err);
         }
@@ -397,7 +420,7 @@ module.exports = (models, opts) => {
           if (results.length === 0) {
             return attachReply(204);
           } else {
-            return attachReply(200, results.map(instance => instance.get({plain: true})));
+            return attachReply(200, createReplyObject(results));
           }
         } catch (err) {
           return handleError(err);
@@ -418,7 +441,7 @@ module.exports = (models, opts) => {
         const attributes = req.query.a ? req.query.a.split('|') : undefined;
         model.findOne({where: {id}, attributes}).then(modelInstance => {
           if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
-          return attachReply(200, modelInstance);
+          return attachReply(200, createReplyObject(modelInstance));
         }).catch(err => {
           return handleError(err);
         });
@@ -518,7 +541,7 @@ module.exports = (models, opts) => {
         case 'BelongsTo':
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
             router.get(`/:id${idRegex}/${targetRoute}`, auth('READ'),
-              relationshipGet((req, result) => _filterAttributes(req.query.a, result.get({plain: true}))));
+              relationshipGet((req, result) => _filterAttributes(req.query.a, createReplyObject(result))));
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'get', openApiHelper.createHasOneOrBelongsToPathSpecification('get', target, targetRoute)
             );
@@ -535,10 +558,10 @@ module.exports = (models, opts) => {
                 if (association.associationType === 'BelongsTo') {
                   if (instance instanceof source) { // 4.x.x
                     return sourceInstance[association.accessors.get]().then(createdTargetInstance => {
-                      return attachReply(201, createdTargetInstance.get({plain: true}));
+                      return attachReply(201, createReplyObject(createdTargetInstance));
                     });
                   } else if (instance instanceof target) { // 5.x.x
-                    return attachReply(201, instance.get({plain: true}));
+                    return attachReply(201, createReplyObject(instance));
                   } else {
                     _createErrorPromise(
                       500,
@@ -546,7 +569,7 @@ module.exports = (models, opts) => {
                     );
                   }
                 } else {
-                  return attachReply(201, instance.get({plain: true}));
+                  return attachReply(201, createReplyObject(instance));
                 }
               } catch (err) {
                 handleError(err);
@@ -558,7 +581,7 @@ module.exports = (models, opts) => {
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].put === false) {
             router.put(`/:id${idRegex}/${targetRoute}`, auth('UPDATE'), async (req, res, next) => {
-              await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+              await _updateRelation(createReplyObject, source, target, association, req, res, next, req.params.id, null, (body) => {
                 return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
               });
             });
@@ -568,7 +591,7 @@ module.exports = (models, opts) => {
           }
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].patch === false) {
             router.patch(`/:id${idRegex}/${targetRoute}`, auth('UPDATE_PARTIAL'), async (req, res, next) => {
-              await _updateRelation(source, target, association, req, res, next, req.params.id, null, (body) => {
+              await _updateRelation(createReplyObject, source, target, association, req, res, next, req.params.id, null, (body) => {
                 return target.removeIllegalAttributes(body);
               });
             });
@@ -591,7 +614,7 @@ module.exports = (models, opts) => {
           const instanceTargetPath = `${baseTargetPath}/{targetId}`;
           if (!exposedRoutes[baseTargetRouteOpt] || !exposedRoutes[baseTargetRouteOpt].get === false) {
             router.get(`/:id${idRegex}/${targetRoute}`, auth('READ'), relationshipGet((req, result) => {
-              return result.map(targetInstance => _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+              return result.map(targetInstance => _filterAttributes(req.query.a, createReplyObject(targetInstance)));
             }));
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'get', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('get', target, targetRoute)
@@ -625,7 +648,7 @@ module.exports = (models, opts) => {
                 if (results.length === 0) {
                   return attachReply(204);
                 } else {
-                  return attachReply(200, results);
+                  return attachReply(200, createReplyObject(results));
                 }
               } catch (err) {
                 return handleError(err);
@@ -652,10 +675,10 @@ module.exports = (models, opts) => {
                 if (instances[0] instanceof source) { // 4.x.x
                   return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                     if (!targetInstance) return _createErrorPromise(404, 'target not found.');
-                    return attachReply(200, _filterAttributes(req.query.a, targetInstance.get({plain: true})));
+                    return attachReply(200, _filterAttributes(req.query.a, createReplyObject(targetInstance)));
                   });
                 } else if (instances[0] instanceof target) { // 5.x.x
-                  return attachReply(200, _filterAttributes(req.query.a, instances[0].get({plain: true})));
+                  return attachReply(200, _filterAttributes(req.query.a, createReplyObject(instances[0])));
                 } else {
                   return _createErrorPromise(
                     500,
@@ -679,7 +702,7 @@ module.exports = (models, opts) => {
                 if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
                 return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
               }).then(instance => {
-                return attachReply(201, instance.get({plain: true}));
+                return attachReply(201, createReplyObject(instance));
               }).catch(err => {
                 return handleError(err);
               });
@@ -736,7 +759,7 @@ module.exports = (models, opts) => {
           }
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].put === false) {
             router.put(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('UPDATE'), (req, res, next) => {
-              _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+              _updateRelation(createReplyObject, source, target, association, req, res, next, req.params.id, req.params.targetId,
                 (body) => {
                   return target.fillMissingUpdateableAttributes(association, source, target.removeIllegalAttributes(body));
                 });
@@ -748,7 +771,7 @@ module.exports = (models, opts) => {
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].patch === false) {
             router.patch(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('UPDATE_PARTIAL'), (req, res, next) => {
-              _updateRelation(source, target, association, req, res, next, req.params.id, req.params.targetId,
+              _updateRelation(createReplyObject, source, target, association, req, res, next, req.params.id, req.params.targetId,
                 (body) => {
                   return target.removeIllegalAttributes(body);
                 });

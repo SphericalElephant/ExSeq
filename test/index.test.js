@@ -33,6 +33,7 @@ const denyFallThrough = (req, res, next) => next(unauthorizedError);
 const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
 const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
+const _createReplyObject = _exseq.__get__('_createReplyObject');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 module.exports = (Sequelize) => {
@@ -897,6 +898,28 @@ module.exports = (Sequelize) => {
         relation: 'r3'
       }
     ];
+
+    describe('_createReplyObject', () => {
+      it('should handle a single object', async () => {
+        const input = await TestModel.findOne();
+        expect(_createReplyObject(true, input)).not.to.be.an('array');
+      });
+      it('should handle a an array of objects', async () => {
+        const input = await TestModel.findAll();
+        expect(_createReplyObject(true, input)).to.be.an('array');
+      });
+      it('should return raw data', async () => {
+        const input = await TestModel.findOne();
+        expect(_createReplyObject(true, input).dataValues).to.not.exist;
+      });
+      it('should return a sequelize instance', async () => {
+        const input = await TestModel.findOne();
+        expect(_createReplyObject(false, input).dataValues).to.exist;
+      });
+      it('should be fault tolerant and not crash if .get() is unavailable', () => {
+        expect(_createReplyObject.bind(null, true, {})).not.to.throw();
+      });
+    });
 
     describe('_shouldRouteBeExposed', () => {
       it('should return false if a route should not be exposed.', () => {

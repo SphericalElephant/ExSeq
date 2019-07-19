@@ -63,7 +63,8 @@ app.use((err, req, res, next) => {
 
 | Option                           | Description                                                                                                                                                    |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| dataMapper                       | The instance of the dataMapper to use. Currently only Sequelize is supported.
+| dataMapper                       | The instance of the dataMapper to use. Currently only Sequelize is supported.                                                                                  |
+| rawDataResponse                  | If set to true, ExSeq will attach the result of instance.get() to res.__payload.result, otherwise instance is attached.                                        |
 | middleware                       |                                                                                                                                                                |
 | middleware.associationMiddleware |                                                                                                                                                                |
 | openapi                          |                                                                                                                                                                |
@@ -500,6 +501,10 @@ The /source/:id/target/:targetId/unlink route is now used with the DELETE method
 
 
 The /source/:id/target/:targetId/unlink and /source/:id/target/:targetId/link route are not secured by ASSOCIATE and not by CREATE.
+
+### Data reply
+
+ExSeq was inconsistent in attaching ```instance``` or ```instance.get()``` to res.__payload.result. Version 3.x.x attaches ```instance.get()``` for all routes by default. Use ```rawDataResponse``` to adjust this behaviour.
 
 ## License
 [MIT](LICENSE)
