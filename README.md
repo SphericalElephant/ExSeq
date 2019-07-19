@@ -57,6 +57,25 @@ app.use((err, req, res, next) => {
 });
 ```
 
+### Error Objects
+
+Error Objects created by ExSeq can be identified using the follwing code.
+
+```javascript
+if (err.isCreatedError) {
+  // this is an ExSeq generated error
+}
+```
+
+ExSeq errors contain the following additional attributes.
+
+| Atrribute      | Data Type | Description                                                               |
+|----------------|-----------|---------------------------------------------------------------------------|
+| success        | boolean   | For errors this is always false, used for reply message consistency       |
+| status         | integer   | HTTP status code                                                          |
+| result         | Error     | The error that caused the current ExSeq error                             |
+| isCreatedError | boolean   | A flag indicating if the current Error is an ExSeq generated Error or not |
+
 ### Route Options (opts)
 
 |                     Option                      |                                                                                                                                                                                                                                                   Description                                                                                                                                                                                                                                                   |
