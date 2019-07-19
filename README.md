@@ -494,6 +494,8 @@ apiData.routingInformation.forEach((routing) => {
 });
 ```
 
+### Route and Route Authorization Changes
+
 The /source/:id/target/:targetId/unlink route is now used with the DELETE method and NOT the POST method.
 
 
