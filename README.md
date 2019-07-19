@@ -38,6 +38,23 @@ const apiData = exseq([
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
+
+// simple response handler
+app.use((req, res, next) => {
+  if (res.__payload) { // res.__payload is created by exseq
+    return res.status(res.__payload.status).send({
+      result: res.__payload.result, message: res.__payload.message
+    });
+  }
+  res.status(404).send();
+});
+// simple error handler
+app.use((err, req, res, next) => {
+  if (!err.status) {
+    return res.status(500).send({message: err.stack});
+  }
+  return res.status(err.status).send({message: err.result});
+});
 ```
 
 ### Route Options (opts)
@@ -349,7 +366,7 @@ app.get('/my-api-docs', (req,res,next) => {
 |openapi||
 |idRegex|The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing ()|
 
-## Update Instructions
+# Update Instructions
 
 ## 1.x.x to 2.x.x
 
@@ -377,7 +394,7 @@ apiData.routingInformation.forEach((routing) => {
 });
 ```
 
-# 2.x.x to 3.x.x
+## 2.x.x to 3.x.x
 
 Calling ```exseq``` now requires the ```opts.dataMapper``` option to be present. Currently, the only supported datamapper is Sequelize.
 
