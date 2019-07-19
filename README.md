@@ -27,13 +27,16 @@ const exseq = require('exseq');
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const Sequelize = require('sequelize');
 
 app.use(bodyParser.json({}));
 
 const apiData = exseq([
   {model: Car, opts: {}},
   {model: Tire, opts: {}},
-]);
+], {
+  dataMapper: Sequelize
+});
 
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
@@ -60,10 +63,12 @@ app.use((err, req, res, next) => {
 
 | Option                           | Description                                                                                                                                                    |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| dataMapper                       | The instance of the dataMapper to use. Currently only Sequelize is supported.
 | middleware                       |                                                                                                                                                                |
 | middleware.associationMiddleware |                                                                                                                                                                |
 | openapi                          |                                                                                                                                                                |
 | idRegex                          | The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing () |
+
 
 ### Error Objects
 
@@ -92,25 +97,31 @@ ExSeq errors contain the following additional attributes.
 | authorizeWith.options.useParentForAuthorization | Use the access rules of the *source* entity instead of the *target* entity, when using the *source* entity route to access the *target* entity. This flag is may only be set in the *target* entitiy configuration. Example: A TIRE belongsTo a CAR (or a CAR hasMany TIRES) When using /car/:id/tire/:tireId to access a tire, the user access to CAR is checked to see if the user canaccess a TIRE. This option may only be used in *target* entites that have either a **HasOne** or **BelongsTo** relation |
 |   authorizeWith.options.authorizeForChildren    |                                                                                                             Enables the use of the *source* authorization middleware for *target* entites. This setting must be set in the *source* entity. It causes all authorization request to go through the *source* authorization middleware. A *target* must only use a single *source* for authorization!                                                                                                              |
 |               authorizeWith.rules               |                                                                                                                                                                                                                                        Contains authorization definition                                                                                                                                                                                                                                        |
-|exposed|A nested Object containing information on route exposure. Blacklist.|
+|                     exposed                     |                                                                                                                                                                                                                      A nested Object containing information on route exposure. Blacklist.                                                                                                                                                                                                                       |
 
 #### Examples
 
 Define a custom name for a *source*:
 ```javascript
 const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
 const apiData = exseq([
   {model: Person, opts: {route: 'User'}}
 ])
 
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
+}, {
+  dataMapper: Sequelize
 });
 ```
 
 Control Route exposure:
 ```javascript
 const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
 const apiData = exseq([
   {
     model: Car, opts: {
@@ -123,12 +134,16 @@ const apiData = exseq([
       }
     }
   }
-]);
+], {
+  dataMapper: Sequelize
+});
 ```
 
 Authorization rules:
 ```javascript
 const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
 const isEntityOwner = (req, res, next) => {
   // handle authorization here
 };
@@ -159,7 +174,9 @@ const apiData = exseq([
       }
     }
   }
-]);
+], {
+  dataMapper: Sequelize
+});
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
@@ -168,6 +185,8 @@ apiData.routingInformation.forEach((routing) => {
 authorizeForChildren - All Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
 const apiData = exseq([
   {
     model: Car, opts: {
@@ -186,7 +205,9 @@ const apiData = exseq([
     }
   },
   {model: Tire, opts: {}}
-]);
+], {
+  dataMapper: Sequelize
+});
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
@@ -195,6 +216,8 @@ apiData.routingInformation.forEach((routing) => {
 useParentForAuthorization - All Car related Tire routes are authorized by the Car rules.
 ```javascript
 const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
 const apiData = exseq([
   {
     model: Car, opts: {
@@ -213,7 +236,9 @@ const apiData = exseq([
       }
     }
   }
-])
+], {
+  dataMapper: Sequelize
+})
 apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
@@ -325,6 +350,7 @@ const exseq = require('exseq');
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const Sequelize = require('sequelize');
 
 app.use(bodyParser.json({}));
 
@@ -332,6 +358,7 @@ const apiData = exseq([
   {model: Car, opts: {}},
   {model: Tire, opts: {}},
 ], {
+  dataMapper: Sequelize,
   middleware: {
     associationMiddleware: {
       fieldName: 'someField'
@@ -407,6 +434,8 @@ app.get('/my-api-docs', (req,res,next) => {
 
 ## 1.x.x to 2.x.x
 
+### Return Type Change
+
 Calling ```exseq``` does not return an array of routing information any more.
 
 Change your 1.x.x code:
@@ -432,6 +461,8 @@ apiData.routingInformation.forEach((routing) => {
 ```
 
 ## 2.x.x to 3.x.x
+
+### Added compulsory ExSeq setting
 
 Calling ```exseq``` now requires the ```opts.dataMapper``` option to be present. Currently, the only supported datamapper is Sequelize.
 
@@ -462,6 +493,11 @@ apiData.routingInformation.forEach((routing) => {
   app.use(routing.route, routing.router);
 });
 ```
+
+The /source/:id/target/:targetId/unlink route is now used with the DELETE method and NOT the POST method.
+
+
+The /source/:id/target/:targetId/unlink and /source/:id/target/:targetId/link route are not secured by ASSOCIATE and not by CREATE.
 
 ## License
 [MIT](LICENSE)
