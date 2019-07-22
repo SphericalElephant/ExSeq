@@ -310,14 +310,18 @@ module.exports = (models, opts) => {
 
   const getModelOpts = _getModelOpts.bind(null, models);
 
-  // first pass, register all models
+  // first pass, extend all models
+  models.forEach(model => modelExtension(model.model));
+
+  // second pass, register all models that are flagged appropriately
   models.forEach(model => {
-    modelExtension(model.model);
     model.opts = model.opts || {};
     model.opts.openapi = model.opts.openapi || {};
-    if (routingInformation.find((i) => {
-      return (i.route || i.model.model.name) === (model.opts.route || model.model.name);
-    }))
+    model.opts.createRoutes = model.opts.createRoutes !== false ? true : false;
+    if (!model.opts.createRoutes) {
+      return;
+    }
+    if (routingInformation.find(i => (i.route || i.model.model.name) === (model.opts.route || model.model.name)))
       throw new Error(`model ${model.model.name} already registered`);
     const router = express.Router();
     const route = model.opts.route || namingScheme(model.model.name);
@@ -336,7 +340,7 @@ module.exports = (models, opts) => {
     }
   });
 
-  // second pass, create routes for models
+  // third pass, create routes for models
   routingInformation.forEach(routing => {
     const router = routing.router;
     const model = routing.model.model;
@@ -360,7 +364,6 @@ module.exports = (models, opts) => {
       );
       router.use(associationMiddleware);
     }
-
     if (!exposedRoutes['/'] || !exposedRoutes['/'].post === false) {
       router.post('/', auth('CREATE'), (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
@@ -432,9 +435,6 @@ module.exports = (models, opts) => {
     if (!exposedRoutes['/:id'] || !exposedRoutes['/:id'].get === false) {
       router.get(`/:id${idRegex}`, auth('READ'), (req, res, next) => {
         const id = req.params.id;
-        if (id === 'count') {
-          return next();
-        }
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
 
@@ -661,9 +661,6 @@ module.exports = (models, opts) => {
 
           if (!exposedRoutes[instanceTargetRouteOpt] || !exposedRoutes[instanceTargetRouteOpt].get === false) {
             router.get(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('READ'), (req, res, next) => {
-              if (req.params.targetId === 'count') {
-                return next();
-              }
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(async sourceInstance => {

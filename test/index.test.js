@@ -192,7 +192,8 @@ module.exports = (Sequelize) => {
         {model: AllRelationsTarget1, opts: {}},
         {model: TestModelVirtualFields, opts: {}}
       ], {
-        dataMapper: database.Sequelize
+        dataMapper: database.Sequelize,
+        idRegex: '\\d+'
       });
 
       apiData.routingInformation.forEach((routing) => {
@@ -684,6 +685,33 @@ module.exports = (Sequelize) => {
         });
       });
       describe('model.opts', () => {
+        describe('opts.createRoutes', () => {
+          it('should not create routes for the specficied routes', () => {
+            expect(exseq([
+              {
+                model: TestModel,
+                opts: {createRoutes: false}
+              }
+            ], {
+              dataMapper: database.Sequelize
+            }).routingInformation).to.have.lengthOf(0);
+          });
+          it('should presume true if it has not been set to "false" explicitly', () => {
+            const exseqOpts = [
+              {
+                model: TestModel,
+                opts: {}
+              }
+            ];
+            expect(exseq(exseqOpts, {
+              dataMapper: database.Sequelize
+            }).routingInformation).to.have.lengthOf(1);
+            exseqOpts[0].opts.createRoutes = null;
+            expect(exseq(exseqOpts, {
+              dataMapper: database.Sequelize
+            }).routingInformation).to.have.lengthOf(1);
+          });
+        });
         describe('opts.route', () => {
           it('should allow setting a custom route name.', () => {
             expect(exseq([
