@@ -326,7 +326,7 @@ module.exports = (models, opts) => {
     const router = express.Router();
     const route = model.opts.route || namingScheme(model.model.name);
     const openApiHelper = new OpenApi(
-      model.model, route, {operationIdPrefix: 'exseq', tags: ['exseq'], pathOpts: model.opts.openapi}
+      model.model, route, {operationIdPrefix: 'exseq', tags: [], pathOpts: model.opts.openapi}
     );
     routingInformation.push({
       model,
