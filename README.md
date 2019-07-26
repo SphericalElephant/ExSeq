@@ -100,6 +100,7 @@ ExSeq errors contain the following additional attributes.
 |               authorizeWith.rules               |                                                                                                                                                                                                                                        Contains authorization definition                                                                                                                                                                                                                                        |
 |                     exposed                     |                                                                                                                                                                                                                      A nested Object containing information on route exposure. Blacklist.                                                                                                                                                                                                                       |
 |createRoutes|A flag indicating that routes for this model should be created, defaults to "true". This setting is relevant if OpenAPI spec must be generated but some models need to be excluded from explicitly being exposed.|
+|filterReferenceAttributes|A flag controlling the POST /entity/ behaviour, if set to true, all reference ids (association ids) will be stripped from the reply (default)|
 
 #### Examples
 

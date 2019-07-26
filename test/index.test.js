@@ -104,6 +104,10 @@ module.exports = (Sequelize) => {
   AllRelationsSource1.hasMany(AllRelationsTarget1);
   AllRelationsSource2.belongsTo(AllRelationsTarget2);
   AllRelationsSource2.belongsToMany(AllRelationsTarget2, {through: 'test'});
+  const NoStripAssociationIds = database.sequelize.define('NoStripAssociationIds', {});
+  NoStripAssociationIds.belongsTo(TestModel, {as: 'testModel'});
+  const StripAssociationIds = database.sequelize.define('StripAssociationIds', {});
+  StripAssociationIds.belongsTo(TestModel, {as: 'testModel'});
   const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, database.Sequelize);
   [
     TestModel,
@@ -135,7 +139,9 @@ module.exports = (Sequelize) => {
     AllRelationsTarget1,
     AllRelationsSource2,
     AllRelationsTarget2,
-    TestModelVirtualFields
+    TestModelVirtualFields,
+    NoStripAssociationIds,
+    StripAssociationIds
   ].forEach(modelExtension);
 
   describe('String', () => {
@@ -190,7 +196,13 @@ module.exports = (Sequelize) => {
         {model: StringAliasChildBelongsToMany, opts: {}},
         {model: AllRelationsSource1, opts: {}},
         {model: AllRelationsTarget1, opts: {}},
-        {model: TestModelVirtualFields, opts: {}}
+        {model: TestModelVirtualFields, opts: {}},
+        {
+          model: NoStripAssociationIds, opts: {
+            filterReferenceAttributes: false
+          }
+        },
+        {model: StripAssociationIds, opts: {}}
       ], {
         dataMapper: database.Sequelize,
         idRegex: '\\d+'
@@ -685,6 +697,32 @@ module.exports = (Sequelize) => {
         });
       });
       describe('model.opts', () => {
+        describe('opts.filterReferenceAttributes', () => {
+          it('should strip the association ids by default', async () => {
+            const testModel = await TestModel.create({value3: 'test'});
+            return request(app)
+              .post('/StripAssociationIds/')
+              .send({
+                testModelId: testModel.id
+              })
+              .expect(201)
+              .then(response => {
+                expect(response.body.result.testModelId).to.be.undefined;
+              });
+          });
+          it('should not strip the association ids when set to false', async () => {
+            const testModel = await TestModel.create({value3: 'test'});
+            return request(app)
+              .post('/NoStripAssociationIds/')
+              .send({
+                testModelId: testModel.id
+              })
+              .expect(201)
+              .then(response => {
+                expect(response.body.result.testModelId).to.equal(testModel.id);
+              });
+          });
+        });
         describe('opts.createRoutes', () => {
           it('should not create routes for the specficied routes', () => {
             expect(exseq([

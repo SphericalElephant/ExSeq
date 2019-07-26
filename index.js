@@ -318,6 +318,7 @@ module.exports = (models, opts) => {
     model.opts = model.opts || {};
     model.opts.openapi = model.opts.openapi || {};
     model.opts.createRoutes = model.opts.createRoutes !== false ? true : false;
+    model.opts.filterReferenceAttributes = model.opts.filterReferenceAttributes !== false ? true : false;
     if (!model.opts.createRoutes) {
       return;
     }
@@ -372,7 +373,11 @@ module.exports = (models, opts) => {
         model
           .create(input)
           .then(modelInstance => {
-            return attachReply(201, model.filterReferenceAttributesFromModelInstance(createReplyObject(modelInstance)));
+            if (routing.opts.filterReferenceAttributes) {
+              return attachReply(201, model.filterReferenceAttributesFromModelInstance(createReplyObject(modelInstance)));
+            } else {
+              return attachReply(201, createReplyObject(modelInstance));
+            }
           }).catch(err => {
             return handleError(err);
           });
