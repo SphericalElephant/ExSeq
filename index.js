@@ -274,7 +274,11 @@ const _createReplyObject = (raw, object) => {
 };
 
 const _isRouteExposed = (exposedRoutes, httpVerb, route) => {
-  return !exposedRoutes[route] || !exposedRoutes[route][httpVerb] === false;
+  const result = !exposedRoutes[route] || !exposedRoutes[route][httpVerb] === false;
+  if (exposedRoutes[route] && exposedRoutes[route][httpVerb] === true && route === '/search' && httpVerb === 'get') {
+    console.error('exposing /search via GET will be removed.');
+  }
+  return result;
 };
 
 module.exports = (models, opts) => {
@@ -382,7 +386,7 @@ module.exports = (models, opts) => {
       openApiDocument.addOperationAndComponents(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
     }
 
-    if (!exposedRoutes['/count'] || !exposedRoutes['/count'].get === false) {
+    if (isRouteExposed('get', '/count')) {
       router.get('/count', auth('READ'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
@@ -411,7 +415,7 @@ module.exports = (models, opts) => {
       openApiDocument.addOperationAndComponents(openApiBaseName, 'get', openApiHelper.createModelPathSpecification('get'));
     }
 
-    if (isRouteExposed('post', '/search')) {
+    if (isRouteExposed('get', '/search') || isRouteExposed('post', '/search')) {
       router.post('/search', auth('SEARCH'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);

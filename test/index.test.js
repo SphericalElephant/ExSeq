@@ -7,6 +7,7 @@ const expect = require('chai').expect;
 const Promise = require('bluebird');
 const rewire = require('rewire');
 const express = require('express');
+const sinon = require('sinon');
 
 const bodyParser = require('body-parser');
 
@@ -965,7 +966,7 @@ module.exports = (Sequelize) => {
     ];
 
     describe('_isRouteExposed', () => {
-      it('should expose a route if no rule was specified', ()=> {
+      it('should expose a route if no rule was specified', () => {
         expect(_isRouteExposed({}, 'get', '/:id')).to.be.true;
       });
       it('should not expose a route if specified', () => {
@@ -981,6 +982,26 @@ module.exports = (Sequelize) => {
             get: true
           }
         }, 'get', '/:id')).to.be.true;
+      });
+      it('should print an error if the user exposed /search via GET', () => {
+        const consoleStub = sinon.stub(console, 'error');
+        _isRouteExposed({
+          '/search': {
+            get: true
+          }
+        }, 'get', '/search');
+        consoleStub.restore();
+        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.true;
+      });
+      it('should not print an error if the user exposed /search via POST', () => {
+        const consoleStub = sinon.stub(console, 'error');
+        _isRouteExposed({
+          '/search': {
+            post: true
+          }
+        }, 'post', '/search');
+        consoleStub.restore();
+        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.false;
       });
     });
 
