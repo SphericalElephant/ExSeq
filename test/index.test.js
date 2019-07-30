@@ -30,10 +30,9 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
-const _obtainExcludeRule = _exseq.__get__('_obtainExcludeRule');
-const _shouldRouteBeExposed = _exseq.__get__('_shouldRouteBeExposed');
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
 const _createReplyObject = _exseq.__get__('_createReplyObject');
+const _isRouteExposed = _exseq.__get__('_isRouteExposed');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 module.exports = (Sequelize) => {
@@ -965,6 +964,26 @@ module.exports = (Sequelize) => {
       }
     ];
 
+    describe('_isRouteExposed', () => {
+      it('should expose a route if no rule was specified', ()=> {
+        expect(_isRouteExposed({}, 'get', '/:id')).to.be.true;
+      });
+      it('should not expose a route if specified', () => {
+        expect(_isRouteExposed({
+          '/:id': {
+            get: false
+          }
+        }, 'get', '/:id')).to.be.false;
+      });
+      it('should expose a route if specified', () => {
+        expect(_isRouteExposed({
+          '/:id': {
+            get: true
+          }
+        }, 'get', '/:id')).to.be.true;
+      });
+    });
+
     describe('_createReplyObject', () => {
       it('should handle a single object', async () => {
         const input = await TestModel.findOne();
@@ -984,33 +1003,6 @@ module.exports = (Sequelize) => {
       });
       it('should be fault tolerant and not crash if .get() is unavailable', () => {
         expect(_createReplyObject.bind(null, true, {})).not.to.throw();
-      });
-    });
-
-    describe('_shouldRouteBeExposed', () => {
-      it('should return false if a route should not be exposed.', () => {
-        expect(_shouldRouteBeExposed(rules, 'GET', 'r5', false)).to.be.false;
-      });
-      it('should return true if a route should be exposed.', () => {
-        expect(_shouldRouteBeExposed(rules, 'GET', 'r1', true)).to.be.true;
-        expect(_shouldRouteBeExposed(rules, 'GET', 'r2')).to.be.true;
-      });
-    });
-
-    describe('_obtainExcludeRule', () => {
-      it('should return the correct exclude rule', () => {
-        expect(_obtainExcludeRule(rules, 'GET', 'r1')).to.equal(rules[0]);
-        expect(_obtainExcludeRule(rules, 'GET', 'r1', false)).to.equal(rules[1]);
-        expect(_obtainExcludeRule(rules, 'GET')).to.equal(rules[2]);
-        expect(_obtainExcludeRule(rules, 'GET', 'r2', true)).to.equal(rules[3]);
-      });
-      it('it should treat "true" as default value for all', () => {
-        expect(_obtainExcludeRule(rules, 'GET', 'r2')).to.equal(rules[3]);
-        expect(_obtainExcludeRule(rules, 'GET', 'r3')).to.equal(rules[4]);
-      });
-      it('it should undefined if no rule matching the inquiry was found.', () => {
-        expect(_obtainExcludeRule(rules, 'POST', 'r2')).to.be.undefined;
-        expect(_obtainExcludeRule(rules, 'GET', 'r3', false)).to.be.undefined;
       });
     });
 
