@@ -352,7 +352,7 @@ module.exports = (models, opts) => {
     openApiHelper.existingSchemaNames = Object.keys(openApiDocument.components.schemas);
 
     const openApiBaseName = `/${routing.route}`;
-    [{path: '/'}, {path: '/count'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
+    [{path: '/'}, {path: '/count'}, {path: '/bulk'}, {path: '/search'}, {path: '/{id}', alternative: '/:id'}].forEach(p => {
       const pathName = `${openApiBaseName}${p.path}`.replace(/\/$/, '');
       const optName = p.alternative || p.path;
       openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
@@ -412,7 +412,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         }
       });
-      openApiDocument.addOperationAndComponents(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
+      openApiDocument.addOperationAndComponents(`${openApiBaseName}/bulk`, 'post', openApiHelper.createBulkModelPathSpecification());
     }
 
     if (isRouteExposed('get', '/count')) {
