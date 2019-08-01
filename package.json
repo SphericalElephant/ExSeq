@@ -48,6 +48,7 @@
     "sequelize5": "npm:sequelize@^5.10.1",
     "sinon": "^7.3.2",
     "sqlite3": "^4.0.6",
-    "supertest": "^3.4.2"
+    "supertest": "^3.4.2",
+    "swagger-ui-express": "^4.0.7"
   }
 }
