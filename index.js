@@ -7,8 +7,6 @@ const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
 const {OPERATOR_TABLE, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 
-require('./lib/string');
-
 const _attachReply = (req, res, next, status, result, message) => {
   res.__payload = {status, result, message};
   next();

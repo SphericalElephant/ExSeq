@@ -145,14 +145,6 @@ module.exports = (Sequelize) => {
     StripAssociationIds
   ].forEach(modelExtension);
 
-  describe('String', () => {
-    describe('capitalize', () => {
-      it('should capitalize the first letter of a word', () => {
-        expect('test'.capitalize()).to.equal('Test');
-      });
-    });
-  });
-
   describe('index.js', () => {
     before(done => {
       app.use(bodyParser.json({}));
