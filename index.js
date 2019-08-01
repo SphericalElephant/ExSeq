@@ -386,6 +386,35 @@ module.exports = (models, opts) => {
       openApiDocument.addOperationAndComponents(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
     }
 
+    if (isRouteExposed('post', '/bulk')) {
+      router.post('/bulk', auth('CREATE'), async (req, res, next) => {
+        const attachReply = _attachReply.bind(null, req, res, next);
+        const handleError = _handleError.bind(null, next);
+
+        const transaction = await model.transaction();
+
+        try {
+          if (!Array.isArray(req.body)) throw _createError(400, 'input must be query');
+          const input = req.body.map(item => model.removeIllegalAttributes(item));
+
+          const instances = await Promise.all(input.map(async item => {
+            return model.create(item, {transaction});
+          }));
+          await transaction.commit();
+          if (routing.opts.filterReferenceAttributes) {
+            return attachReply(201,
+              createReplyObject(instances).map(instance => model.filterReferenceAttributesFromModelInstance(instance)));
+          } else {
+            return attachReply(201, createReplyObject(instances));
+          }
+        } catch (err) {
+          await transaction.rollback();
+          return handleError(err);
+        }
+      });
+      openApiDocument.addOperationAndComponents(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
+    }
+
     if (isRouteExposed('get', '/count')) {
       router.get('/count', auth('READ'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);

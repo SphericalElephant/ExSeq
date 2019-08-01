@@ -38,6 +38,7 @@ const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 module.exports = (Sequelize) => {
   const app = express();
+  const {Op} = Sequelize;
   const database = require('./database')(Sequelize);
   const modelExtension = modelExtensionImport(database.Sequelize);
   const TestModelVirtualFields = testModelVirtualFields(database.sequelize, database.Sequelize);
@@ -710,6 +711,18 @@ module.exports = (Sequelize) => {
                 expect(response.body.result.testModelId).to.be.undefined;
               });
           });
+          it('should strip the association ids by default in bulk operations', async () => {
+            const testModel = await TestModel.create({value3: 'test'});
+            return request(app)
+              .post('/StripAssociationIds/bulk')
+              .send([{
+                testModelId: testModel.id
+              }])
+              .expect(201)
+              .then(response => {
+                expect(response.body.result[0].testModelId).to.be.undefined;
+              });
+          });
           it('should not strip the association ids when set to false', async () => {
             const testModel = await TestModel.create({value3: 'test'});
             return request(app)
@@ -720,6 +733,18 @@ module.exports = (Sequelize) => {
               .expect(201)
               .then(response => {
                 expect(response.body.result.testModelId).to.equal(testModel.id);
+              });
+          });
+          it('should not strip the association ids when set to false in bulk operations', async () => {
+            const testModel = await TestModel.create({value3: 'test'});
+            return request(app)
+              .post('/NoStripAssociationIds/bulk')
+              .send([{
+                testModelId: testModel.id
+              }])
+              .expect(201)
+              .then(response => {
+                expect(response.body.result[0].testModelId).to.equal(testModel.id);
               });
           });
         });
@@ -1060,6 +1085,53 @@ module.exports = (Sequelize) => {
           expect(owned.name).to.equal('assoc by fk test!');
           expect(owned.AllRelationsSource1Id).to.equal(1);
         });
+    });
+
+    describe('/model/bulk POST', () => {
+      it('should check if the input is an array', async () => {
+        return request(app)
+          .post('/TestModel/bulk')
+          .send({})
+          .expect(400)
+          .then(response => {
+            expect(response.body.message).to.equal('input must be query');
+          });
+      });
+      it('should create and return all instances successfully', async () => {
+        return request(app)
+          .post('/TestModel/bulk')
+          .send([
+            {value1: 'test1', value2: 1, value3: 'not null 1'},
+            {value1: 'test2', value2: 2, value3: 'not null 2'},
+            {value1: 'test3', value2: 3, value3: 'not null 3'}
+          ])
+          .expect(201)
+          .then(response => {
+            expect(response.body.result).to.have.lengthOf(3);
+            expect(response.body.result[0].value1).to.equal('test1');
+            expect(response.body.result[0].value2).to.equal(1);
+            expect(response.body.result[0].value3).to.equal('not null 1');
+          });
+      });
+      it('should not create anything when the creation of a single item fails', async () => {
+        return request(app)
+          .post('/TestModel/bulk')
+          .send([
+            {value1: 'test1', value2: 1, value3: 'SINGLE ITEM FAIL not null 1'},
+            {value1: 'test2', value2: 2},
+            {value1: 'test3', value2: 3, value3: 'SINGLE ITEM FAIL not null 3'}
+          ])
+          .expect(400)
+          .then(async _ => {
+            expect(await TestModel.findAll({
+              where: {
+                value3: {
+                  [Op.like]: '%SINGLE ITEM FAIL%'
+                }
+              }
+            })).to.have.lengthOf(0);
+          });
+      });
     });
 
     describe('/model/search POST', async () => {
