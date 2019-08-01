@@ -433,6 +433,23 @@ app.get('/my-api-docs', (req,res,next) => {
 });
 ```
 
+## Demo Project
+
+The demo project is located in ./demo/, install all dependencies and run:
+
+```
+cd demo
+node .
+```
+
+You can now access the OpenAPI specification and Swagger UI at:
+
+http://localhost:3000/swagger-ui/
+
+and
+
+localhost:3000/swagger.json
+
 # Update Instructions
 
 ## 1.x.x to 2.x.x
