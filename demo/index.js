@@ -24,7 +24,7 @@ Tire.init({
 Car.hasMany(Tire);
 
 const apiData = exseq([
-  {model: Car, opts: {}}
+  {model: Car, opts: {}},
   {model: Tire, opts: {}}
 ], {
   dataMapper: Sequelize,
