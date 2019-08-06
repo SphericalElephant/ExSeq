@@ -5,6 +5,22 @@ const {expect} = require('chai');
 const {QueryBuilder} = require('../../../../lib/data-mapper/index');
 
 describe('query-builder', () => {
+  it('should only allow integer or NONE as valid input for "limit"', () => {
+    let err;
+    try {
+      new QueryBuilder('NONE');
+      new QueryBuilder(1);
+    } catch (_err) {
+      err = _err;
+    }
+    expect(err).to.be.undefined;
+    try {
+      new QueryBuilder('test');
+    } catch (_err) {
+      err = _err;
+    }
+    expect(err).not.to.be.undefined;
+  });
   describe('create', () => {
     it('should prevent creating a query if it has already been created', () => {
       const qb = new QueryBuilder();
