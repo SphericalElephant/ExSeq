@@ -1,6 +1,6 @@
 'use strict';
 const {expect} = require('chai');
-const {OPERATOR_TABLE} = require('../../../../lib/data-mapper/index');
+const OPERATOR_TABLE = require('../../../../lib/data-mapper/sequelize/operator-table');
 describe('operator-table', () => {
   describe('replace', () => {
     it('should replace all keys of an object that have matching operator symbols with the symbol', () => {

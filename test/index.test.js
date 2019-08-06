@@ -216,7 +216,7 @@ module.exports = (Sequelize) => {
       });
       // simple error handler
       app.use((err, req, res, next) => {
-        // console.error(err);
+        console.error(err);
         if (!err.status) {
           return res.status(500).send({message: err.stack});
         }
