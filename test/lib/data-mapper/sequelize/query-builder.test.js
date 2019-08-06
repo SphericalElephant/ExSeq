@@ -2,13 +2,13 @@
 
 'use strict';
 const {expect} = require('chai');
-const {QueryBuilder} = require('../../../../lib/data-mapper/index');
+const {QueryBuilder, NONE} = require('../../../../lib/data-mapper/index');
 
 describe('query-builder', () => {
   it('should only allow integer or NONE as valid input for "limit"', () => {
     let err;
     try {
-      new QueryBuilder('NONE');
+      new QueryBuilder(NONE);
       new QueryBuilder(1);
     } catch (_err) {
       err = _err;
@@ -26,6 +26,18 @@ describe('query-builder', () => {
       const qb = new QueryBuilder();
       qb.create({});
       expect(qb.create.bind(qb, {})).to.throw('query already exists');
+    });
+    it('should not set a limit or offset if limit NONE was specified', () => {
+      const qb = new QueryBuilder(NONE);
+      qb.create({});
+      expect(qb.query.limit).to.not.exist;
+      expect(qb.query.offset).to.not.exist;
+    });
+    it('should set a limit or offset if no NONE was specified', () => {
+      const qb = new QueryBuilder();
+      qb.create({});
+      expect(qb.query.limit).to.exist;
+      expect(qb.query.offset).to.exist;
     });
   });
   describe('attachSearch', () => {
