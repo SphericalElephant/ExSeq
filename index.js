@@ -4,7 +4,7 @@ const express = require('express');
 const _ = require('lodash');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
-const {OPERATOR_TABLE, ERRORS} = require('./lib/data-mapper/');
+const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 
@@ -206,67 +206,6 @@ const _isRouteExposed = (exposedRoutes, httpVerb, route) => {
   return result;
 };
 
-const _createQuery = async (req, source = 'query') => {
-  const s = req[source];
-  if (!s) return createErrorPromise(500, `invalid source ${source}`);
-  const limit = s.i;
-  const offset = s.p;
-  const attributes = s.a ? s.a.split('|') : undefined;
-  const sortField = s.f;
-  const sortOrder = s.o || 'DESC';
-
-  if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
-    return createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
-
-  if ((!limit || (!offset && offset !== 0)) && limit !== offset) {
-    return createErrorPromise(400, 'p or i must be both undefined or both defined.');
-  }
-
-  const limitInt = parseInt(limit || 10);
-  const offsetInt = parseInt(offset || 0);
-
-  if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
-    ((offset && (isNaN(offsetInt))) || offsetInt < 0)) {
-    return createErrorPromise(400, 'p or i must be integers larger than 0!');
-  }
-
-  const order = sortField ? [[sortField, sortOrder]] : undefined;
-  return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
-};
-
-const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
-  const s = req[source];
-  if (!s) return createErrorPromise(500, `invalid source ${source}`);
-  if (!s.s) return createErrorPromise(400, 'no search parameter specified');
-  const {include = [], ...where} = s.s;
-
-  const parseInclude = (i) => {
-    if (i.include) {
-      i.include = i.include.map(parseInclude);
-    }
-    const modelToAttach = models.find((m) => i.model === m.model.name);
-    if (modelToAttach) {
-      return {
-        ...i,
-        model: modelToAttach.model
-      };
-    }
-    return i;
-  };
-
-  const includeWithAttachedModel = include.map(parseInclude);
-
-  // reject if one of the models could not be resolved
-  const modelToReject = includeWithAttachedModel.find((i) => typeof i.model === 'string');
-  if (modelToReject) {
-    return createErrorPromise(404, `unable to resolve model ${modelToReject.model}`);
-  }
-
-  let newQuery = Object.assign({}, query);
-  newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
-  return Promise.resolve(newQuery);
-};
-
 module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
@@ -333,6 +272,7 @@ module.exports = (models, opts) => {
     const model = routing.model.model;
     const update = _update.bind(null, model);
     const exposedRoutes = routing.opts.exposed || {};
+    const queryOptions = routing.opts.queryOptions || {};
     const openApiHelper = routing.openApiHelper;
     const isRouteExposed = _isRouteExposed.bind(null, exposedRoutes);
     openApiHelper.existingSchemaNames = Object.keys(openApiDocument.components.schemas);
@@ -418,10 +358,14 @@ module.exports = (models, opts) => {
       router.get('/', auth('READ'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
+        const queryBuilder = new QueryBuilder(queryOptions.limit);
         try {
-          const query = await _createQuery(req, 'query');
-          OPERATOR_TABLE.replace(query);
-          const results = await model.findAll(query);
+          const results = await model.findAll(
+            queryBuilder
+              .create(req.query)
+              .prepare()
+              .query
+          );
           return attachReply(200, createReplyObject(results));
         } catch (err) {
           return handleError(err);
@@ -435,12 +379,23 @@ module.exports = (models, opts) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
         try {
-          const query = await _createQuery(req, 'body');
-          const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
-          OPERATOR_TABLE.replace(searchQuery);
-          const results = await model.findAll(searchQuery);
+          const queryBuilder = new QueryBuilder(queryOptions.limit);
+          const results = await model.findAll(
+            queryBuilder
+              .create(req.body)
+              .attachSearch(req.body, models)
+              .prepare()
+              .query
+          );
 
-          res.set('X-Total-Count', await model.count(await _attachSearchToQuery(req, 'body', {}, models)));
+          res.set('X-Total-Count', await model.count(
+            queryBuilder
+              .reset()
+              .create({})
+              .attachSearch(req.body, models)
+              .prepare()
+              .query
+          ));
           if (results.length === 0) {
             return attachReply(204);
           } else {
@@ -661,9 +616,12 @@ module.exports = (models, opts) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               try {
-                const query = await _createQuery(req, 'body');
-                const searchQuery = await _attachSearchToQuery(req, 'body', query, models);
-                OPERATOR_TABLE.replace(searchQuery);
+                const queryBuilder = new QueryBuilder(queryOptions.limit);
+                const searchQuery = queryBuilder
+                  .create(req.body)
+                  .attachSearch(req.body, models)
+                  .prepare()
+                  .query;
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
                 res.set('X-Total-Count', await _countAssociations(association, searchOptions));
                 if (results.length === 0) {
