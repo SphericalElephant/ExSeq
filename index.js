@@ -6,6 +6,7 @@ const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
 const {OPERATOR_TABLE, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
+const {createError, createErrorPromise} = require('./lib/error');
 
 const _attachReply = (req, res, next, status, result, message) => {
   res.__payload = {status, result, message};
@@ -15,24 +16,11 @@ const _attachReply = (req, res, next, status, result, message) => {
 
 const _handleError = (next, err) => {
   if (ERRORS.ValidationError(err))
-    return next(_createError(400, _formatValidationError(err)));
+    return next(createError(400, _formatValidationError(err)));
   else if (err.isCreatedError)
     return next(err);
   else
-    return next(_createError(500, err));
-};
-
-const _createErrorPromise = (status, errInput) => {
-  return Promise.reject(_createError(status, errInput));
-};
-
-const _createError = (status, errInput) => {
-  const err = errInput instanceof Error ? errInput : new Error(errInput);
-  err.success = false;
-  err.status = status;
-  err.result = !(errInput instanceof Error) ? errInput : null;
-  err.isCreatedError = true;
-  return err;
+    return next(createError(500, err));
 };
 
 const _formatValidationError = (err) => {
@@ -48,7 +36,7 @@ const _update = async (model, req, res, next, id, createInput) => {
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
   try {
     const instance = await model.findByPk(id);
-    if (!instance) await _createErrorPromise(404);
+    if (!instance) await createErrorPromise(404);
     await instance.update(createInput(req.body), {fields: attributes});
     return attachReply(204);
   } catch (err) {
@@ -67,74 +55,13 @@ const _updateRelation = async (createReplyObject, source, target, association, r
     const query =
       association.associationType === 'HasOne' || association.associationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
     let targetInstance = await sourceInstance[association.accessors.get](query);
-    if (!targetInstance) await _createErrorPromise(404, 'target not found.');
+    if (!targetInstance) await createErrorPromise(404, 'target not found.');
     if (targetInstance instanceof Array) // "many" relationsship
       targetInstance = targetInstance[0];
     await update(req, res, next, createReplyObject(targetInstance).id, prepareBody);
   } catch (err) {
     handleError(err);
   }
-};
-
-const _createQuery = async (req, source = 'query') => {
-  const s = req[source];
-  if (!s) return _createErrorPromise(500, `invalid source ${source}`);
-  const limit = s.i;
-  const offset = s.p;
-  const attributes = s.a ? s.a.split('|') : undefined;
-  const sortField = s.f;
-  const sortOrder = s.o || 'DESC';
-
-  if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
-    return _createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
-
-  if ((!limit || (!offset && offset !== 0)) && limit !== offset) {
-    return _createErrorPromise(400, 'p or i must be both undefined or both defined.');
-  }
-
-  const limitInt = parseInt(limit || 10);
-  const offsetInt = parseInt(offset || 0);
-
-  if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
-    ((offset && (isNaN(offsetInt))) || offsetInt < 0)) {
-    return _createErrorPromise(400, 'p or i must be integers larger than 0!');
-  }
-
-  const order = sortField ? [[sortField, sortOrder]] : undefined;
-  return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
-};
-
-const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
-  const s = req[source];
-  if (!s) return _createErrorPromise(500, `invalid source ${source}`);
-  if (!s.s) return _createErrorPromise(400, 'no search parameter specified');
-  const {include = [], ...where} = s.s;
-
-  const parseInclude = (i) => {
-    if (i.include) {
-      i.include = i.include.map(parseInclude);
-    }
-    const modelToAttach = models.find((m) => i.model === m.model.name);
-    if (modelToAttach) {
-      return {
-        ...i,
-        model: modelToAttach.model
-      };
-    }
-    return i;
-  };
-
-  const includeWithAttachedModel = include.map(parseInclude);
-
-  // reject if one of the models could not be resolved
-  const modelToReject = includeWithAttachedModel.find((i) => typeof i.model === 'string');
-  if (modelToReject) {
-    return _createErrorPromise(404, `unable to resolve model ${modelToReject.model}`);
-  }
-
-  let newQuery = Object.assign({}, query);
-  newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
-  return Promise.resolve(newQuery);
 };
 
 const alwaysAllowMiddleware = async (req, res, next) => next();
@@ -279,6 +206,67 @@ const _isRouteExposed = (exposedRoutes, httpVerb, route) => {
   return result;
 };
 
+const _createQuery = async (req, source = 'query') => {
+  const s = req[source];
+  if (!s) return createErrorPromise(500, `invalid source ${source}`);
+  const limit = s.i;
+  const offset = s.p;
+  const attributes = s.a ? s.a.split('|') : undefined;
+  const sortField = s.f;
+  const sortOrder = s.o || 'DESC';
+
+  if (sortOrder !== 'DESC' && sortOrder !== 'ASC')
+    return createErrorPromise(400, 'invalid sort order, must be DESC or ASC');
+
+  if ((!limit || (!offset && offset !== 0)) && limit !== offset) {
+    return createErrorPromise(400, 'p or i must be both undefined or both defined.');
+  }
+
+  const limitInt = parseInt(limit || 10);
+  const offsetInt = parseInt(offset || 0);
+
+  if (((limit && (isNaN(limitInt))) || limitInt < 0) ||
+    ((offset && (isNaN(offsetInt))) || offsetInt < 0)) {
+    return createErrorPromise(400, 'p or i must be integers larger than 0!');
+  }
+
+  const order = sortField ? [[sortField, sortOrder]] : undefined;
+  return Promise.resolve({limit: limitInt, offset: limitInt * offsetInt, attributes, order});
+};
+
+const _attachSearchToQuery = async (req, source = 'query', query, models = []) => {
+  const s = req[source];
+  if (!s) return createErrorPromise(500, `invalid source ${source}`);
+  if (!s.s) return createErrorPromise(400, 'no search parameter specified');
+  const {include = [], ...where} = s.s;
+
+  const parseInclude = (i) => {
+    if (i.include) {
+      i.include = i.include.map(parseInclude);
+    }
+    const modelToAttach = models.find((m) => i.model === m.model.name);
+    if (modelToAttach) {
+      return {
+        ...i,
+        model: modelToAttach.model
+      };
+    }
+    return i;
+  };
+
+  const includeWithAttachedModel = include.map(parseInclude);
+
+  // reject if one of the models could not be resolved
+  const modelToReject = includeWithAttachedModel.find((i) => typeof i.model === 'string');
+  if (modelToReject) {
+    return createErrorPromise(404, `unable to resolve model ${modelToReject.model}`);
+  }
+
+  let newQuery = Object.assign({}, query);
+  newQuery = Object.assign(newQuery, {where, include: includeWithAttachedModel});
+  return Promise.resolve(newQuery);
+};
+
 module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
@@ -392,7 +380,7 @@ module.exports = (models, opts) => {
         const transaction = await model.transaction();
 
         try {
-          if (!Array.isArray(req.body)) throw _createError(400, 'input must be query');
+          if (!Array.isArray(req.body)) throw createError(400, 'input must be query');
           const input = req.body.map(item => model.removeIllegalAttributes(item));
 
           const instances = await Promise.all(input.map(async item => {
@@ -473,7 +461,7 @@ module.exports = (models, opts) => {
 
         const attributes = req.query.a ? req.query.a.split('|') : undefined;
         model.findOne({where: {id}, attributes}).then(modelInstance => {
-          if (!modelInstance) return _createErrorPromise(404, 'entity not found.');
+          if (!modelInstance) return createErrorPromise(404, 'entity not found.');
           return attachReply(200, createReplyObject(modelInstance));
         }).catch(err => {
           return handleError(err);
@@ -506,7 +494,7 @@ module.exports = (models, opts) => {
         const handleError = _handleError.bind(null, next);
         try {
           const instance = await model.findByPk(req.params.id);
-          if (!instance) await _createErrorPromise(404);
+          if (!instance) await createErrorPromise(404);
           await instance.destroy();
           return attachReply(204);
         } catch (err) {
@@ -530,7 +518,7 @@ module.exports = (models, opts) => {
         const handleError = _handleError.bind(null, next);
 
         source.findByPk(req.params.id).then(sourceInstance => {
-          if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+          if (!sourceInstance) return createErrorPromise(404, 'source not found.');
           return sourceInstance[setterFunctionName](null).then(_ => {
             return attachReply(204);
           });
@@ -543,9 +531,9 @@ module.exports = (models, opts) => {
           const attachReply = _attachReply.bind(null, req, res, next);
           const handleError = _handleError.bind(null, next);
           source.findByPk(req.params.id).then(sourceInstance => {
-            if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+            if (!sourceInstance) return createErrorPromise(404, 'source not found.');
             return sourceInstance[association.accessors.get]().then(targetInstance => {
-              if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+              if (!targetInstance) return createErrorPromise(404, 'target not found.');
               return attachReply(200, postProcess(req, targetInstance));
             });
           }).catch(err => {
@@ -585,7 +573,7 @@ module.exports = (models, opts) => {
               const handleError = _handleError.bind(null, next);
               try {
                 const sourceInstance = await source.findByPk(req.params.id);
-                if (!sourceInstance) return await _createErrorPromise(404, 'source not found.');
+                if (!sourceInstance) return await createErrorPromise(404, 'source not found.');
                 const instance = await sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
 
                 if (association.associationType === 'BelongsTo') {
@@ -596,7 +584,7 @@ module.exports = (models, opts) => {
                   } else if (instance instanceof target) { // 5.x.x
                     return attachReply(201, createReplyObject(instance));
                   } else {
-                    _createErrorPromise(
+                    createErrorPromise(
                       500,
                       'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
                     );
@@ -697,20 +685,20 @@ module.exports = (models, opts) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(async sourceInstance => {
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                if (!sourceInstance) return createErrorPromise(404, 'source not found.');
 
                 const instances = await sourceInstance[association.accessors.get]({where: {id: req.params.targetId}});
-                if (instances.length === 0) return _createErrorPromise(404, 'target not found.');
+                if (instances.length === 0) return createErrorPromise(404, 'target not found.');
 
                 if (instances[0] instanceof source) { // 4.x.x
                   return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
-                    if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                    if (!targetInstance) return createErrorPromise(404, 'target not found.');
                     return attachReply(200, _filterAttributes(req.query.a, createReplyObject(targetInstance)));
                   });
                 } else if (instances[0] instanceof target) { // 5.x.x
                   return attachReply(200, _filterAttributes(req.query.a, createReplyObject(instances[0])));
                 } else {
-                  return _createErrorPromise(
+                  return createErrorPromise(
                     500,
                     'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
                   );
@@ -729,7 +717,7 @@ module.exports = (models, opts) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(sourceInstance => {
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                if (!sourceInstance) return createErrorPromise(404, 'source not found.');
                 return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
               }).then(instance => {
                 return attachReply(201, createReplyObject(instance));
@@ -748,9 +736,9 @@ module.exports = (models, opts) => {
                 const handleError = _handleError.bind(null, next);
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
-                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                  if (!sourceInstance) return createErrorPromise(404, 'source not found.');
                   const targetInstance = await target.findByPk(req.params.targetId);
-                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                  if (!targetInstance) return createErrorPromise(404, 'target not found.');
 
                   await sourceInstance[association.accessors.add](targetInstance);
 
@@ -770,10 +758,10 @@ module.exports = (models, opts) => {
                 const handleError = _handleError.bind(null, next);
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
-                  if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                  if (!sourceInstance) return createErrorPromise(404, 'source not found.');
 
                   const targetInstance = await target.findByPk(req.params.targetId);
-                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                  if (!targetInstance) return createErrorPromise(404, 'target not found.');
 
                   await sourceInstance[association.accessors.remove](targetInstance);
 
@@ -825,10 +813,10 @@ module.exports = (models, opts) => {
               const handleError = _handleError.bind(null, next);
 
               source.findByPk(req.params.id).then(sourceInstance => {
-                if (!sourceInstance) return _createErrorPromise(404, 'source not found.');
+                if (!sourceInstance) return createErrorPromise(404, 'source not found.');
                 return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
                   const targetInstance = targetInstances[0];
-                  if (!targetInstance) return _createErrorPromise(404, 'target not found.');
+                  if (!targetInstance) return createErrorPromise(404, 'target not found.');
                   return sourceInstance[association.accessors.remove](targetInstance);
                 }).then(() => {
                   return attachReply(204);
