@@ -8,12 +8,14 @@ const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 
+// TODO: move to own file
 const _attachReply = (req, res, next, status, result, message) => {
   res.__payload = {status, result, message};
   next();
   return Promise.resolve();
 };
 
+// TODO: move to own file, move _formatValidationError to the same file
 const _handleError = (next, err) => {
   if (ERRORS.ValidationError(err))
     return next(createError(400, _formatValidationError(err)));
@@ -23,6 +25,7 @@ const _handleError = (next, err) => {
     return next(createError(500, err));
 };
 
+// TODO: move to own file, move _handleError to the same file
 const _formatValidationError = (err) => {
   return err.errors.map(error => {
     return _.pick(error, ['type', 'path', 'value']);
@@ -75,6 +78,7 @@ const _getModelOpts = (models, model) => {
   return {};
 };
 
+// TODO: create Authorization class and move this function there
 const _getParentAuthorizationForModel = (modelDefinitions, model) => {
   const authorizationMiddlewaresFound = [];
   for (const modelDefinition of modelDefinitions) {
@@ -92,6 +96,7 @@ const _getParentAuthorizationForModel = (modelDefinitions, model) => {
   return authorizationMiddlewaresFound[0];
 };
 
+// TODO: create Authorization class and move this function there
 const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
   const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'ASSOCIATE', 'OTHER']
     .filter(method => method == type).length === 1;
@@ -131,6 +136,7 @@ const _filterAttributes = (attributeString, instance) => {
   }
 };
 
+// TODO: move to QueryBuilder
 const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuery) => {
   const opts = targetQuery;
   let model;
@@ -169,6 +175,7 @@ const _countAssociations = async (association, query) => {
     if (association.options.as) {
       includeOpts.as = association.options.as.plural || association.options.as;
     }
+    // TODO: this might be an issue, shouldn't it be target?!
     return await association.source.count({
       include: [includeOpts]
     });
