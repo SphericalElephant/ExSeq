@@ -8,27 +8,49 @@ describe('query-builder', () => {
   it('should only allow integer or NONE as valid input for "limit"', () => {
     let err;
     try {
-      new QueryBuilder(NONE);
-      new QueryBuilder(1);
+      new QueryBuilder({defaultLimit: NONE});
+      new QueryBuilder({defaultLimit: 1});
     } catch (_err) {
       err = _err;
     }
     expect(err).to.be.undefined;
     try {
-      new QueryBuilder('test');
+      new QueryBuilder({defaultLimit: 'test'});
     } catch (_err) {
       err = _err;
     }
     expect(err).not.to.be.undefined;
   });
   describe('create', () => {
+    it('should throw an error if the maxLimit has been exceeded', () => {
+      let err;
+      const qb = new QueryBuilder({defaultLimit: 10, maxLimit: 5});
+      try {
+        qb.create({});
+      } catch (_err) {
+        err = _err;
+      }
+      expect(err).to.exist;
+      expect(err.message).to.equal('limit i=10 exceeds 5');
+    });
+    it('should throw an when limit=NONE but maxLimit is not NONE', () => {
+      let err;
+      const qb = new QueryBuilder({defaultLimit: NONE, maxLimit: 5});
+      try {
+        qb.create({});
+      } catch (_err) {
+        err = _err;
+      }
+      expect(err).to.exist;
+      expect(err.message).to.equal('NONE is not allowed');
+    });
     it('should prevent creating a query if it has already been created', () => {
       const qb = new QueryBuilder();
       qb.create({});
       expect(qb.create.bind(qb, {})).to.throw('query already exists');
     });
     it('should not set a limit or offset if limit NONE was specified', () => {
-      const qb = new QueryBuilder(NONE);
+      const qb = new QueryBuilder({defaultLimit: NONE, maxLimit: NONE});
       qb.create({});
       expect(qb.query.limit).to.not.exist;
       expect(qb.query.offset).to.not.exist;
@@ -78,6 +100,18 @@ describe('query-builder', () => {
       qb.reset();
       expect(qb.prepared).to.be.false;
       expect(qb.queryField).to.be.null;
+    });
+  });
+  describe('query', () => {
+    it('should check if a query has been set', () => {
+      const qb = new QueryBuilder();
+      let err;
+      try {
+        qb.query;
+      } catch (_err) {
+        err = _err;
+      }
+      expect(err).to.exist;
     });
   });
 });

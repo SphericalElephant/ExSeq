@@ -280,6 +280,7 @@ module.exports = (models, opts) => {
     const update = _update.bind(null, model);
     const exposedRoutes = routing.opts.exposed || {};
     const queryOptions = routing.opts.queryOptions || {};
+    const queryBuilder = new QueryBuilder(queryOptions);
     const openApiHelper = routing.openApiHelper;
     const isRouteExposed = _isRouteExposed.bind(null, exposedRoutes);
     openApiHelper.existingSchemaNames = Object.keys(openApiDocument.components.schemas);
@@ -292,6 +293,12 @@ module.exports = (models, opts) => {
     });
 
     const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
+
+    router.use((req, res, next) => {
+      // resetting the state of the query builder before each request
+      queryBuilder.reset();
+      next();
+    });
 
     if (opts.middleware.associationMiddleware) {
       const associationMiddleware = relationShipMiddlewareFactory(
@@ -365,7 +372,6 @@ module.exports = (models, opts) => {
       router.get('/', auth('READ'), async (req, res, next) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
-        const queryBuilder = new QueryBuilder(queryOptions.limit);
         try {
           const results = await model.findAll(
             queryBuilder
@@ -386,7 +392,6 @@ module.exports = (models, opts) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
         try {
-          const queryBuilder = new QueryBuilder(queryOptions.limit);
           const results = await model.findAll(
             queryBuilder
               .create(req.body)
@@ -623,7 +628,6 @@ module.exports = (models, opts) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               try {
-                const queryBuilder = new QueryBuilder(queryOptions.limit);
                 const searchQuery = queryBuilder
                   .create(req.body)
                   .attachSearch(req.body, models)
