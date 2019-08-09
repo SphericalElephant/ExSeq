@@ -461,7 +461,7 @@ module.exports = (models, opts) => {
       const source = association.source;
       const targetRoute = namingScheme(association.options.name.singular);
       const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
-
+      // TODO: move into own file (maybe with update)
       const unlinkRelations = (req, res, next, setterFunctionName) => {
         const attachReply = _attachReply.bind(null, req, res, next);
         const handleError = _handleError.bind(null, next);
@@ -475,6 +475,7 @@ module.exports = (models, opts) => {
           return handleError(err);
         });
       };
+      // TODO: move into own file (maybe with update)
       const relationshipGet = (postProcess) => {
         return (req, res, next) => {
           const attachReply = _attachReply.bind(null, req, res, next);
