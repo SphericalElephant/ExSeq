@@ -166,24 +166,6 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   }
 };
 
-const _countAssociations = async (association, query) => {
-  const where = query ? query.where : null;
-  if (association.associationType === 'HasMany') {
-    return await association.target.count({where});
-  } else if (association.associationType === 'BelongsToMany') {
-    const includeOpts = {model: association.target, where};
-    if (association.options.as) {
-      includeOpts.as = association.options.as.plural || association.options.as;
-    }
-    // TODO: this might be an issue, shouldn't it be target?!
-    return await association.source.count({
-      include: [includeOpts]
-    });
-  } else {
-    throw new Error('Unsupported!');
-  }
-};
-
 const _createReplyObject = (raw, object) => {
   let objects;
   let inputWasArray = false;
@@ -613,7 +595,9 @@ module.exports = (models, opts) => {
               const attachReply = _attachReply.bind(null, req, res, next);
               const handleError = _handleError.bind(null, next);
               try {
-                return attachReply(200, await _countAssociations(association), `Count for ${model.name} obtained!`);
+                return attachReply(200,
+                  await source.getAssociationCount(association, req.params.id),
+                  `Count for ${model.name} obtained!`);
               } catch (err) {
                 return handleError(err);
               }
@@ -634,7 +618,7 @@ module.exports = (models, opts) => {
                   .prepare()
                   .query;
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
-                res.set('X-Total-Count', await _countAssociations(association, searchOptions));
+                res.set('X-Total-Count', await source.getAssociationCount(association, req.params.id, searchOptions));
                 if (results.length === 0) {
                   return attachReply(204);
                 } else {
