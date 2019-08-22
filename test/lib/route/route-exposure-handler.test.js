@@ -1,7 +1,9 @@
 'use strict';
+
 /* eslint-env node, mocha */
 /* eslint no-unused-expressions: "off" */
 /* eslint max-len: ["error", { code: 140, "ignoreTemplateLiterals": true }] */
+
 const {expect} = require('chai');
 const {RouteExposureHandler} = require('../../../lib/route');
 const sinon = require('sinon');
