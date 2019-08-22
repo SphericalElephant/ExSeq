@@ -33,7 +33,6 @@ const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
 const _createReplyObject = _exseq.__get__('_createReplyObject');
-const _isRouteExposed = _exseq.__get__('_isRouteExposed');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 module.exports = (Sequelize) => {
@@ -981,46 +980,6 @@ module.exports = (Sequelize) => {
         relation: 'r3'
       }
     ];
-
-    describe('_isRouteExposed', () => {
-      it('should expose a route if no rule was specified', () => {
-        expect(_isRouteExposed({}, 'get', '/:id')).to.be.true;
-      });
-      it('should not expose a route if specified', () => {
-        expect(_isRouteExposed({
-          '/:id': {
-            get: false
-          }
-        }, 'get', '/:id')).to.be.false;
-      });
-      it('should expose a route if specified', () => {
-        expect(_isRouteExposed({
-          '/:id': {
-            get: true
-          }
-        }, 'get', '/:id')).to.be.true;
-      });
-      it('should print an error if the user exposed /search via GET', () => {
-        const consoleStub = sinon.stub(console, 'error');
-        _isRouteExposed({
-          '/search': {
-            get: true
-          }
-        }, 'get', '/search');
-        consoleStub.restore();
-        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.true;
-      });
-      it('should not print an error if the user exposed /search via POST', () => {
-        const consoleStub = sinon.stub(console, 'error');
-        _isRouteExposed({
-          '/search': {
-            post: true
-          }
-        }, 'post', '/search');
-        consoleStub.restore();
-        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.false;
-      });
-    });
 
     describe('_createReplyObject', () => {
       it('should handle a single object', async () => {
