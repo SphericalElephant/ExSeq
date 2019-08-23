@@ -1,13 +1,14 @@
 'use strict';
+
 /* eslint-env node, mocha */
 /* eslint no-unused-expressions: "off" */
 /* eslint max-len: ["error", { code: 140, "ignoreTemplateLiterals": true }] */
+
 const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
 const rewire = require('rewire');
 const express = require('express');
-const sinon = require('sinon');
 
 const bodyParser = require('body-parser');
 
@@ -110,7 +111,9 @@ module.exports = (Sequelize) => {
   StripAssociationIds.belongsTo(TestModel, {as: 'testModel'});
   const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, database.Sequelize);
   const WhiteListingTestModel = database.sequelize.define('WhiteListingTestModel', {});
-
+  const OrderBySourceModel = database.sequelize.define('OrderBySourceModel', {});
+  const OrderByTargetModel = database.sequelize.define('OrderByTargetModel', {sortByField: database.Sequelize.INTEGER});
+  OrderBySourceModel.hasOne(OrderByTargetModel);
   [
     TestModel,
     TestModel2,
@@ -143,7 +146,9 @@ module.exports = (Sequelize) => {
     AllRelationsTarget2,
     TestModelVirtualFields,
     NoStripAssociationIds,
-    StripAssociationIds
+    StripAssociationIds,
+    OrderBySourceModel,
+    OrderByTargetModel
   ].forEach(modelExtension);
 
   describe('index.js', () => {
@@ -196,7 +201,9 @@ module.exports = (Sequelize) => {
             filterReferenceAttributes: false
           }
         },
-        {model: StripAssociationIds, opts: {}}
+        {model: StripAssociationIds, opts: {}},
+        {model: OrderBySourceModel, opts: {}},
+        {model: OrderByTargetModel, opts: {}}
       ], {
         dataMapper: database.Sequelize,
         idRegex: '\\d+'
@@ -208,6 +215,7 @@ module.exports = (Sequelize) => {
 
       // simple response handler
       app.use((req, res, next) => {
+        console.log(req.url, req.method);
         if (res.__payload) {
           return res.status(res.__payload.status).send({
             result: res.__payload.result, message: res.__payload.message
@@ -217,7 +225,7 @@ module.exports = (Sequelize) => {
       });
       // simple error handler
       app.use((err, req, res, next) => {
-        // console.error(err);
+        console.error(err);
         if (!err.status) {
           return res.status(500).send({message: err.stack});
         }
@@ -332,6 +340,11 @@ module.exports = (Sequelize) => {
       await aliasParentInstance.addChild(aliasChildOne);
       await aliasParentInstance.addChild(aliasChildTwo);
       await aliasParentInstance.addChild(aliasChildThree);
+
+      const orderBySourceModel = await OrderBySourceModel.create({});
+      await orderBySourceModel.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 1}));
+      const orderBySourceModel2 = await OrderBySourceModel.create({});
+      await orderBySourceModel2.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 2}));
     });
 
     afterEach(async () => {
@@ -689,14 +702,16 @@ module.exports = (Sequelize) => {
               }
               res.status(404).send();
             });
-            app2.use((err, req, res, next)=> {
+            app2.use((err, req, res, next) => {
               res.status(err.status || 500).send(err);
             });
             const response = await request(app2)
               .post('/WhiteListingTestModel/search')
-              .send({i: 4, p: 0, s: {
-                '$and': []
-              }})
+              .send({
+                i: 4, p: 0, s: {
+                  '$and': []
+                }
+              })
               .expect(403);
             expect(response.body.result).to.equal('query included illegal operators: $and');
           });
@@ -728,15 +743,17 @@ module.exports = (Sequelize) => {
               }
               res.status(404).send();
             });
-            app2.use((err, req, res, next)=> {
+            app2.use((err, req, res, next) => {
               res.status(err.status || 500).send(err);
             });
             const response = await request(app2)
               .post('/WhiteListingTestModel/search')
-              .send({i: 4, p: 0, s: {
-                '$or': [],
-                '$and': []
-              }})
+              .send({
+                i: 4, p: 0, s: {
+                  '$or': [],
+                  '$and': []
+                }
+              })
               .expect(403);
             expect(response.body.result).to.equal('query included illegal operators: $or');
           });
@@ -1361,6 +1378,34 @@ module.exports = (Sequelize) => {
             }
           })
           .expect(200);
+      });
+      it('should order entities according to an included entity', async () => {
+        const response = await request(app)
+          .post('/OrderBySourceModel/search')
+          .send({
+            s: {
+              include: [
+                {
+                  model: 'OrderByTargetModel'
+                }
+              ]
+            },
+            f: 'OrderByTarget.sortByField'
+          }).expect(200);
+
+        // console.log(response.status, response.body);
+        /* console.log('SEQ', require('util').inspect((await OrderBySourceModel.findAll({
+          include: [
+            {
+              model: OrderByTargetModel
+            }
+          ],
+          order: [[{model: OrderByTargetModel}, 'sortByField', 'DESC']]
+        })).map(x => {
+          const r = x.get();
+          r.OrderByTargetModels = x.OrderByTargetModel.get();
+          return r;
+        }), {depth: 3})); */
       });
       it('should return a 204 if no items where found', () => {
         return request(app)

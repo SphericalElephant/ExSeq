@@ -346,6 +346,10 @@ Symbol (will not work due to JSON.stringify "limitations"):
 }
 ```
 
+#### Search examples
+
+
+
 > Note: When using the `include` attribtue to query data, be aware that the associated models can be fetched without explicit authorization.
 
 ## Foreign Key Authorization
