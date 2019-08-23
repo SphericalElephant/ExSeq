@@ -109,6 +109,8 @@ module.exports = (Sequelize) => {
   const StripAssociationIds = database.sequelize.define('StripAssociationIds', {});
   StripAssociationIds.belongsTo(TestModel, {as: 'testModel'});
   const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, database.Sequelize);
+  const WhiteListingTestModel = database.sequelize.define('WhiteListingTestModel', {});
+
   [
     TestModel,
     TestModel2,
@@ -661,6 +663,82 @@ module.exports = (Sequelize) => {
             return request(app2)
               .get(`/UUIDTestModel/${instance.id}`)
               .expect(200);
+          });
+        });
+        describe('opts.whitelistedOperators', () => {
+          it('should apply the global whitelist', async () => {
+            const apiData = exseq([
+              {
+                model: WhiteListingTestModel
+              }
+            ], {
+              whitelistedOperators: {or: true},
+              dataMapper: database.Sequelize
+            });
+            const app2 = express();
+            app2.use(bodyParser.json({}));
+            apiData.routingInformation.forEach((routing) => {
+              app2.use(routing.route, routing.router);
+            });
+
+            app2.use((req, res, next) => {
+              if (res.__payload) {
+                return res.status(res.__payload.status).send({
+                  result: res.__payload.result, message: res.__payload.message
+                });
+              }
+              res.status(404).send();
+            });
+            app2.use((err, req, res, next)=> {
+              res.status(err.status || 500).send(err);
+            });
+            const response = await request(app2)
+              .post('/WhiteListingTestModel/search')
+              .send({i: 4, p: 0, s: {
+                '$and': []
+              }})
+              .expect(403);
+            expect(response.body.result).to.equal('query included illegal operators: $and');
+          });
+          it('should override the global whitelist with a model specific whitelist', async () => {
+            const apiData = exseq([
+              {
+                model: WhiteListingTestModel,
+                opts: {
+                  queryOptions: {
+                    whitelistedOperators: {and: true}
+                  }
+                }
+              }
+            ], {
+              whitelistedOperators: {or: true},
+              dataMapper: database.Sequelize
+            });
+            const app2 = express();
+            app2.use(bodyParser.json({}));
+            apiData.routingInformation.forEach((routing) => {
+              app2.use(routing.route, routing.router);
+            });
+
+            app2.use((req, res, next) => {
+              if (res.__payload) {
+                return res.status(res.__payload.status).send({
+                  result: res.__payload.result, message: res.__payload.message
+                });
+              }
+              res.status(404).send();
+            });
+            app2.use((err, req, res, next)=> {
+              res.status(err.status || 500).send(err);
+            });
+            const response = await request(app2)
+              .post('/WhiteListingTestModel/search')
+              .send({i: 4, p: 0, s: {
+                '$or': [],
+                '$and': []
+              }})
+              .expect(403);
+            expect(response.body.result).to.equal('query included illegal operators: $or');
           });
         });
         describe('opts.route', () => {

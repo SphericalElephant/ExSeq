@@ -26,7 +26,7 @@ describe('query-builder', () => {
       let err;
       const qb = new QueryBuilder({defaultLimit: 10, maxLimit: 5});
       try {
-        qb.create({});
+        qb.create({}).prepare();
       } catch (_err) {
         err = _err;
       }
@@ -37,7 +37,7 @@ describe('query-builder', () => {
       let err;
       const qb = new QueryBuilder({defaultLimit: NONE, maxLimit: 5});
       try {
-        qb.create({});
+        qb.create({}).prepare();
       } catch (_err) {
         err = _err;
       }
@@ -51,13 +51,13 @@ describe('query-builder', () => {
     });
     it('should not set a limit or offset if limit NONE was specified', () => {
       const qb = new QueryBuilder({defaultLimit: NONE, maxLimit: NONE});
-      qb.create({});
+      qb.create({}).prepare();
       expect(qb.query.limit).to.not.exist;
       expect(qb.query.offset).to.not.exist;
     });
     it('should set a limit or offset if no NONE was specified', () => {
       const qb = new QueryBuilder();
-      qb.create({});
+      qb.create({}).prepare();
       expect(qb.query.limit).to.exist;
       expect(qb.query.offset).to.exist;
     });

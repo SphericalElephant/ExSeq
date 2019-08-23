@@ -255,6 +255,7 @@ module.exports = (models, opts) => {
     const update = _update.bind(null, model);
     const exposedRoutes = routing.opts.exposed || {};
     const queryOptions = routing.opts.queryOptions || {};
+    queryOptions.whitelistedOperators = queryOptions.whitelistedOperators || opts.whitelistedOperators;
     const queryBuilder = new QueryBuilder(queryOptions);
     const openApiHelper = routing.openApiHelper;
     const routeExposureHandler = new RouteExposureHandler(exposedRoutes);
