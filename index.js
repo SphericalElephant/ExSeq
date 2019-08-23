@@ -256,6 +256,7 @@ module.exports = (models, opts) => {
     const exposedRoutes = routing.opts.exposed || {};
     const queryOptions = routing.opts.queryOptions || {};
     queryOptions.whitelistedOperators = queryOptions.whitelistedOperators || opts.whitelistedOperators;
+    queryOptions.models = models;
     const queryBuilder = new QueryBuilder(queryOptions);
     const openApiHelper = routing.openApiHelper;
     const routeExposureHandler = new RouteExposureHandler(exposedRoutes);
@@ -372,7 +373,7 @@ module.exports = (models, opts) => {
           const results = await model.findAll(
             queryBuilder
               .create(req.body)
-              .attachSearch(req.body, models)
+              .attachSearch(req.body)
               .prepare()
               .query
           );
@@ -381,7 +382,7 @@ module.exports = (models, opts) => {
             queryBuilder
               .reset()
               .create({})
-              .attachSearch(req.body, models)
+              .attachSearch(req.body)
               .prepare()
               .query
           ));
@@ -610,7 +611,7 @@ module.exports = (models, opts) => {
               try {
                 const searchQuery = queryBuilder
                   .create(req.body)
-                  .attachSearch(req.body, models)
+                  .attachSearch(req.body)
                   .prepare()
                   .query;
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
