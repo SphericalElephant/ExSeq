@@ -69,7 +69,7 @@ app.use((err, req, res, next) => {
 | middleware.associationMiddleware |                                                                                                                                                                                                                                   |
 | openapi                          |                                                                                                                                                                                                                                   |
 | idRegex                          | The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing ()                                                                    |
-| whitelistedOperators             | Used to whitelist operators, format is: {or: true, and: true...}, by default, all operators are whitelisted. Please beware that if you provide a whitelist, all operators not included on this whitelist are forbidden by default |
+| whitelistedOperators             | Used to whitelist operators, format is: {or: true, and: true...}, by default, all operators are whitelisted. Please beware that if you provide a whitelist, all operators not included on this whitelist are forbidden by default. ExSeq will take care of translating $or to or and vice versa |
 
 
 ### Error Objects
@@ -90,6 +90,12 @@ ExSeq errors contain the following additional attributes.
 | status         | integer   | HTTP status code                                                          |
 | result         | Error     | The error that caused the current ExSeq error                             |
 | isCreatedError | boolean   | A flag indicating if the current Error is an ExSeq generated Error or not |
+
+### Notes On Security
+
+#### Operator Whitelisting
+
+Starting from ExSeq XXX, operator whitelisting is supported. It is recommended to use the whitelist in order to mitigate (d)dos attacks, and only allow certain operators for routes can only be accessed by trusted roles. [ReDos](https://en.wikipedia.org/wiki/ReDoS) attacks are only one possible concern.
 
 ### Route Options (opts)
 
@@ -141,6 +147,22 @@ const apiData = exseq([
     }
   }
 ], {
+  dataMapper: Sequelize
+});
+```
+
+Control Operator Whitelist:
+```javascript
+const exseq = require('exseq');
+const Sequelize = require('sequelize');
+
+const apiData = exseq([
+  {
+    model: Car, opts: {}
+  }
+], {
+  // only $and, and, $or and or are allowed now
+  whitelistedOperators: {or: true, $and: true}
   dataMapper: Sequelize
 });
 ```
