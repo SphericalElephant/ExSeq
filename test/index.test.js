@@ -1390,22 +1390,11 @@ module.exports = (Sequelize) => {
                 }
               ]
             },
-            f: 'OrderByTarget.sortByField'
+            f: 'OrderByTargetModel.sortByField',
+            o: 'DESC'
           }).expect(200);
-
-        // console.log(response.status, response.body);
-        /* console.log('SEQ', require('util').inspect((await OrderBySourceModel.findAll({
-          include: [
-            {
-              model: OrderByTargetModel
-            }
-          ],
-          order: [[{model: OrderByTargetModel}, 'sortByField', 'DESC']]
-        })).map(x => {
-          const r = x.get();
-          r.OrderByTargetModels = x.OrderByTargetModel.get();
-          return r;
-        }), {depth: 3})); */
+        expect(response.body.result[0].id).to.equal(2);
+        expect(response.body.result[1].id).to.equal(1);
       });
       it('should return a 204 if no items where found', () => {
         return request(app)
