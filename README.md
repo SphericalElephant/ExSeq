@@ -61,14 +61,14 @@ app.use((err, req, res, next) => {
 ```
 ### Exseq Options (opts)
 
-| Option                           | Description                                                                                                                                                                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| dataMapper                       | The instance of the dataMapper to use. Currently only Sequelize is supported.                                                                                                                                                     |
-| rawDataResponse                  | If set to true, ExSeq will attach the result of instance.get() to res.__payload.result, otherwise instance is attached.                                                                                                           |
-| middleware                       |                                                                                                                                                                                                                                   |
-| middleware.associationMiddleware |                                                                                                                                                                                                                                   |
-| openapi                          |                                                                                                                                                                                                                                   |
-| idRegex                          | The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing ()                                                                    |
+| Option                           | Description                                                                                                                                                                                                                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| dataMapper                       | The instance of the dataMapper to use. Currently only Sequelize is supported.                                                                                                                                                                                                                   |
+| rawDataResponse                  | If set to true, ExSeq will attach the result of instance.get() to res.__payload.result, otherwise instance is attached.                                                                                                                                                                         |
+| middleware                       |                                                                                                                                                                                                                                                                                                 |
+| middleware.associationMiddleware |                                                                                                                                                                                                                                                                                                 |
+| openapi                          |                                                                                                                                                                                                                                                                                                 |
+| idRegex                          | The regular expression that is used to determin the correctness of an id. Uses express' route param regex. Specify the regex as a string, without enclosing ()                                                                                                                                  |
 | whitelistedOperators             | Used to whitelist operators, format is: {or: true, and: true...}, by default, all operators are whitelisted. Please beware that if you provide a whitelist, all operators not included on this whitelist are forbidden by default. ExSeq will take care of translating $or to or and vice versa |
 
 
@@ -97,6 +97,10 @@ ExSeq errors contain the following additional attributes.
 
 Starting from ExSeq XXX, operator whitelisting is supported. It is recommended to use the whitelist in order to mitigate (d)dos attacks, and only allow certain operators for routes can only be accessed by trusted roles. [ReDos](https://en.wikipedia.org/wiki/ReDoS) attacks are only one possible concern.
 
+#### Reporting Security Issues
+
+If you discover any security issues with ExSeq or one of its dependencies please don't hestiate to send an E-Mail to office[you know what to put here]sphericalelephant.com.
+
 ### Route Options (opts)
 
 |                     Option                      |                                                                                                                                                                                                                                                   Description                                                                                                                                                                                                                                                   |
@@ -110,7 +114,7 @@ Starting from ExSeq XXX, operator whitelisting is supported. It is recommended t
 |            filterReferenceAttributes            |                                                                                                                                                                                  A flag controlling the POST /entity/ behaviour, if set to true, all reference ids (association ids) will be stripped from the reply (default)                                                                                                                                                                                  |
 |            queryOptions.defaultLimit            |                                                                                                                                                                       The default limit of returned results for GET /source, POST /source/search and POST /source/:id/target, if set to Symbol.for('NONE'), limit and offset are ignored                                                                                                                                                                        |
 |              queryOptions.maxLimit              |                                                                                                                                                                                                                       The maximum value that can be specified as a limit, NONE by default                                                                                                                                                                                                                       |
-|        queryOptions.whitelistedOperators        |Used to override the global whiteListedOperators option on a per model basis, see opts.whitelistedOperators for details|
+|        queryOptions.whitelistedOperators        |                                                                                                                                                                                             Used to override the global whiteListedOperators option on a per model basis, see opts.whitelistedOperators for details                                                                                                                                                                                             |
 #### Examples
 
 Define a custom name for a *source*:
@@ -368,11 +372,58 @@ Symbol (will not work due to JSON.stringify "limitations"):
 }
 ```
 
+> Note: When using the `include` attribtue to query data, be aware that the associated models can be fetched without explicit authorization.
+
+
 #### Search examples
 
+```json
+{
+  "s": {
+    "value": {
+      "like": "%foo%"
+    }
+  }
+}
+```
 
+```json
+{
+  "s": {
+    "value": {
+      "like": "%foo%"
+    },
+    "include": [{
+      "model": "OtherModel",
+      "where": {
+        "otherValue": {
+          "like": "%bar%"
+        }
+      }
+    }]
+  }
+}
+```
 
-> Note: When using the `include` attribtue to query data, be aware that the associated models can be fetched without explicit authorization.
+```json
+{
+  "s": {
+    "value": {
+      "like": "%foo%"
+    },
+    "include": [{
+      "model": "OtherModel",
+      "where": {
+        "otherValue": {
+          "like": "%bar%"
+        }
+      }
+    }]
+  },
+  "f": "OtherModel.otherValue",
+  "o": "ASC"
+}
+```
 
 ## Foreign Key Authorization
 
