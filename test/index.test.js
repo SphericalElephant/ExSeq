@@ -1,13 +1,14 @@
 'use strict';
+
 /* eslint-env node, mocha */
 /* eslint no-unused-expressions: "off" */
 /* eslint max-len: ["error", { code: 140, "ignoreTemplateLiterals": true }] */
+
 const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
 const rewire = require('rewire');
 const express = require('express');
-const sinon = require('sinon');
 
 const bodyParser = require('body-parser');
 
@@ -33,7 +34,6 @@ const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
 const _createReplyObject = _exseq.__get__('_createReplyObject');
-const _isRouteExposed = _exseq.__get__('_isRouteExposed');
 const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
 
 module.exports = (Sequelize) => {
@@ -110,6 +110,10 @@ module.exports = (Sequelize) => {
   const StripAssociationIds = database.sequelize.define('StripAssociationIds', {});
   StripAssociationIds.belongsTo(TestModel, {as: 'testModel'});
   const UUIDTestModel = uuidTestModel('UUIDTestModel', database.sequelize, database.Sequelize);
+  const WhiteListingTestModel = database.sequelize.define('WhiteListingTestModel', {});
+  const OrderBySourceModel = database.sequelize.define('OrderBySourceModel', {});
+  const OrderByTargetModel = database.sequelize.define('OrderByTargetModel', {sortByField: database.Sequelize.INTEGER});
+  OrderBySourceModel.hasOne(OrderByTargetModel);
   [
     TestModel,
     TestModel2,
@@ -142,7 +146,9 @@ module.exports = (Sequelize) => {
     AllRelationsTarget2,
     TestModelVirtualFields,
     NoStripAssociationIds,
-    StripAssociationIds
+    StripAssociationIds,
+    OrderBySourceModel,
+    OrderByTargetModel
   ].forEach(modelExtension);
 
   describe('index.js', () => {
@@ -195,7 +201,9 @@ module.exports = (Sequelize) => {
             filterReferenceAttributes: false
           }
         },
-        {model: StripAssociationIds, opts: {}}
+        {model: StripAssociationIds, opts: {}},
+        {model: OrderBySourceModel, opts: {}},
+        {model: OrderByTargetModel, opts: {}}
       ], {
         dataMapper: database.Sequelize,
         idRegex: '\\d+'
@@ -207,6 +215,7 @@ module.exports = (Sequelize) => {
 
       // simple response handler
       app.use((req, res, next) => {
+        console.log(req.url, req.method);
         if (res.__payload) {
           return res.status(res.__payload.status).send({
             result: res.__payload.result, message: res.__payload.message
@@ -216,7 +225,7 @@ module.exports = (Sequelize) => {
       });
       // simple error handler
       app.use((err, req, res, next) => {
-        // console.error(err);
+        console.error(err);
         if (!err.status) {
           return res.status(500).send({message: err.stack});
         }
@@ -331,6 +340,11 @@ module.exports = (Sequelize) => {
       await aliasParentInstance.addChild(aliasChildOne);
       await aliasParentInstance.addChild(aliasChildTwo);
       await aliasParentInstance.addChild(aliasChildThree);
+
+      const orderBySourceModel = await OrderBySourceModel.create({});
+      await orderBySourceModel.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 1}));
+      const orderBySourceModel2 = await OrderBySourceModel.create({});
+      await orderBySourceModel2.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 2}));
     });
 
     afterEach(async () => {
@@ -664,6 +678,86 @@ module.exports = (Sequelize) => {
               .expect(200);
           });
         });
+        describe('opts.whitelistedOperators', () => {
+          it('should apply the global whitelist', async () => {
+            const apiData = exseq([
+              {
+                model: WhiteListingTestModel
+              }
+            ], {
+              whitelistedOperators: {or: true},
+              dataMapper: database.Sequelize
+            });
+            const app2 = express();
+            app2.use(bodyParser.json({}));
+            apiData.routingInformation.forEach((routing) => {
+              app2.use(routing.route, routing.router);
+            });
+
+            app2.use((req, res, next) => {
+              if (res.__payload) {
+                return res.status(res.__payload.status).send({
+                  result: res.__payload.result, message: res.__payload.message
+                });
+              }
+              res.status(404).send();
+            });
+            app2.use((err, req, res, next) => {
+              res.status(err.status || 500).send(err);
+            });
+            const response = await request(app2)
+              .post('/WhiteListingTestModel/search')
+              .send({
+                i: 4, p: 0, s: {
+                  '$and': []
+                }
+              })
+              .expect(403);
+            expect(response.body.result).to.equal('query included illegal operators: $and');
+          });
+          it('should override the global whitelist with a model specific whitelist', async () => {
+            const apiData = exseq([
+              {
+                model: WhiteListingTestModel,
+                opts: {
+                  queryOptions: {
+                    whitelistedOperators: {and: true}
+                  }
+                }
+              }
+            ], {
+              whitelistedOperators: {or: true},
+              dataMapper: database.Sequelize
+            });
+            const app2 = express();
+            app2.use(bodyParser.json({}));
+            apiData.routingInformation.forEach((routing) => {
+              app2.use(routing.route, routing.router);
+            });
+
+            app2.use((req, res, next) => {
+              if (res.__payload) {
+                return res.status(res.__payload.status).send({
+                  result: res.__payload.result, message: res.__payload.message
+                });
+              }
+              res.status(404).send();
+            });
+            app2.use((err, req, res, next) => {
+              res.status(err.status || 500).send(err);
+            });
+            const response = await request(app2)
+              .post('/WhiteListingTestModel/search')
+              .send({
+                i: 4, p: 0, s: {
+                  '$or': [],
+                  '$and': []
+                }
+              })
+              .expect(403);
+            expect(response.body.result).to.equal('query included illegal operators: $or');
+          });
+        });
         describe('opts.route', () => {
           it('should make the camel cased route name a dashed string.', () => {
             expect(exseq([
@@ -982,46 +1076,6 @@ module.exports = (Sequelize) => {
       }
     ];
 
-    describe('_isRouteExposed', () => {
-      it('should expose a route if no rule was specified', () => {
-        expect(_isRouteExposed({}, 'get', '/:id')).to.be.true;
-      });
-      it('should not expose a route if specified', () => {
-        expect(_isRouteExposed({
-          '/:id': {
-            get: false
-          }
-        }, 'get', '/:id')).to.be.false;
-      });
-      it('should expose a route if specified', () => {
-        expect(_isRouteExposed({
-          '/:id': {
-            get: true
-          }
-        }, 'get', '/:id')).to.be.true;
-      });
-      it('should print an error if the user exposed /search via GET', () => {
-        const consoleStub = sinon.stub(console, 'error');
-        _isRouteExposed({
-          '/search': {
-            get: true
-          }
-        }, 'get', '/search');
-        consoleStub.restore();
-        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.true;
-      });
-      it('should not print an error if the user exposed /search via POST', () => {
-        const consoleStub = sinon.stub(console, 'error');
-        _isRouteExposed({
-          '/search': {
-            post: true
-          }
-        }, 'post', '/search');
-        consoleStub.restore();
-        expect(consoleStub.calledOnceWith('exposing /search via GET will be removed.')).to.be.false;
-      });
-    });
-
     describe('_createReplyObject', () => {
       it('should handle a single object', async () => {
         const input = await TestModel.findOne();
@@ -1324,6 +1378,23 @@ module.exports = (Sequelize) => {
             }
           })
           .expect(200);
+      });
+      it('should order entities according to an included entity', async () => {
+        const response = await request(app)
+          .post('/OrderBySourceModel/search')
+          .send({
+            s: {
+              include: [
+                {
+                  model: 'OrderByTargetModel'
+                }
+              ]
+            },
+            f: 'OrderByTargetModel.sortByField',
+            o: 'DESC'
+          }).expect(200);
+        expect(response.body.result[0].id).to.equal(2);
+        expect(response.body.result[1].id).to.equal(1);
       });
       it('should return a 204 if no items where found', () => {
         return request(app)
