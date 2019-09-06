@@ -114,6 +114,9 @@ module.exports = (Sequelize) => {
   const OrderBySourceModel = database.sequelize.define('OrderBySourceModel', {});
   const OrderByTargetModel = database.sequelize.define('OrderByTargetModel', {sortByField: database.Sequelize.INTEGER});
   OrderBySourceModel.hasOne(OrderByTargetModel);
+  const OrderBySourceAliasModel = database.sequelize.define('OrderBySourceAliasModel', {});
+  const OrderByTargetAliasModel = database.sequelize.define('OrderByTargetAliasModel', {sortByField: database.Sequelize.INTEGER});
+  OrderBySourceAliasModel.hasOne(OrderByTargetAliasModel, {as: 'orderByTargetAliasModel'});
   [
     TestModel,
     TestModel2,
@@ -148,7 +151,9 @@ module.exports = (Sequelize) => {
     NoStripAssociationIds,
     StripAssociationIds,
     OrderBySourceModel,
-    OrderByTargetModel
+    OrderByTargetModel,
+    OrderBySourceAliasModel,
+    OrderByTargetAliasModel
   ].forEach(modelExtension);
 
   describe('index.js', () => {
@@ -203,7 +208,9 @@ module.exports = (Sequelize) => {
         },
         {model: StripAssociationIds, opts: {}},
         {model: OrderBySourceModel, opts: {}},
-        {model: OrderByTargetModel, opts: {}}
+        {model: OrderByTargetModel, opts: {}},
+        {model: OrderBySourceAliasModel, opts: {}},
+        {model: OrderByTargetAliasModel, opts: {}}
       ], {
         dataMapper: database.Sequelize,
         idRegex: '\\d+'
@@ -345,6 +352,10 @@ module.exports = (Sequelize) => {
       await orderBySourceModel.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 1}));
       const orderBySourceModel2 = await OrderBySourceModel.create({});
       await orderBySourceModel2.setOrderByTargetModel(await OrderByTargetModel.create({sortByField: 2}));
+      const orderBySourceAliasModel = await OrderBySourceAliasModel.create({});
+      await orderBySourceAliasModel.setOrderByTargetAliasModel(await OrderByTargetAliasModel.create({sortByField: 1}));
+      const orderBySourceAliasModel2 = await OrderBySourceAliasModel.create({});
+      await orderBySourceAliasModel2.setOrderByTargetAliasModel(await OrderByTargetAliasModel.create({sortByField: 2}));
     });
 
     afterEach(async () => {
@@ -1391,6 +1402,24 @@ module.exports = (Sequelize) => {
               ]
             },
             f: 'OrderByTargetModel.sortByField',
+            o: 'DESC'
+          }).expect(200);
+        expect(response.body.result[0].id).to.equal(2);
+        expect(response.body.result[1].id).to.equal(1);
+      });
+      it('should order entities according to an included entity with an alias', async () => {
+        const response = await request(app)
+          .post('/OrderBySourceAliasModel/search')
+          .send({
+            s: {
+              include: [
+                {
+                  model: 'OrderByTargetAliasModel',
+                  as: 'orderByTargetAliasModel'
+                }
+              ]
+            },
+            f: 'OrderByTargetAliasModel.sortByField',
             o: 'DESC'
           }).expect(200);
         expect(response.body.result[0].id).to.equal(2);
