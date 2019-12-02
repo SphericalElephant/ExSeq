@@ -7,5 +7,6 @@ describe('sequelize4', () => {
   require('../lib/openapi/sequelize/model-converter.test')(Sequelize4);
   require('../lib/data-mapper/sequelize/operator-table.test');
   require('../lib/data-mapper/sequelize/query-builder.test')(Sequelize4);
+  require('../lib/route/route-exposure-handler.test');
 });
 
