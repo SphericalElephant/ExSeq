@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "NODE_ENV=test mocha",
-    "coverage": "NODE_ENV=test istanbul cover _mocha -- -R spec",
+    "coverage": "NODE_ENV=test nyc --reporter=lcov --reporter=text-summary -- mocha test/ --exit",
     "test-ci": "NODE_ENV=test istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js"
   },
   "author": "Patrick Sturm <p.sturm@sphericalelephant.com> (https://sphericalelephant.com/)",
@@ -41,8 +41,8 @@
     "coveralls": "^3.0.2",
     "eslint": "^5.13.0",
     "eslint-config-loopback": "^13.0.0",
-    "istanbul": "^1.1.0-alpha.1",
     "mocha": "^6.1.4",
+    "nyc": "^15.0.1",
     "rewire": "^4.0.1",
     "sequelize4": "npm:sequelize@^4.44.2",
     "sequelize5": "npm:sequelize@^5.10.1",
