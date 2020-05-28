@@ -1,6 +1,6 @@
 {
   "name": "@sphericalelephant/exseq",
-  "version": "3.5.2",
+  "version": "3.5.3",
   "description": "Express based automatic REST generator for Sequelize.",
   "main": "index.js",
   "scripts": {
