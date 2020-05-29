@@ -46,6 +46,7 @@
     "rewire": "^4.0.1",
     "sequelize4": "npm:sequelize@^4.44.2",
     "sequelize5": "npm:sequelize@^5.10.1",
+    "sequelize6": "npm:sequelize@^6.0.0-beta.6",
     "sinon": "^7.3.2",
     "sqlite3": "^4.0.6",
     "supertest": "^3.4.2",
