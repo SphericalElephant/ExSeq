@@ -2,7 +2,7 @@
 
 const {expect} = require('chai');
 
-const modelExtensionImport = require('../lib/model');
+const modelExtensionImport = require('../../../lib/model');
 
 const unauthorizedError = new Error();
 unauthorizedError.status = 401;
@@ -12,7 +12,7 @@ const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 module.export = (Sequelize) => {
-  const database = require('./database')(Sequelize);
+  const database = require('../../database')(Sequelize);
   const modelExtension = modelExtensionImport(database.Sequelize);
 
   describe('Model Extension (4.x.x)', () => {

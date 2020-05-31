@@ -114,51 +114,13 @@ module.exports = (Sequelize) => {
   const OrderBySourceAliasModel = database.sequelize.define('OrderBySourceAliasModel', {});
   const OrderByTargetAliasModel = database.sequelize.define('OrderByTargetAliasModel', {sortByField: database.Sequelize.INTEGER});
   OrderBySourceAliasModel.hasOne(OrderByTargetAliasModel, {as: 'orderByTargetAliasModel'});
-  [
-    TestModel,
-    TestModel2,
-    TestModel3,
-    TestModel4,
-    TestModel5,
-    TestModel6,
-    TestModel7,
-    TestModel8,
-    TestModel9,
-    TestModel10,
-    TestModel11,
-    TestModel12,
-    AuthorizationAssocChild,
-    AuthorizationAssocParent,
-    AuthorizationAssocParent2,
-    lowerCaseModel,
-    anotherLowercaseModel,
-    AliasParent,
-    AliasChild,
-    AliasParentBelongsToMany,
-    AliasChildBelongsToMany,
-    AliasChildBelongsToManyIncludeTest,
-    AliasChildBelongsToManyNestedIncludeTest,
-    StringAliasParentBelongsToMany,
-    StringAliasChildBelongsToMany,
-    AllRelationsSource1,
-    AllRelationsTarget1,
-    AllRelationsSource2,
-    AllRelationsTarget2,
-    TestModelVirtualFields,
-    NoStripAssociationIds,
-    StripAssociationIds,
-    OrderBySourceModel,
-    OrderByTargetModel,
-    OrderBySourceAliasModel,
-    OrderByTargetAliasModel
-  ].forEach(modelExtension);
-
   describe('index.js', () => {
     before(done => {
       app.use(bodyParser.json({}));
       const apiData = exseq([
         {model: TestModel, opts: {}},
         {model: TestModel2, opts: {}},
+        {model: TestModel3, opts: {}},
         {model: TestModel4, opts: {}},
         {model: TestModel5, opts: {}},
         {model: TestModel6, opts: {}},
@@ -187,6 +149,7 @@ module.exports = (Sequelize) => {
           }
         },
         {model: lowerCaseModel, opts: {}},
+        {model: anotherLowercaseModel, opts: {}},
         {model: AliasParent, opts: {}},
         {model: AliasChild, opts: {}},
         {model: AliasParentBelongsToMany, opts: {}},
@@ -197,6 +160,8 @@ module.exports = (Sequelize) => {
         {model: StringAliasChildBelongsToMany, opts: {}},
         {model: AllRelationsSource1, opts: {}},
         {model: AllRelationsTarget1, opts: {}},
+        {model: AllRelationsSource2, opts: {}},
+        {model: AllRelationsTarget2, opts: {}},
         {model: TestModelVirtualFields, opts: {}},
         {
           model: NoStripAssociationIds, opts: {
@@ -418,7 +383,19 @@ module.exports = (Sequelize) => {
           CustomFKSource, CustomFKTarget
         ];
         models.forEach(m => {
-          modelExtension(m);
+          modelExtension([
+            {model: HasOneSource, opts: {}},
+            {model: HasOneTarget, opts: {}},
+            {model: HasManySource, opts: {}},
+            {model: HasManyTarget, opts: {}},
+            {model: BelongsToSource, opts: {}},
+            {model: BelongsToTarget, opts: {}},
+            {model: BelongsToManySource, opts: {}},
+            {model: BelongsToManyTarget, opts: {}},
+            {model: MultiSource, opts: {}},
+            {model: CustomFKSource, opts: {}},
+            {model: CustomFKTarget, opts: {}}
+          ], m);
         });
 
         it('should return a list of all relationships, include the foreign key fields of a model', () => {
@@ -572,8 +549,8 @@ module.exports = (Sequelize) => {
         const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
         const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
         M1.hasMany(M2);
-        modelExtension(M1);
-        modelExtension(M2);
+        modelExtension([], M1);
+        modelExtension([], M2);
         it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
           expect(M1.getUpdateableAttributes()).to.deep.equal([
             {attribute: 'x', allowNull: true}
@@ -624,7 +601,7 @@ module.exports = (Sequelize) => {
       describe('opts', () => {
         describe('middleware', () => {
           describe('associationMiddleware', () => {
-            const exseqResult = exseq([{model: TestModel}], {
+            const exseqResult = exseq([{model: TestModel, model: TestModel3}], {
               dataMapper: database.Sequelize,
               middleware: {
                 associationMiddleware: true

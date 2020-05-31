@@ -14,7 +14,7 @@ module.exports = (Sequelize) => {
     ModelToParse,
     AnotherModelToParse
   ];
-  models.forEach(modelExtension);
+  models.forEach(model => modelExtension([], model));
 
   describe('query-builder', () => {
     it('should only allow integer or NONE as valid input for "limit"', () => {
