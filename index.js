@@ -69,8 +69,6 @@ const _updateRelation = async (createReplyObject, source, target, association, r
   }
 };
 
-// TODO: create Authorization class and move this function there
-
 const _filterAttributes = (attributeString, instance) => {
   if (!attributeString) return instance;
   const attributes = attributeString ? attributeString.split('|') : undefined;
