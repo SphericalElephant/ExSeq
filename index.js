@@ -68,62 +68,7 @@ const _updateRelation = async (createReplyObject, source, target, association, r
   }
 };
 
-const alwaysAllowMiddleware = async (req, res, next) => next();
-
-const _getModelOpts = (models, model) => {
-  for (const modelDefinition of models) {
-    if (modelDefinition.model === model) {
-      return modelDefinition.opts;
-    }
-  }
-  return {};
-};
-
 // TODO: create Authorization class and move this function there
-const _getParentAuthorizationForModel = (modelDefinitions, model) => {
-  const authorizationMiddlewaresFound = [];
-  for (const modelDefinition of modelDefinitions) {
-    const authorizeForChildren = _.get(modelDefinition, 'opts.authorizeWith.options.authorizeForChildren', undefined);
-    if (authorizeForChildren) {
-      for (const childModelAuthDefinition of authorizeForChildren) {
-        if (childModelAuthDefinition.child === model && childModelAuthDefinition.authorizeForChild) {
-          authorizationMiddlewaresFound.push(_.get(modelDefinition, 'opts.authorizeWith', undefined));
-        }
-      }
-    }
-  }
-  if (authorizationMiddlewaresFound.length > 1)
-    throw new Error(`invalid number of middlewares expected 1, got ${authorizationMiddlewaresFound.length}!`);
-  return authorizationMiddlewaresFound[0];
-};
-
-// TODO: create Authorization class and move this function there
-const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
-  const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'ASSOCIATE', 'OTHER']
-    .filter(method => method == type).length === 1;
-  const opts = _getModelOpts(modelDefinitions, model);
-  if (!isAllowed) {
-    throw new Error(`unknown type ${type}`);
-  }
-  let authorizeWith = opts.authorizeWith;
-  if (_.get(opts, 'authorizeWith.options.useParentForAuthorization', undefined)) {
-    if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
-    const association = model.getAssociationByModel(associatedModel);
-    if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
-      throw new Error(
-        `${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`
-      );
-    const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
-    authorizeWith = parentOpts.authorizeWith;
-  }
-  // use parent model authorization for root routes of another model
-  const authorizationFromParent = _getParentAuthorizationForModel(modelDefinitions, model);
-  if (authorizationFromParent) authorizeWith = authorizationFromParent;
-
-  return authorizeWith && authorizeWith.rules ?
-    (authorizeWith.rules[type] || authorizeWith.rules['OTHER'] || alwaysAllowMiddleware) :
-    alwaysAllowMiddleware;
-};
 
 const _filterAttributes = (attributeString, instance) => {
   if (!attributeString) return instance;
@@ -271,7 +216,7 @@ module.exports = (models, opts) => {
       openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
     });
 
-    const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
+    const auth = model.bind(model, null);
 
     router.use((req, res, next) => {
       // resetting the state of the query builder before each request
@@ -457,7 +402,7 @@ module.exports = (models, opts) => {
       const target = association.target;
       const source = association.source;
       const targetRoute = namingScheme(association.options.name.singular);
-      const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
+      const auth = target.getAuthorizationMiddleWare.bind(target, source);
       // TODO: move into own file (maybe with update)
       const unlinkRelations = (req, res, next, setterFunctionName) => {
         const attachReply = _attachReply.bind(null, req, res, next);
