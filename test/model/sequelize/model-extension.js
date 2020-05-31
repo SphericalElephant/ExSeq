@@ -77,36 +77,135 @@ module.exports = (Sequelize) => {
         modelExtension([{model: TestAuthorizedWithEmptyModel, opts: {}}], TestAuthorizedWithEmptyModel);
         expect(TestAuthorizedWithEmptyModel.getAuthorizationMiddleWare(null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
       });
-      it('should check that the associatedModel is not null', () => {
-        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
-        modelExtension([{model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}], ParentAuthorizationModel);
-        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, null, 'OTHER')).to.throw('associatedModel is null');
-      });
-      it('should check if an association between the models exists', () => {
-        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
-        const ChildAuthorizationModel = database.sequelize.define('ChildAuthorizationModel', {});
-        const modelDefinitions = [
-          {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
-          {model: ChildAuthorizationModel, opts: {}}
-        ];
-        modelExtension(modelDefinitions, ParentAuthorizationModel);
-        modelExtension(modelDefinitions, ChildAuthorizationModel);
-        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
-          .to.throw('ParentAuthorizationModel has no association to ChildAuthorizationModel!');
-      });
-      it('should check if the association between the models is valid', () => {
-        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
-        const ChildAuthorizationModel = database.sequelize.define('ChildAuthorizationModel', {});
-        ParentAuthorizationModel.hasMany(ChildAuthorizationModel);
+      describe('Parent / Child Authorization', () => {
+        let ParentAuthorizationModel;
+        let ChildAuthorizationModel;
 
-        const modelDefinitions = [
-          {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
-          {model: ChildAuthorizationModel, opts: {}}
-        ];
-        modelExtension(modelDefinitions, ParentAuthorizationModel);
-        modelExtension(modelDefinitions, ChildAuthorizationModel);
-        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
-          .to.throw('ParentAuthorizationModel has no BelongsTo / BelongsToMany association to ChildAuthorizationModel, useParentForAuthorization is invalid');
+        beforeEach(() => {
+          ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
+          ChildAuthorizationModel = database.sequelize.define('ChildAuthorizationModel', {});
+        });
+
+        it('should check that the associatedModel is not null', () => {
+          modelExtension([{model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}], ParentAuthorizationModel);
+          expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, null, 'OTHER')).to.throw('associatedModel is null');
+        });
+        it('should check if an association between the models exists', () => {
+          const modelDefinitions = [
+            {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
+            {model: ChildAuthorizationModel, opts: {}}
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
+            .to.throw('ParentAuthorizationModel has no association to ChildAuthorizationModel!');
+        });
+        it('should check if the association between the models is valid', () => {
+          ParentAuthorizationModel.hasMany(ChildAuthorizationModel);
+          const modelDefinitions = [
+            {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
+            {model: ChildAuthorizationModel, opts: {}}
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
+            .to.throw('ParentAuthorizationModel has no BelongsTo / BelongsToMany association to ChildAuthorizationModel, useParentForAuthorization is invalid');
+        });
+        it('should use the parent authorization if useParentForAuthorization is "true"', () => {
+          ChildAuthorizationModel.belongsTo(ParentAuthorizationModel);
+          const modelDefinitions = [
+            {model: ChildAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}, rules: {CREATE: denyAccess}}}},
+            {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ChildAuthorizationModel.getAuthorizationMiddleWare(ParentAuthorizationModel, 'CREATE')).to.equal(allowAccess);
+        });
+        it('should not use the parent authorization if useParentForAuthorization is not set', () => {
+          const modelDefinitions = [
+            {model: ChildAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+            {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ChildAuthorizationModel.getAuthorizationMiddleWare(ParentAuthorizationModel, 'CREATE')).to.equal(denyAccess);
+        });
+        it('should not use the parent authorization if useParentForAuthorization is set to false', () => {
+          const modelDefinitions = [
+            {model: ChildAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: false}, rules: {CREATE: denyAccess}}}},
+            {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}}
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ChildAuthorizationModel.getAuthorizationMiddleWare(ParentAuthorizationModel, 'CREATE')).to.equal(denyAccess);
+        });
+        it('should obtain the parent\'s authorization', () => {
+          const modelDefinitions = [
+            {model: ChildAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+            {
+              model: ParentAuthorizationModel, opts: {
+                authorizeWith: {
+                  options: {
+                    authorizeForChildren: [
+                      {child: ChildAuthorizationModel, authorizeForChild: true}
+                    ]
+                  }, rules: {CREATE: allowAccess}
+                }
+              }
+            }
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ChildAuthorizationModel.getAuthorizationMiddleWare(null, 'CREATE')).to.equal(allowAccess);
+        });
+        it('must not accept multiple parents demanding authorization jurisdiction', () => {
+          const ParentAuthorizationModel2 = database.sequelize.define('ParentAuthorizationModel2', {});
+
+          const modelDefinitions = [
+            {model: ChildAuthorizationModel, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
+            {
+              model: ParentAuthorizationModel, opts: {
+                authorizeWith: {
+                  options: {
+                    authorizeForChildren: [
+                      {child: ChildAuthorizationModel, authorizeForChild: true}
+                    ]
+                  }, rules: {CREATE: allowAccess}
+                }
+              }
+            },
+            {
+              model: ParentAuthorizationModel2, opts: {
+                authorizeWith: {
+                  options: {
+                    authorizeForChildren: [
+                      {child: ChildAuthorizationModel, authorizeForChild: true}
+                    ]
+                  }, rules: {CREATE: allowAccess}
+                }
+              }
+            }
+          ];
+
+          modelExtension(modelDefinitions, ParentAuthorizationModel);
+          modelExtension(modelDefinitions, ParentAuthorizationModel2);
+          modelExtension(modelDefinitions, ChildAuthorizationModel);
+
+          expect(ChildAuthorizationModel.getAuthorizationMiddleWare.bind(ChildAuthorizationModel, null, 'CREATE'))
+            .to.throw('invalid number of middlewares expected 1, got 2!');
+        });
       });
     });
   });
