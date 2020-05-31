@@ -30,8 +30,7 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
-const _createReplyObject = require('../lib/create-reply-object');
-const {alwaysAllowMiddleware} = require('../lib/authorization/middleware');
+const _createReplyObject = require('../lib/reply/create-reply-object');
 
 module.exports = (Sequelize) => {
   const app = express();

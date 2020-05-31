@@ -8,7 +8,7 @@ const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
-const _createReplyObject = require('./lib/create-reply-object');
+const _createReplyObject = require('./lib/reply/create-reply-object');
 
 // TODO: move to own file
 const _attachReply = (req, res, next, status, result, message) => {
