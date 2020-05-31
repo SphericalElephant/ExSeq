@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 'use strict';
 
 const {expect} = require('chai');
@@ -17,6 +18,18 @@ module.exports = (Sequelize) => {
   const modelExtension = modelExtensionImport(database.Sequelize);
 
   describe('Model Extension', () => {
+    describe('removeModelExtension', () => {
+      const RemoveExtensionModel =
+        database.sequelize.define('RemoveExtensionModel', {});
+      const modelDefinitions = [
+        {model: RemoveExtensionModel, opts: {}}
+      ];
+      modelExtension(modelDefinitions, RemoveExtensionModel);
+      it('should remove the extension', () => {
+        RemoveExtensionModel.removeModelExtension();
+        expect(RemoveExtensionModel.EXSEQ_MODEL_MIXIN).to.not.exist;
+      });
+    });
     describe('getAuthorizationMiddleWare', () => {
       const CreateAllowOtherDenyFallThroughModel =
         database.sequelize.define('CreateAllowOtherDenyFallThroughModel', {});
