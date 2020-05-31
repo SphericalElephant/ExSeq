@@ -879,36 +879,6 @@ module.exports = (Sequelize) => {
           });
         });
         describe('getAuthorizationMiddleWare', () => {
-          it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {rules: {}}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
-          it('should allow access when there is no specified behaviour, but the authorizedWith block is provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
-          it('should allow access when there is no specified behaviour, and the authorizedWith block is not provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
           describe('model.opts.authorizeWith.useParentForAuthorization', () => {
             it('should check that the associatedModel is not null', () => {
               expect(_getAuthorizationMiddleWare.bind(null, [
