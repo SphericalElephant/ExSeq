@@ -11,11 +11,11 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
-module.export = (Sequelize) => {
+module.exports = (Sequelize) => {
   const database = require('../../database')(Sequelize);
   const modelExtension = modelExtensionImport(database.Sequelize);
 
-  describe('Model Extension (4.x.x)', () => {
+  describe('Model Extension', () => {
     describe('getAuthorizationMiddleWare', () => {
       it('should use OTHER if there is no specified behaviour for the requested type.', () => {
         const GetAuthorizationMiddlewareTestModel =

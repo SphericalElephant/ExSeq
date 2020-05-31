@@ -382,21 +382,24 @@ module.exports = (Sequelize) => {
           MultiSource,
           CustomFKSource, CustomFKTarget
         ];
-        models.forEach(m => {
-          modelExtension([
-            {model: HasOneSource, opts: {}},
-            {model: HasOneTarget, opts: {}},
-            {model: HasManySource, opts: {}},
-            {model: HasManyTarget, opts: {}},
-            {model: BelongsToSource, opts: {}},
-            {model: BelongsToTarget, opts: {}},
-            {model: BelongsToManySource, opts: {}},
-            {model: BelongsToManyTarget, opts: {}},
-            {model: MultiSource, opts: {}},
-            {model: CustomFKSource, opts: {}},
-            {model: CustomFKTarget, opts: {}}
-          ], m);
-        });
+        const modelDefinitions = [
+          {model: HasOneSource, opts: {}},
+          {model: HasOneTarget, opts: {}},
+          {model: HasManySource, opts: {}},
+          {model: HasManyTarget, opts: {}},
+          {model: BelongsToSource, opts: {}},
+          {model: BelongsToTarget, opts: {}},
+          {model: BelongsToManySource, opts: {}},
+          {model: BelongsToManyTarget, opts: {}},
+          {model: MultiSource, opts: {}},
+          {model: CustomFKSource, opts: {}},
+          {model: CustomFKTarget, opts: {}}];
+        for (const m of models) {
+          modelExtension(
+            modelDefinitions,
+            m
+          );
+        }
 
         it('should return a list of all relationships, include the foreign key fields of a model', () => {
           expect(MultiSource.getModelAssociations()).to.deep.equal([{
@@ -549,8 +552,7 @@ module.exports = (Sequelize) => {
         const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
         const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
         M1.hasMany(M2);
-        modelExtension([], M1);
-        modelExtension([], M2);
+        [M1, M2].forEach(model => modelExtension([{model: M1, opts: {}}, {model: M2, opts: {}}], model));
         it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
           expect(M1.getUpdateableAttributes()).to.deep.equal([
             {attribute: 'x', allowNull: true}
