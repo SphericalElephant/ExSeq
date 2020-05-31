@@ -8,6 +8,7 @@ const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
+const _createReplyObject = require('./lib/create-reply-object');
 
 // TODO: move to own file
 const _attachReply = (req, res, next, status, result, message) => {
@@ -110,27 +111,6 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   } else if (association.associationType === 'HasMany') {
     return [opts, await model.findAll(opts)];
   }
-};
-
-const _createReplyObject = (raw, object) => {
-  let objects;
-  let inputWasArray = false;
-  if (Array.isArray(object)) {
-    inputWasArray = true;
-    objects = object;
-  } else {
-    objects = [object];
-  }
-  const result = objects.map(o => {
-    if (raw) {
-      if (!o.get || !(o.get instanceof Function)) return o;
-      return o.get({plain: true});
-    } else {
-      return o;
-    }
-  });
-  if (!inputWasArray) return result[0];
-  else return result;
 };
 
 module.exports = (models, opts) => {
