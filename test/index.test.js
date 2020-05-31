@@ -880,22 +880,6 @@ module.exports = (Sequelize) => {
         });
         describe('getAuthorizationMiddleWare', () => {
           describe('model.opts.authorizeWith.useParentForAuthorization', () => {
-            it('should check that the associatedModel is not null', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel, null, 'OTHER')).to.throw('associatedModel is null');
-            });
-            it('should check if an association between the models exists', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel8, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel8, AuthorizationAssocChild, 'OTHER')).to.throw('TestModel8 has no association to AuthorizationAssocChild!');
-            });
-            it('should check if the association between the models is valid', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel4, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel4, TestModel5, 'OTHER'))
-                .to.throw('TestModel4 has no BelongsTo / BelongsToMany association to TestModel5, useParentForAuthorization is invalid');
-            });
             it('should use the parent authorization if useParentForAuthorization is "true"', () => {
               expect(_getAuthorizationMiddleWare([
                 {

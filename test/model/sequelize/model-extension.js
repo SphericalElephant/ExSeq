@@ -77,6 +77,37 @@ module.exports = (Sequelize) => {
         modelExtension([{model: TestAuthorizedWithEmptyModel, opts: {}}], TestAuthorizedWithEmptyModel);
         expect(TestAuthorizedWithEmptyModel.getAuthorizationMiddleWare(null, 'UPDATE_PARTIAL')).to.equal(alwaysAllowMiddleware);
       });
+      it('should check that the associatedModel is not null', () => {
+        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
+        modelExtension([{model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}], ParentAuthorizationModel);
+        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, null, 'OTHER')).to.throw('associatedModel is null');
+      });
+      it('should check if an association between the models exists', () => {
+        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
+        const ChildAuthorizationModel = database.sequelize.define('ChildAuthorizationModel', {});
+        const modelDefinitions = [
+          {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
+          {model: ChildAuthorizationModel, opts: {}}
+        ];
+        modelExtension(modelDefinitions, ParentAuthorizationModel);
+        modelExtension(modelDefinitions, ChildAuthorizationModel);
+        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
+          .to.throw('ParentAuthorizationModel has no association to ChildAuthorizationModel!');
+      });
+      it('should check if the association between the models is valid', () => {
+        const ParentAuthorizationModel = database.sequelize.define('ParentAuthorizationModel', {});
+        const ChildAuthorizationModel = database.sequelize.define('ChildAuthorizationModel', {});
+        ParentAuthorizationModel.hasMany(ChildAuthorizationModel);
+
+        const modelDefinitions = [
+          {model: ParentAuthorizationModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}},
+          {model: ChildAuthorizationModel, opts: {}}
+        ];
+        modelExtension(modelDefinitions, ParentAuthorizationModel);
+        modelExtension(modelDefinitions, ChildAuthorizationModel);
+        expect(ParentAuthorizationModel.getAuthorizationMiddleWare.bind(ParentAuthorizationModel, ChildAuthorizationModel, 'OTHER'))
+          .to.throw('ParentAuthorizationModel has no BelongsTo / BelongsToMany association to ChildAuthorizationModel, useParentForAuthorization is invalid');
+      });
     });
   });
 };
