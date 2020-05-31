@@ -30,9 +30,8 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
-const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
 const _createReplyObject = _exseq.__get__('_createReplyObject');
-const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
+const {alwaysAllowMiddleware} = require('../lib/authorization/middleware');
 
 module.exports = (Sequelize) => {
   const app = express();
@@ -900,7 +899,7 @@ module.exports = (Sequelize) => {
             })).to.throw('already registered');
           });
         });
-        describe('models.opts.authorizeWith', () => {
+        describe('getAuthorizationMiddleWare', () => {
           it('should not allow illegal auth types.', () => {
             expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
             expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
@@ -909,16 +908,6 @@ module.exports = (Sequelize) => {
             expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'CREATE')).not.to.throw();
             expect(_getAuthorizationMiddleWare
               .bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).not.to.throw();
-          });
-          it('should use OTHER if there is no specified behaviour for the requested type.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {rules: {CREATE: allowAccess, OTHER: denyFallThrough}}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(denyFallThrough);
           });
           it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
             expect(
