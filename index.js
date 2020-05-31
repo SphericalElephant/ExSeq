@@ -200,7 +200,9 @@ module.exports = (models, opts) => {
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
   const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
-  const namingScheme = opts.naming || function (value) { return value; };
+  const namingScheme = opts.naming || function (value) {
+    return value;
+  };
   if (!typeof namingScheme === 'function') {
     throw new Error('naming scheme must be a function');
   }
@@ -215,10 +217,8 @@ module.exports = (models, opts) => {
     opts.openapi.document : new OpenApiDocument(opts.openapi.document);
   openApiDocument.addComponents(EXSEQ_COMPONENTS);
 
-  const getModelOpts = _getModelOpts.bind(null, models);
-
   // first pass, extend all models
-  models.forEach(model => modelExtension(model.model));
+  models.forEach(model => modelExtension(models, model.model));
 
   // second pass, register all models that are flagged appropriately
   models.forEach(model => {
@@ -244,7 +244,7 @@ module.exports = (models, opts) => {
       openApiHelper
     });
     if (!openApiDocument.schemaExists(model.model.name)) {
-      openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas, getModelOpts));
+      openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas));
     }
   });
 
@@ -533,7 +533,7 @@ module.exports = (models, opts) => {
                   } else {
                     createErrorPromise(
                       500,
-                      'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                      'could not determine target instance, this is most likely a cause of the sequelize version that is currently used'
                     );
                   }
                 } else {
@@ -651,7 +651,7 @@ module.exports = (models, opts) => {
                 } else {
                   return createErrorPromise(
                     500,
-                    'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                    'could not determine target instance, this is most likely a cause of the sequelize version that is currently used'
                   );
                 }
               }).catch(err => {

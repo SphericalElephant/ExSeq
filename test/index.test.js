@@ -7,7 +7,6 @@
 const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
-const rewire = require('rewire');
 const express = require('express');
 
 const bodyParser = require('body-parser');
@@ -19,7 +18,6 @@ const uuidTestModel = require('./model/uuid-model');
 const testModel = require('./model/test-model');
 const testModel3 = require('./model/test-model3');
 
-const _exseq = rewire('../index.js');
 const exseq = require('../index');
 const modelExtensionImport = require('../lib/model');
 const AssociationInformation = require('../lib/association-information');
@@ -778,7 +776,9 @@ module.exports = (Sequelize) => {
               }
             ], {
               dataMapper: database.Sequelize,
-              naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+              naming: function (v) {
+                return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+              }
             }).routingInformation[0].route).to.equal('/test-model');
           });
           it('should not change a custom route name.', () => {
@@ -789,7 +789,9 @@ module.exports = (Sequelize) => {
               }
             ], {
               dataMapper: database.Sequelize,
-              naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+              naming: function (v) {
+                return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+              }
             }).routingInformation[0].route).to.equal('/UseThis');
           });
         });
