@@ -196,7 +196,7 @@ module.exports = (models, opts) => {
       openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
     });
 
-    const auth = model.bind(model, null);
+    const auth = model.getAuthorizationMiddleWare.bind(model, null);
 
     router.use((req, res, next) => {
       // resetting the state of the query builder before each request
