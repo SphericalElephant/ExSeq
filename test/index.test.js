@@ -879,15 +879,6 @@ module.exports = (Sequelize) => {
           });
         });
         describe('getAuthorizationMiddleWare', () => {
-          it('should not allow illegal auth types.', () => {
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
-          });
-          it('should allow legal auth types.', () => {
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'CREATE')).not.to.throw();
-            expect(_getAuthorizationMiddleWare
-              .bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).not.to.throw();
-          });
           it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
             expect(
               _getAuthorizationMiddleWare(
