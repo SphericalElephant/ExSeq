@@ -15,7 +15,6 @@ const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 module.exports = (Sequelize) => {
-  console.log('LOADING!!');
   const database = require('../../database')(Sequelize);
   const modelExtension = modelExtensionImport(database.Sequelize);
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Restructured code, moved several methods to the model extension
+- The res object now contains the errorHandler and replyHandler method instances
 
 ### Removed
 - Removed rewire dev dependency
