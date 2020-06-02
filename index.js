@@ -8,8 +8,7 @@ const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
-const _createReplyObject = require('./lib/reply/create-reply-object');
-const {createReplyObject, errorHandler, replyHandler} = require('./lib/reply');
+const {createReply, errorHandler, replyHandler} = require('./lib/reply');
 
 const _update = async (model, req, res, next, id, createInput) => {
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
@@ -91,7 +90,7 @@ module.exports = (models, opts) => {
   }
   const modelExtension = require('./lib/model')(opts.dataMapper);
   opts.rawDataResponse = opts.rawDataResponse === false ? false : opts.rawDataResponse || true;
-  const createReplyObject = _createReplyObject.bind(null, opts.rawDataResponse);
+  const createReplyObject = createReply.bind(null, opts.rawDataResponse);
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
   const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
