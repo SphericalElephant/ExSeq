@@ -11,11 +11,21 @@
       "error",
       "never"
     ],
-    "max-len": ["error", {"code": 140}],
-    "one-var": ["off"],
-    "space-before-function-paren": ["error", {
-      "anonymous": "always",
-      "named": "never"
-    }]
+    "max-len": [
+      "error",
+      {
+        "code": 140
+      }
+    ],
+    "one-var": [
+      "off"
+    ],
+    "space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "always",
+        "named": "never"
+      }
+    ]
   }
 }

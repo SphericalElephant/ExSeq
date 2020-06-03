@@ -7,7 +7,6 @@
 const request = require('supertest');
 const expect = require('chai').expect;
 const Promise = require('bluebird');
-const rewire = require('rewire');
 const express = require('express');
 
 const bodyParser = require('body-parser');
@@ -19,7 +18,6 @@ const uuidTestModel = require('./model/uuid-model');
 const testModel = require('./model/test-model');
 const testModel3 = require('./model/test-model3');
 
-const _exseq = rewire('../index.js');
 const exseq = require('../index');
 const modelExtensionImport = require('../lib/model');
 const AssociationInformation = require('../lib/association-information');
@@ -32,9 +30,7 @@ const denyAccess = (req, res, next) => next(unauthorizedError);
 const allowAccess = (req, res, next) => next();
 const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
-const _getAuthorizationMiddleWare = _exseq.__get__('_getAuthorizationMiddleWare');
-const _createReplyObject = _exseq.__get__('_createReplyObject');
-const alwaysAllowMiddleware = _exseq.__get__('alwaysAllowMiddleware');
+const _createReplyObject = require('../lib/reply/create-reply-object');
 
 module.exports = (Sequelize) => {
   const app = express();
@@ -117,51 +113,13 @@ module.exports = (Sequelize) => {
   const OrderBySourceAliasModel = database.sequelize.define('OrderBySourceAliasModel', {});
   const OrderByTargetAliasModel = database.sequelize.define('OrderByTargetAliasModel', {sortByField: database.Sequelize.INTEGER});
   OrderBySourceAliasModel.hasOne(OrderByTargetAliasModel, {as: 'orderByTargetAliasModel'});
-  [
-    TestModel,
-    TestModel2,
-    TestModel3,
-    TestModel4,
-    TestModel5,
-    TestModel6,
-    TestModel7,
-    TestModel8,
-    TestModel9,
-    TestModel10,
-    TestModel11,
-    TestModel12,
-    AuthorizationAssocChild,
-    AuthorizationAssocParent,
-    AuthorizationAssocParent2,
-    lowerCaseModel,
-    anotherLowercaseModel,
-    AliasParent,
-    AliasChild,
-    AliasParentBelongsToMany,
-    AliasChildBelongsToMany,
-    AliasChildBelongsToManyIncludeTest,
-    AliasChildBelongsToManyNestedIncludeTest,
-    StringAliasParentBelongsToMany,
-    StringAliasChildBelongsToMany,
-    AllRelationsSource1,
-    AllRelationsTarget1,
-    AllRelationsSource2,
-    AllRelationsTarget2,
-    TestModelVirtualFields,
-    NoStripAssociationIds,
-    StripAssociationIds,
-    OrderBySourceModel,
-    OrderByTargetModel,
-    OrderBySourceAliasModel,
-    OrderByTargetAliasModel
-  ].forEach(modelExtension);
-
   describe('index.js', () => {
     before(done => {
       app.use(bodyParser.json({}));
       const apiData = exseq([
         {model: TestModel, opts: {}},
         {model: TestModel2, opts: {}},
+        {model: TestModel3, opts: {}},
         {model: TestModel4, opts: {}},
         {model: TestModel5, opts: {}},
         {model: TestModel6, opts: {}},
@@ -190,6 +148,7 @@ module.exports = (Sequelize) => {
           }
         },
         {model: lowerCaseModel, opts: {}},
+        {model: anotherLowercaseModel, opts: {}},
         {model: AliasParent, opts: {}},
         {model: AliasChild, opts: {}},
         {model: AliasParentBelongsToMany, opts: {}},
@@ -200,6 +159,8 @@ module.exports = (Sequelize) => {
         {model: StringAliasChildBelongsToMany, opts: {}},
         {model: AllRelationsSource1, opts: {}},
         {model: AllRelationsTarget1, opts: {}},
+        {model: AllRelationsSource2, opts: {}},
+        {model: AllRelationsTarget2, opts: {}},
         {model: TestModelVirtualFields, opts: {}},
         {
           model: NoStripAssociationIds, opts: {
@@ -420,9 +381,24 @@ module.exports = (Sequelize) => {
           MultiSource,
           CustomFKSource, CustomFKTarget
         ];
-        models.forEach(m => {
-          modelExtension(m);
-        });
+        const modelDefinitions = [
+          {model: HasOneSource, opts: {}},
+          {model: HasOneTarget, opts: {}},
+          {model: HasManySource, opts: {}},
+          {model: HasManyTarget, opts: {}},
+          {model: BelongsToSource, opts: {}},
+          {model: BelongsToTarget, opts: {}},
+          {model: BelongsToManySource, opts: {}},
+          {model: BelongsToManyTarget, opts: {}},
+          {model: MultiSource, opts: {}},
+          {model: CustomFKSource, opts: {}},
+          {model: CustomFKTarget, opts: {}}];
+        for (const m of models) {
+          modelExtension(
+            modelDefinitions,
+            m
+          );
+        }
 
         it('should return a list of all relationships, include the foreign key fields of a model', () => {
           expect(MultiSource.getModelAssociations()).to.deep.equal([{
@@ -575,8 +551,7 @@ module.exports = (Sequelize) => {
         const M1 = database.sequelize.define('M1', {x: {allowNull: true, type: database.Sequelize.STRING}});
         const M2 = database.sequelize.define('M2', {x: {allowNull: false, type: database.Sequelize.STRING}});
         M1.hasMany(M2);
-        modelExtension(M1);
-        modelExtension(M2);
+        [M1, M2].forEach(model => modelExtension([{model: M1, opts: {}}, {model: M2, opts: {}}], model));
         it('should return a list of all attributes, without fields that are managed by the ORM or the database.', () => {
           expect(M1.getUpdateableAttributes()).to.deep.equal([
             {attribute: 'x', allowNull: true}
@@ -627,7 +602,7 @@ module.exports = (Sequelize) => {
       describe('opts', () => {
         describe('middleware', () => {
           describe('associationMiddleware', () => {
-            const exseqResult = exseq([{model: TestModel}], {
+            const exseqResult = exseq([{model: TestModel, model: TestModel3}], {
               dataMapper: database.Sequelize,
               middleware: {
                 associationMiddleware: true
@@ -778,7 +753,9 @@ module.exports = (Sequelize) => {
               }
             ], {
               dataMapper: database.Sequelize,
-              naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+              naming: function (v) {
+                return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+              }
             }).routingInformation[0].route).to.equal('/test-model');
           });
           it('should not change a custom route name.', () => {
@@ -789,7 +766,9 @@ module.exports = (Sequelize) => {
               }
             ], {
               dataMapper: database.Sequelize,
-              naming: function (v) { return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase(); }
+              naming: function (v) {
+                return v.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+              }
             }).routingInformation[0].route).to.equal('/UseThis');
           });
         });
@@ -898,153 +877,7 @@ module.exports = (Sequelize) => {
             })).to.throw('already registered');
           });
         });
-        describe('models.opts.authorizeWith', () => {
-          it('should not allow illegal auth types.', () => {
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'FOO')).to.throw();
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'BAR')).to.throw();
-          });
-          it('should allow legal auth types.', () => {
-            expect(_getAuthorizationMiddleWare.bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'CREATE')).not.to.throw();
-            expect(_getAuthorizationMiddleWare
-              .bind(null, [{model: TestModel, opts: {}}], TestModel, null, 'UPDATE_PARTIAL')).not.to.throw();
-          });
-          it('should use OTHER if there is no specified behaviour for the requested type.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {rules: {CREATE: allowAccess, OTHER: denyFallThrough}}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(denyFallThrough);
-          });
-          it('should allow access when there is no specified behaviour, but the authorizedWith.rules block is provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {rules: {}}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
-          it('should allow access when there is no specified behaviour, but the authorizedWith block is provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {authorizeWith: {}}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
-          it('should allow access when there is no specified behaviour, and the authorizedWith block is not provided.', () => {
-            expect(
-              _getAuthorizationMiddleWare(
-                [{model: TestModel, opts: {}}],
-                TestModel,
-                null,
-                'UPDATE_PARTIAL'
-              )
-            ).to.equal(alwaysAllowMiddleware);
-          });
-          describe('model.opts.authorizeWith.useParentForAuthorization', () => {
-            it('should check that the associatedModel is not null', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel, null, 'OTHER')).to.throw('associatedModel is null');
-            });
-            it('should check if an association between the models exists', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel8, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel8, AuthorizationAssocChild, 'OTHER')).to.throw('TestModel8 has no association to AuthorizationAssocChild!');
-            });
-            it('should check if the association between the models is valid', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: TestModel4, opts: {authorizeWith: {options: {useParentForAuthorization: true}}}}
-              ], TestModel4, TestModel5, 'OTHER'))
-                .to.throw('TestModel4 has no BelongsTo / BelongsToMany association to TestModel5, useParentForAuthorization is invalid');
-            });
-            it('should use the parent authorization if useParentForAuthorization is "true"', () => {
-              expect(_getAuthorizationMiddleWare([
-                {
-                  model: AuthorizationAssocChild,
-                  opts: {authorizeWith: {options: {useParentForAuthorization: true}, rules: {CREATE: denyAccess}}}
-                },
-                {
-                  model: AuthorizationAssocParent,
-                  opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}
-                }
-              ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(allowAccess);
-            });
-            it('should not use the parent authorization if useParentForAuthorization is not set or is set to false', () => {
-              expect(_getAuthorizationMiddleWare([
-                {
-                  model: AuthorizationAssocChild,
-                  opts: {authorizeWith: {options: {useParentForAuthorization: false}, rules: {CREATE: denyAccess}}}
-                },
-                {
-                  model: AuthorizationAssocParent,
-                  opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}
-                }
-              ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
-              expect(_getAuthorizationMiddleWare([
-                {
-                  model: AuthorizationAssocChild,
-                  opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}
-                },
-                {
-                  model: AuthorizationAssocParent,
-                  opts: {authorizeWith: {options: {}, rules: {CREATE: allowAccess}}}
-                }
-              ], AuthorizationAssocChild, AuthorizationAssocParent, 'CREATE')).to.equal(denyAccess);
-            });
-          });
-          describe('model.opts.authorizeWith.authorizeForChildren', () => {
-            it('should obtain the parent\'s authorization', () => {
-              expect(_getAuthorizationMiddleWare([
-                {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
-                {
-                  model: AuthorizationAssocParent, opts: {
-                    authorizeWith: {
-                      options: {
-                        authorizeForChildren: [
-                          {child: AuthorizationAssocChild, authorizeForChild: true}
-                        ]
-                      }, rules: {CREATE: allowAccess}
-                    }
-                  }
-                }
-              ], AuthorizationAssocChild, null, 'CREATE')).to.equal(allowAccess);
-            });
-            it('must not accept multiple parents demanding authorization juristriction', () => {
-              expect(_getAuthorizationMiddleWare.bind(null, [
-                {model: AuthorizationAssocChild, opts: {authorizeWith: {options: {}, rules: {CREATE: denyAccess}}}},
-                {
-                  model: AuthorizationAssocParent, opts: {
-                    authorizeWith: {
-                      options: {
-                        authorizeForChildren: [
-                          {child: AuthorizationAssocChild, authorizeForChild: true}
-                        ]
-                      }, rules: {CREATE: allowAccess}
-                    }
-                  }
-                },
-                {
-                  model: AuthorizationAssocParent2, opts: {
-                    authorizeWith: {
-                      options: {
-                        authorizeForChildren: [
-                          {child: AuthorizationAssocChild, authorizeForChild: true}
-                        ]
-                      }, rules: {CREATE: allowAccess}
-                    }
-                  }
-                }
-              ], AuthorizationAssocChild, null, 'CREATE')).to.throw('invalid number of middlewares expected 1, got 2!');
-            });
-          });
+        describe('getAuthorizationMiddleWare', () => {
           describe('Authorize /AuthorizationAssocParent/', () => {
             it('must prevent creation of a new AuthorizationAssocParent', async () => {
               return request(app)

@@ -8,121 +8,36 @@ const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
-
-// TODO: move to own file
-const _attachReply = (req, res, next, status, result, message) => {
-  res.__payload = {status, result, message};
-  next();
-  return Promise.resolve();
-};
-
-// TODO: move to own file, move _formatValidationError to the same file
-const _handleError = (next, err) => {
-  if (ERRORS.ValidationError(err))
-    return next(createError(400, _formatValidationError(err)));
-  else if (err.isCreatedError)
-    return next(err);
-  else
-    return next(createError(500, err));
-};
-
-// TODO: move to own file, move _handleError to the same file
-const _formatValidationError = (err) => {
-  return err.errors.map(error => {
-    return _.pick(error, ['type', 'path', 'value']);
-  });
-};
+const {createReply, errorHandler, replyHandler} = require('./lib/reply');
 
 const _update = async (model, req, res, next, id, createInput) => {
-  const attachReply = _attachReply.bind(null, req, res, next);
-  const handleError = _handleError.bind(null, next);
-
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
   try {
     const instance = await model.findByPk(id);
     if (!instance) await createErrorPromise(404);
     await instance.update(createInput(req.body), {fields: attributes});
-    return attachReply(204);
+    return res.replyHandler(next, 204);
   } catch (err) {
-    return handleError(err);
+    return res.errorHandler(next, err);
   }
 };
 
 // TODO: this method is a mess, we need to clean it up
 const _updateRelation = async (createReplyObject, source, target, association, req, res, next, id, targetId, prepareBody) => {
-  const attachReply = _attachReply.bind(null, req, res, next);
-  const handleError = _handleError.bind(null, next);
   try {
     const sourceInstance = await source.findByPk(id);
     const update = _update.bind(null, target);
-    if (!sourceInstance) return attachReply(404, undefined, 'source not found.');
+    if (!sourceInstance) return res.replyHandler(next, 404, undefined, 'source not found.');
     const query =
       association.associationType === 'HasOne' || association.associationType === 'BelongsTo' ? undefined : {where: {id: targetId}};
     let targetInstance = await sourceInstance[association.accessors.get](query);
     if (!targetInstance) await createErrorPromise(404, 'target not found.');
-    if (targetInstance instanceof Array) // "many" relationsship
+    if (targetInstance instanceof Array) // "many" relationship
       targetInstance = targetInstance[0];
     await update(req, res, next, createReplyObject(targetInstance).id, prepareBody);
   } catch (err) {
-    handleError(err);
+    res.errorHandler(next, err);
   }
-};
-
-const alwaysAllowMiddleware = async (req, res, next) => next();
-
-const _getModelOpts = (models, model) => {
-  for (const modelDefinition of models) {
-    if (modelDefinition.model === model) {
-      return modelDefinition.opts;
-    }
-  }
-  return {};
-};
-
-// TODO: create Authorization class and move this function there
-const _getParentAuthorizationForModel = (modelDefinitions, model) => {
-  const authorizationMiddlewaresFound = [];
-  for (const modelDefinition of modelDefinitions) {
-    const authorizeForChildren = _.get(modelDefinition, 'opts.authorizeWith.options.authorizeForChildren', undefined);
-    if (authorizeForChildren) {
-      for (const childModelAuthDefinition of authorizeForChildren) {
-        if (childModelAuthDefinition.child === model && childModelAuthDefinition.authorizeForChild) {
-          authorizationMiddlewaresFound.push(_.get(modelDefinition, 'opts.authorizeWith', undefined));
-        }
-      }
-    }
-  }
-  if (authorizationMiddlewaresFound.length > 1)
-    throw new Error(`invalid number of middlewares expected 1, got ${authorizationMiddlewaresFound.length}!`);
-  return authorizationMiddlewaresFound[0];
-};
-
-// TODO: create Authorization class and move this function there
-const _getAuthorizationMiddleWare = function (modelDefinitions, model, associatedModel, type) {
-  const isAllowed = ['CREATE', 'READ', 'UPDATE', 'UPDATE_PARTIAL', 'DELETE', 'SEARCH', 'ASSOCIATE', 'OTHER']
-    .filter(method => method == type).length === 1;
-  const opts = _getModelOpts(modelDefinitions, model);
-  if (!isAllowed) {
-    throw new Error(`unknown type ${type}`);
-  }
-  let authorizeWith = opts.authorizeWith;
-  if (_.get(opts, 'authorizeWith.options.useParentForAuthorization', undefined)) {
-    if (!associatedModel) throw new Error(`${model.name} specified to useParentForAuthorization but the associatedModel is null!`);
-    const association = model.getAssociationByModel(associatedModel);
-    if (association.associationType !== 'BelongsTo' && association.associationType !== 'BelongsToMany')
-      throw new Error(
-        `${model.name} has no BelongsTo / BelongsToMany association to ${associatedModel.name}, useParentForAuthorization is invalid!`
-      );
-    const parentOpts = _getModelOpts(modelDefinitions, associatedModel);
-    authorizeWith = parentOpts.authorizeWith;
-  }
-  // use parent model authorization for root routes of another model
-  const authorizationFromParent = _getParentAuthorizationForModel(modelDefinitions, model);
-  if (authorizationFromParent) authorizeWith = authorizationFromParent;
-
-  return authorizeWith && authorizeWith.rules ?
-    (authorizeWith.rules[type] || authorizeWith.rules['OTHER'] || alwaysAllowMiddleware) :
-    alwaysAllowMiddleware;
 };
 
 const _filterAttributes = (attributeString, instance) => {
@@ -167,27 +82,6 @@ const _searchBySourceIdAndTargetQuery = async (association, sourceId, targetQuer
   }
 };
 
-const _createReplyObject = (raw, object) => {
-  let objects;
-  let inputWasArray = false;
-  if (Array.isArray(object)) {
-    inputWasArray = true;
-    objects = object;
-  } else {
-    objects = [object];
-  }
-  const result = objects.map(o => {
-    if (raw) {
-      if (!o.get || !(o.get instanceof Function)) return o;
-      return o.get({plain: true});
-    } else {
-      return o;
-    }
-  });
-  if (!inputWasArray) return result[0];
-  else return result;
-};
-
 module.exports = (models, opts) => {
   const routingInformation = [];
   opts = opts || {};
@@ -196,11 +90,13 @@ module.exports = (models, opts) => {
   }
   const modelExtension = require('./lib/model')(opts.dataMapper);
   opts.rawDataResponse = opts.rawDataResponse === false ? false : opts.rawDataResponse || true;
-  const createReplyObject = _createReplyObject.bind(null, opts.rawDataResponse);
+  const createReplyObject = createReply.bind(null, opts.rawDataResponse);
   opts.middleware = opts.middleware || {};
   opts.openapi = opts.openapi || {};
   const idRegex = opts.idRegex ? `(${opts.idRegex})` : '';
-  const namingScheme = opts.naming || function (value) { return value; };
+  const namingScheme = opts.naming || function (value) {
+    return value;
+  };
   if (!typeof namingScheme === 'function') {
     throw new Error('naming scheme must be a function');
   }
@@ -215,10 +111,8 @@ module.exports = (models, opts) => {
     opts.openapi.document : new OpenApiDocument(opts.openapi.document);
   openApiDocument.addComponents(EXSEQ_COMPONENTS);
 
-  const getModelOpts = _getModelOpts.bind(null, models);
-
   // first pass, extend all models
-  models.forEach(model => modelExtension(model.model));
+  models.forEach(model => modelExtension(models, model.model));
 
   // second pass, register all models that are flagged appropriately
   models.forEach(model => {
@@ -244,7 +138,7 @@ module.exports = (models, opts) => {
       openApiHelper
     });
     if (!openApiDocument.schemaExists(model.model.name)) {
-      openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas, getModelOpts));
+      openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas));
     }
   });
 
@@ -271,7 +165,17 @@ module.exports = (models, opts) => {
       openApiDocument.setPathIfNotExists(pathName, openApiHelper.createPathItemStub(optName));
     });
 
-    const auth = _getAuthorizationMiddleWare.bind(null, models, model, null);
+    const auth = model.getAuthorizationMiddleWare.bind(model, null);
+
+    // attaching errorHandler and replyHandler to res
+    router.use((req, res, next) => {
+      // (req, res, next, status, result, message)
+      res.replyHandler = replyHandler.bind(null, req, res);
+      // (next, err)
+      res.errorHandler = errorHandler(ERRORS);
+
+      next();
+    });
 
     router.use((req, res, next) => {
       // resetting the state of the query builder before each request
@@ -287,19 +191,17 @@ module.exports = (models, opts) => {
     }
     if (routeExposureHandler.isRouteExposed('post', '/')) {
       router.post('/', auth('CREATE'), (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
         const input = model.removeIllegalAttributes(req.body);
         model
           .create(input)
           .then(modelInstance => {
             if (routing.opts.filterReferenceAttributes) {
-              return attachReply(201, model.filterReferenceAttributesFromModelInstance(createReplyObject(modelInstance)));
+              return res.replyHandler(next, 201, model.filterReferenceAttributesFromModelInstance(createReplyObject(modelInstance)));
             } else {
-              return attachReply(201, createReplyObject(modelInstance));
+              return res.replyHandler(next, 201, createReplyObject(modelInstance));
             }
           }).catch(err => {
-            return handleError(err);
+            return res.errorHandler(next, err);
           });
       });
       openApiDocument.addOperationAndComponents(openApiBaseName, 'post', openApiHelper.createModelPathSpecification('post'));
@@ -307,9 +209,6 @@ module.exports = (models, opts) => {
 
     if (routeExposureHandler.isRouteExposed('post', '/bulk')) {
       router.post('/bulk', auth('CREATE'), async (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
-
         const transaction = await model.transaction();
 
         try {
@@ -321,14 +220,14 @@ module.exports = (models, opts) => {
           }));
           await transaction.commit();
           if (routing.opts.filterReferenceAttributes) {
-            return attachReply(201,
+            return res.replyHandler(next, 201,
               createReplyObject(instances).map(instance => model.filterReferenceAttributesFromModelInstance(instance)));
           } else {
-            return attachReply(201, createReplyObject(instances));
+            return res.replyHandler(next, 201, createReplyObject(instances));
           }
         } catch (err) {
           await transaction.rollback();
-          return handleError(err);
+          return res.errorHandler(next, err);
         }
       });
       openApiDocument.addOperationAndComponents(`${openApiBaseName}/bulk`, 'post', openApiHelper.createBulkModelPathSpecification());
@@ -336,12 +235,10 @@ module.exports = (models, opts) => {
 
     if (routeExposureHandler.isRouteExposed('get', '/count')) {
       router.get('/count', auth('READ'), async (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
         try {
-          return attachReply(200, await model.count(), `Count for ${model.name} obtained!`);
+          return res.replyHandler(next, 200, await model.count(), `Count for ${model.name} obtained!`);
         } catch (err) {
-          return handleError(err);
+          return res.errorHandler(next, err);
         }
       });
       openApiDocument.addOperationAndComponents(`${openApiBaseName}/count`, 'get', openApiHelper.createCountModelPathSpecification());
@@ -349,8 +246,6 @@ module.exports = (models, opts) => {
 
     if (routeExposureHandler.isRouteExposed('get', '/')) {
       router.get('/', auth('READ'), async (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
         try {
           const results = await model.findAll(
             queryBuilder
@@ -358,9 +253,9 @@ module.exports = (models, opts) => {
               .prepare()
               .query
           );
-          return attachReply(200, createReplyObject(results));
+          return res.replyHandler(next, 200, createReplyObject(results));
         } catch (err) {
-          return handleError(err);
+          return res.errorHandler(next, err);
         }
       });
       openApiDocument.addOperationAndComponents(openApiBaseName, 'get', openApiHelper.createModelPathSpecification('get'));
@@ -368,8 +263,6 @@ module.exports = (models, opts) => {
 
     if (routeExposureHandler.isRouteExposed('get', '/search') || routeExposureHandler.isRouteExposed('post', '/search')) {
       router.post('/search', auth('SEARCH'), async (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
         try {
           const results = await model.findAll(
             queryBuilder
@@ -388,12 +281,12 @@ module.exports = (models, opts) => {
               .query
           ));
           if (results.length === 0) {
-            return attachReply(204);
+            return res.replyHandler(next, 204);
           } else {
-            return attachReply(200, createReplyObject(results));
+            return res.replyHandler(next, 200, createReplyObject(results));
           }
         } catch (err) {
-          return handleError(err);
+          return res.errorHandler(next, err);
         }
       });
       openApiDocument.addOperationAndComponents(`${openApiBaseName}/search`, 'post', openApiHelper.createSearchModelPathSpecification());
@@ -402,15 +295,12 @@ module.exports = (models, opts) => {
     if (routeExposureHandler.isRouteExposed('get', '/:id')) {
       router.get(`/:id${idRegex}`, auth('READ'), (req, res, next) => {
         const id = req.params.id;
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
-
         const attributes = req.query.a ? req.query.a.split('|') : undefined;
         model.findOne({where: {id}, attributes}).then(modelInstance => {
           if (!modelInstance) return createErrorPromise(404, 'entity not found.');
-          return attachReply(200, createReplyObject(modelInstance));
+          return res.replyHandler(next, 200, createReplyObject(modelInstance));
         }).catch(err => {
-          return handleError(err);
+          return res.errorHandler(next, err);
         });
       });
       openApiDocument.addOperationAndComponents(`${openApiBaseName}/{id}`, 'get', openApiHelper.createInstancePathSpecification('get'));
@@ -436,15 +326,13 @@ module.exports = (models, opts) => {
 
     if (routeExposureHandler.isRouteExposed('delete', '/:id')) {
       router.delete(`/:id${idRegex}`, auth('DELETE'), async (req, res, next) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
         try {
           const instance = await model.findByPk(req.params.id);
           if (!instance) await createErrorPromise(404);
           await instance.destroy();
-          return attachReply(204);
+          return res.replyHandler(next, 204);
         } catch (err) {
-          return handleError(err);
+          return res.errorHandler(next, err);
         }
       });
       openApiDocument.addOperationAndComponents(
@@ -457,34 +345,29 @@ module.exports = (models, opts) => {
       const target = association.target;
       const source = association.source;
       const targetRoute = namingScheme(association.options.name.singular);
-      const auth = _getAuthorizationMiddleWare.bind(null, models, target, source);
+      const auth = target.getAuthorizationMiddleWare.bind(target, source);
       // TODO: move into own file (maybe with update)
       const unlinkRelations = (req, res, next, setterFunctionName) => {
-        const attachReply = _attachReply.bind(null, req, res, next);
-        const handleError = _handleError.bind(null, next);
-
         source.findByPk(req.params.id).then(sourceInstance => {
           if (!sourceInstance) return createErrorPromise(404, 'source not found.');
           return sourceInstance[setterFunctionName](null).then(_ => {
-            return attachReply(204);
+            return res.replyHandler(next, 204);
           });
         }).catch(err => {
-          return handleError(err);
+          return res.errorHandler(next, err);
         });
       };
       // TODO: move into own file (maybe with update)
       const relationshipGet = (postProcess) => {
         return (req, res, next) => {
-          const attachReply = _attachReply.bind(null, req, res, next);
-          const handleError = _handleError.bind(null, next);
           source.findByPk(req.params.id).then(sourceInstance => {
             if (!sourceInstance) return createErrorPromise(404, 'source not found.');
             return sourceInstance[association.accessors.get]().then(targetInstance => {
               if (!targetInstance) return createErrorPromise(404, 'target not found.');
-              return attachReply(200, postProcess(req, targetInstance));
+              return res.replyHandler(next, 200, postProcess(req, targetInstance));
             });
           }).catch(err => {
-            return handleError(err);
+            return res.errorHandler(next, err);
           });
         };
       };
@@ -516,8 +399,6 @@ module.exports = (models, opts) => {
           }
           if (routeExposureHandler.isRouteExposed('post', baseTargetRouteOpt)) {
             router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), async (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
               try {
                 const sourceInstance = await source.findByPk(req.params.id);
                 if (!sourceInstance) return await createErrorPromise(404, 'source not found.');
@@ -526,21 +407,21 @@ module.exports = (models, opts) => {
                 if (association.associationType === 'BelongsTo') {
                   if (instance instanceof source) { // 4.x.x
                     return sourceInstance[association.accessors.get]().then(createdTargetInstance => {
-                      return attachReply(201, createReplyObject(createdTargetInstance));
+                      return res.replyHandler(next, 201, createReplyObject(createdTargetInstance));
                     });
                   } else if (instance instanceof target) { // 5.x.x
-                    return attachReply(201, createReplyObject(instance));
+                    return res.replyHandler(next, 201, createReplyObject(instance));
                   } else {
                     createErrorPromise(
                       500,
-                      'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                      'could not determine target instance, this is most likely a cause of the sequelize version that is currently used'
                     );
                   }
                 } else {
-                  return attachReply(201, createReplyObject(instance));
+                  return res.replyHandler(next, 201, createReplyObject(instance));
                 }
               } catch (err) {
-                handleError(err);
+                res.errorHandler(next, err);
               }
             });
             openApiDocument.addOperationAndComponents(
@@ -590,14 +471,12 @@ module.exports = (models, opts) => {
           }
           if (routeExposureHandler.isRouteExposed('get', `${baseTargetRouteOpt}/count`)) {
             router.get(`/:id${idRegex}/${targetRoute}/count`, auth('READ'), async (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
               try {
-                return attachReply(200,
+                return res.replyHandler(next, 200,
                   await source.getAssociationCount(association, req.params.id),
                   `Count for ${model.name} obtained!`);
               } catch (err) {
-                return handleError(err);
+                return res.errorHandler(next, err);
               }
             });
             openApiDocument.addOperationAndComponents(
@@ -607,8 +486,6 @@ module.exports = (models, opts) => {
 
           if (routeExposureHandler.isRouteExposed('post', `${baseTargetRouteOpt}/search`)) {
             router.post(`/:id${idRegex}/${targetRoute}/search`, auth('SEARCH'), async (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
               try {
                 const searchQuery = queryBuilder
                   .create(req.body)
@@ -618,12 +495,12 @@ module.exports = (models, opts) => {
                 const [searchOptions, results] = await _searchBySourceIdAndTargetQuery(association, req.params.id, searchQuery);
                 res.set('X-Total-Count', await source.getAssociationCount(association, req.params.id, searchOptions));
                 if (results.length === 0) {
-                  return attachReply(204);
+                  return res.replyHandler(next, 204);
                 } else {
-                  return attachReply(200, createReplyObject(results));
+                  return res.replyHandler(next, 200, createReplyObject(results));
                 }
               } catch (err) {
-                return handleError(err);
+                return res.errorHandler(next, err);
               }
             });
             openApiDocument.addOperationAndComponents(
@@ -633,8 +510,6 @@ module.exports = (models, opts) => {
 
           if (routeExposureHandler.isRouteExposed('get', instanceTargetRouteOpt)) {
             router.get(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('READ'), (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(async sourceInstance => {
                 if (!sourceInstance) return createErrorPromise(404, 'source not found.');
 
@@ -644,18 +519,18 @@ module.exports = (models, opts) => {
                 if (instances[0] instanceof source) { // 4.x.x
                   return sourceInstance[association.accessors.get]({where: {id: {$eq: req.params.targetId}}}).spread(targetInstance => {
                     if (!targetInstance) return createErrorPromise(404, 'target not found.');
-                    return attachReply(200, _filterAttributes(req.query.a, createReplyObject(targetInstance)));
+                    return res.replyHandler(next, 200, _filterAttributes(req.query.a, createReplyObject(targetInstance)));
                   });
                 } else if (instances[0] instanceof target) { // 5.x.x
-                  return attachReply(200, _filterAttributes(req.query.a, createReplyObject(instances[0])));
+                  return res.replyHandler(next, 200, _filterAttributes(req.query.a, createReplyObject(instances[0])));
                 } else {
                   return createErrorPromise(
                     500,
-                    'could not determine target instance, this is most likley a cause of the sequelize version that is currently used'
+                    'could not determine target instance, this is most likely a cause of the sequelize version that is currently used'
                   );
                 }
               }).catch(err => {
-                return handleError(err);
+                return res.errorHandler(next, err);
               });
             });
             openApiDocument.addOperationAndComponents(
@@ -665,15 +540,13 @@ module.exports = (models, opts) => {
 
           if (routeExposureHandler.isRouteExposed('post', baseTargetRouteOpt)) {
             router.post(`/:id${idRegex}/${targetRoute}`, auth('CREATE'), (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
               source.findByPk(req.params.id).then(sourceInstance => {
                 if (!sourceInstance) return createErrorPromise(404, 'source not found.');
                 return sourceInstance[association.accessors.create](target.removeIllegalAttributes(req.body));
               }).then(instance => {
-                return attachReply(201, createReplyObject(instance));
+                return res.replyHandler(next, 201, createReplyObject(instance));
               }).catch(err => {
-                return handleError(err);
+                return res.errorHandler(next, err);
               });
             });
             openApiDocument.addOperationAndComponents(
@@ -683,8 +556,6 @@ module.exports = (models, opts) => {
           if (association.associationType === 'BelongsToMany') {
             if (routeExposureHandler.isRouteExposed('post', `${instanceTargetRouteOpt}/link`)) {
               router.post(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/link`, auth('ASSOCIATE'), async (req, res, next) => {
-                const attachReply = _attachReply.bind(null, req, res, next);
-                const handleError = _handleError.bind(null, next);
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
                   if (!sourceInstance) return createErrorPromise(404, 'source not found.');
@@ -693,9 +564,9 @@ module.exports = (models, opts) => {
 
                   await sourceInstance[association.accessors.add](targetInstance);
 
-                  return attachReply(204);
+                  return res.replyHandler(next, 204);
                 } catch (err) {
-                  return handleError(err);
+                  return res.errorHandler(next, err);
                 }
               });
               openApiDocument.addOperationAndComponents(
@@ -705,8 +576,6 @@ module.exports = (models, opts) => {
 
             if (routeExposureHandler.isRouteExposed('delete', `${instanceTargetRouteOpt}/unlink`)) {
               router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}/unlink`, auth('ASSOCIATE'), async (req, res, next) => {
-                const attachReply = _attachReply.bind(null, req, res, next);
-                const handleError = _handleError.bind(null, next);
                 try {
                   const sourceInstance = await source.findByPk(req.params.id);
                   if (!sourceInstance) return createErrorPromise(404, 'source not found.');
@@ -716,9 +585,9 @@ module.exports = (models, opts) => {
 
                   await sourceInstance[association.accessors.remove](targetInstance);
 
-                  return attachReply(204);
+                  return res.replyHandler(next, 204);
                 } catch (err) {
-                  return handleError(err);
+                  return res.errorHandler(next, err);
                 }
               });
               openApiDocument.addOperationAndComponents(
@@ -760,9 +629,6 @@ module.exports = (models, opts) => {
           }
           if (routeExposureHandler.isRouteExposed('delete', instanceTargetRouteOpt)) {
             router.delete(`/:id${idRegex}/${targetRoute}/:targetId${idRegex}`, auth('DELETE'), (req, res, next) => {
-              const attachReply = _attachReply.bind(null, req, res, next);
-              const handleError = _handleError.bind(null, next);
-
               source.findByPk(req.params.id).then(sourceInstance => {
                 if (!sourceInstance) return createErrorPromise(404, 'source not found.');
                 return sourceInstance[association.accessors.get]({where: {id: req.params.targetId}}).then(targetInstances => {
@@ -770,10 +636,10 @@ module.exports = (models, opts) => {
                   if (!targetInstance) return createErrorPromise(404, 'target not found.');
                   return sourceInstance[association.accessors.remove](targetInstance);
                 }).then(() => {
-                  return attachReply(204);
+                  return res.replyHandler(next, 204);
                 });
               }).catch(err => {
-                return handleError(err);
+                return res.errorHandler(next, err);
               });
             });
             openApiDocument.addOperationAndComponents(
