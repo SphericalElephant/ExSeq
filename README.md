@@ -336,7 +336,7 @@ The label of the first segment of the route is determined by ```source.name``` o
 | :-----------: | :-------: | :-------------------------: | :----------------------------: | :-------------------------------: |
 |      GET      |     a     | Allows attribute filtering  | "\|" separated list of Strings | /source/?a=name\|birthdate\|email |
 | POST (search) |     i     | Items per page (pagination) |            Integer             |      ```{"i": 10, "p":2}```       |
-| POST (search) |     p     |      Page (pagination)      |            Integer             |      ```{"i": 10, "p":2}```       |
+| POST (search) |     p     |      Page (pagination), starts at 0      |            Integer             |      ```{"i": 10, "p":2}```       |
 | POST (search) |     f     |        Sort by field        |             String             |        ```{"f": "name"}```        |
 | POST (search) |     o     |         Sort order          |         Enum(ASC/DESC)         |  ```{"f": "name", "o":"ASC"}```   |
 | POST (search) |     s     |   Sequelize Search Query    |              JSON              |       ```{s: {value: 1}}```       |
