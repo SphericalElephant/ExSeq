@@ -600,7 +600,7 @@ apiData.routingInformation.forEach((routing) => {
 The /source/:id/target/:targetId/unlink route is now used with the DELETE method and NOT the POST method.
 
 
-The /source/:id/target/:targetId/unlink and /source/:id/target/:targetId/link route are not secured by ASSOCIATE and not by CREATE.
+The /source/:id/target/:targetId/unlink and /source/:id/target/:targetId/link route are now secured by ASSOCIATE and not by CREATE.
 
 ### Data reply
 
