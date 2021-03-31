@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added proper model extension for Sequelize 6.0.0-beta.6
+- Added proper model extension for Sequelize 6.x.x
 
 ### Changed
 - Restructured code, moved several methods to the model extension
