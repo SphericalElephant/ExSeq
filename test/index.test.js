@@ -330,13 +330,13 @@ module.exports = (Sequelize) => {
             fieldName: 'test'
           });
           const toTest = {};
-          middleware(toTest, {}, () => {});
+          middleware(toTest, {}, () => { });
           expect(toTest['test']).to.not.be.null;
         });
         it('should use a default name if no fieldName was specified', () => {
           const middleware = associationMiddleware([TestModel]);
           const toTest = {};
-          middleware(toTest, {}, () => {});
+          middleware(toTest, {}, () => { });
           expect(toTest['associationInformation']).to.not.be.null;
         });
       });
@@ -622,7 +622,7 @@ module.exports = (Sequelize) => {
               exseqResult.forEach(routingInformation => {
                 const middleware = getAssocMiddleware(routingInformation)[0].handle;
                 const toCheck = {};
-                middleware(toCheck, null, () => {});
+                middleware(toCheck, null, () => { });
                 expect(toCheck['associationInformation']).to.exist;
               });
             });
@@ -1608,7 +1608,7 @@ module.exports = (Sequelize) => {
           });
       });
     });
-    describe('/model/:id/hasOneRleation/ POST', () => {
+    describe('/model/:id/hasOneRelation/ POST', () => {
       it('should create the hasOne relation of the resource', () => {
         return TestModel.findOne({where: {value1: 'addrelationTestModel'}}).then(testModelInstance => {
           return request(app)
@@ -1749,6 +1749,36 @@ module.exports = (Sequelize) => {
                 .then(response => {
                   expect(response.body.result).to.have.lengthOf(3);
                   expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.association.associationType}-child1`);
+                });
+            });
+            it(`${manyRelation.source.name} ${manyRelation.target.name} should return the paginated ${manyRelation.association.associationType} relations of the requested resource.`, async () => {
+              // test the first page
+              await request(app)
+                .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/?i=2&p=0`)
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(2);
+                  expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.association.associationType}-child1`);
+                  expect(response.body.result.sort(sortById)[1].name).to.equal(`${manyRelation.association.associationType}-child2`);
+                });
+              // test the second page
+              await request(app)
+                .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/?i=2&p=1`)
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(1);
+                  expect(response.body.result.sort(sortById)[0].name).to.equal(`${manyRelation.association.associationType}-child3`);
+                });
+            });
+            it(`${manyRelation.source.name} ${manyRelation.target.name} should return the paginated and sorted ${manyRelation.association.associationType} relations of the requested resource.`, async () => {
+              // test the first page
+              await request(app)
+                .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/?i=2&p=0&f=name&o=DESC`)
+                .expect(200)
+                .then(response => {
+                  expect(response.body.result).to.have.lengthOf(2);
+                  expect(response.body.result[0].name).to.equal(`${manyRelation.association.associationType}-child3`);
+                  expect(response.body.result[1].name).to.equal(`${manyRelation.association.associationType}-child2`);
                 });
             });
             it('should only show attributes that have been specified.', () => {
