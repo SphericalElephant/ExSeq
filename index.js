@@ -141,7 +141,7 @@ module.exports = (models, opts) => {
       openApiHelper
     });
     if (!openApiDocument.schemaExists(model.model.name)) {
-      console.log('DU HURENKIND', model.model.name, model.model.EXSEQ_MODEL_MIXIN);
+      console.log('EXTENSIOn', model.model.name, model.model.EXSEQ_MODEL_MIXIN);
       openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas));
     }
   });
