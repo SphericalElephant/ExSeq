@@ -330,75 +330,87 @@ module.exports = (Sequelize) => {
             fieldName: 'test'
           });
           const toTest = {};
-          middleware(toTest, {}, () => {});
+          middleware(toTest, {}, () => { });
           expect(toTest['test']).to.not.be.null;
         });
         it('should use a default name if no fieldName was specified', () => {
           const middleware = associationMiddleware([TestModel]);
           const toTest = {};
-          middleware(toTest, {}, () => {});
+          middleware(toTest, {}, () => { });
           expect(toTest['associationInformation']).to.not.be.null;
         });
       });
     });
     describe('Model', () => {
       describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI', () => {
-        const HasOneSource = database.sequelize.define('HasOneSource', {});
-        const HasOneTarget = database.sequelize.define('HasOneTarget', {});
+        const m = {
+          HasOneSource: database.sequelize.define('HasOneSource', {}),
+          HasOneTarget: database.sequelize.define('HasOneTarget', {}),
 
-        const HasManySource = database.sequelize.define('HasManySource', {});
-        const HasManyTarget = database.sequelize.define('HasManyTarget', {});
+          HasManySource: database.sequelize.define('HasManySource', {}),
+          HasManyTarget: database.sequelize.define('HasManyTarget', {}),
 
-        const BelongsToSource = database.sequelize.define('BelongsToSource', {});
-        const BelongsToTarget = database.sequelize.define('BelongsToTarget', {});
+          BelongsToSource: database.sequelize.define('BelongsToSource', {}),
+          BelongsToTarget: database.sequelize.define('BelongsToTarget', {}),
 
-        const BelongsToManySource = database.sequelize.define('BelongsToManySource', {});
-        const BelongsToManyTarget = database.sequelize.define('BelongsToManyTarget', {});
-        const BelongsToManyThrough = database.sequelize.define('BelongsToManyThrough', {});
+          BelongsToManySource: database.sequelize.define('BelongsToManySource', {}),
+          BelongsToManyTarget: database.sequelize.define('BelongsToManyTarget', {}),
+          BelongsToManyThrough: database.sequelize.define('BelongsToManyThrough', {}),
 
-        const MultiSource = database.sequelize.define('MultiSource', {});
-        const MultiSourceThrough = database.sequelize.define('MultiSourceThrough', {});
+          MultiSource: database.sequelize.define('MultiSource', {}),
+          MultiSourceThrough: database.sequelize.define('MultiSourceThrough', {}),
+          CustomFKSource: database.sequelize.define('CustomFKSource', {}),
+          CustomFKTarget: database.sequelize.define('CustomFKTarget', {})
+        };
 
-        HasOneSource.hasOne(HasOneTarget);
-        HasManySource.hasMany(HasManyTarget);
-        BelongsToSource.belongsTo(BelongsToTarget);
-        BelongsToManySource.belongsToMany(BelongsToManyTarget, {through: BelongsToManyThrough});
+        m.HasOneSource.hasOne(m.HasOneTarget);
+        m.HasManySource.hasMany(m.HasManyTarget);
+        m.BelongsToSource.belongsTo(m.BelongsToTarget);
+        m.BelongsToManySource.belongsToMany(m.BelongsToManyTarget, {through: m.BelongsToManyThrough});
 
-        MultiSource.hasOne(HasOneTarget);
-        MultiSource.hasMany(HasManyTarget);
-        MultiSource.belongsTo(BelongsToTarget);
-        MultiSource.belongsToMany(BelongsToManyTarget, {through: MultiSourceThrough});
+        m.MultiSource.hasOne(m.HasOneTarget);
+        m.MultiSource.hasMany(m.HasManyTarget);
+        m.MultiSource.belongsTo(m.BelongsToTarget);
+        m.MultiSource.belongsToMany(m.BelongsToManyTarget, {through: m.MultiSourceThrough});
 
-        const CustomFKSource = database.sequelize.define('CustomFKSource', {});
-        const CustomFKTarget = database.sequelize.define('CustomFKTarget', {});
-        CustomFKSource.hasOne(CustomFKTarget, {as: 'target', foreignKey: 'target_id'});
+        m.CustomFKSource.hasOne(m.CustomFKTarget, {as: 'target', foreignKey: 'target_id'});
 
-        const models = [
-          HasOneSource, HasOneTarget,
-          HasManySource, HasManyTarget,
-          BelongsToSource, BelongsToTarget,
-          BelongsToManySource, BelongsToManyTarget,
-          MultiSource,
-          CustomFKSource, CustomFKTarget
-        ];
         const modelDefinitions = [
-          {model: HasOneSource, opts: {}},
-          {model: HasOneTarget, opts: {}},
-          {model: HasManySource, opts: {}},
-          {model: HasManyTarget, opts: {}},
-          {model: BelongsToSource, opts: {}},
-          {model: BelongsToTarget, opts: {}},
-          {model: BelongsToManySource, opts: {}},
-          {model: BelongsToManyTarget, opts: {}},
-          {model: MultiSource, opts: {}},
-          {model: CustomFKSource, opts: {}},
-          {model: CustomFKTarget, opts: {}}];
-        for (const m of models) {
-          modelExtension(
+          {model: m.HasOneSource, opts: {}},
+          {model: m.HasOneTarget, opts: {}},
+          {model: m.HasManySource, opts: {}},
+          {model: m.HasManyTarget, opts: {}},
+          {model: m.BelongsToSource, opts: {}},
+          {model: m.BelongsToTarget, opts: {}},
+          {model: m.BelongsToManySource, opts: {}},
+          {model: m.BelongsToManyTarget, opts: {}},
+          {model: m.MultiSource, opts: {}},
+          {model: m.CustomFKSource, opts: {}},
+          {model: m.CustomFKTarget, opts: {}}];
+        for (const modelKey of Object.keys(m)) {
+          m[modelKey] = modelExtension(
             modelDefinitions,
-            m
+            m[modelKey]
           );
         }
+
+        const {
+          HasOneSource,
+          HasOneTarget,
+          HasManySource,
+          HasManyTarget,
+          BelongsToSource,
+          BelongsToTarget,
+          BelongsToManySource,
+          BelongsToManyTarget,
+          BelongsToManyThrough,
+          MultiSource,
+          MultiSourceThrough,
+          CustomFKSource,
+          CustomFKTarget
+        } = m;
+
+        const models = Object.values(m);
 
         it('should return a list of all relationships, include the foreign key fields of a model', () => {
           expect(MultiSource.getModelAssociations()).to.deep.equal([{
@@ -602,17 +614,21 @@ module.exports = (Sequelize) => {
       describe('opts', () => {
         describe('middleware', () => {
           describe('associationMiddleware', () => {
-            const exseqResult = exseq([{model: TestModel, model: TestModel3}], {
-              dataMapper: database.Sequelize,
-              middleware: {
-                associationMiddleware: true
-              }
-            }).routingInformation;
             function getAssocMiddleware(routingInformation) {
               return routingInformation.router.stack.filter((layer) => {
                 return layer && layer.handle && layer.handle.name === 'associationMiddleware';
               });
             }
+            let exseqResult;
+            before(() => {
+              exseqResult = exseq([{model: TestModel, model: TestModel3}], {
+                dataMapper: database.Sequelize,
+                middleware: {
+                  associationMiddleware: true
+                }
+              }).routingInformation;
+            });
+
             it('should enable the middleware if specified', () => {
               exseqResult.forEach(routingInformation => {
                 expect(getAssocMiddleware(routingInformation)).to.have.lengthOf(1);
@@ -622,7 +638,7 @@ module.exports = (Sequelize) => {
               exseqResult.forEach(routingInformation => {
                 const middleware = getAssocMiddleware(routingInformation)[0].handle;
                 const toCheck = {};
-                middleware(toCheck, null, () => {});
+                middleware(toCheck, null, () => { });
                 expect(toCheck['associationInformation']).to.exist;
               });
             });

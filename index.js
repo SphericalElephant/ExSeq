@@ -112,7 +112,10 @@ module.exports = (models, opts) => {
   openApiDocument.addComponents(EXSEQ_COMPONENTS);
 
   // first pass, extend all models
-  models.forEach(model => modelExtension(models, model.model));
+  models = models.map(m => {
+    m.model = modelExtension(models, m.model);
+    return m;
+  });
 
   // second pass, register all models that are flagged appropriately
   models.forEach(model => {
@@ -138,6 +141,7 @@ module.exports = (models, opts) => {
       openApiHelper
     });
     if (!openApiDocument.schemaExists(model.model.name)) {
+      console.log('DU HURENKIND', model.model.name, model.model.EXSEQ_MODEL_MIXIN);
       openApiDocument.addSchemas(OpenApi.createModelSchemasRecursive(model.model, openApiDocument.components.schemas));
     }
   });
