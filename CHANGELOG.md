@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added proper model extension for Sequelize 6.x.x
+- Added pagination support to hasMany and belongsToMany association queries
 
 ### Changed
 - Restructured code, moved several methods to the model extension
