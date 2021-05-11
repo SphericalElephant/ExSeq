@@ -24,7 +24,7 @@ const _update = async (model, req, res, next, id, createInput) => {
   }
 };
 
-// TODO: this method is a mess, we need to clean it up
+// TODO: this method is a mess, we need to clean it up, maybe move it into the lib/relationship package
 const _updateRelation = async (createReplyObject, source, target, association, req, res, next, id, targetId, prepareBody) => {
   try {
     const sourceInstance = await source.findByPk(id);
