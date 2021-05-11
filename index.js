@@ -9,8 +9,7 @@ const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
 const {createReply, errorHandler, replyHandler} = require('./lib/reply');
-const rget = require('./lib/relationship/rget');
-const runlink = require('./lib/relationship/runlink');
+const {rget, runlink} = require('./lib/relationship');
 
 const _update = async (model, req, res, next, id, createInput) => {
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
