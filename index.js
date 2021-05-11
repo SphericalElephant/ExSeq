@@ -4,11 +4,13 @@ const express = require('express');
 const _ = require('lodash');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
-const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
+const {QueryBuilder, ERRORS, NONE} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
 const {createReply, errorHandler, replyHandler} = require('./lib/reply');
+const rget = require('./lib/relationship/rget');
+const runlink = require('./lib/relationship/runlink');
 
 const _update = async (model, req, res, next, id, createInput) => {
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
@@ -346,32 +348,13 @@ module.exports = (models, opts) => {
       const source = association.source;
       const targetRoute = namingScheme(association.options.name.singular);
       const auth = target.getAuthorizationMiddleWare.bind(target, source);
-      // TODO: move into own file (maybe with update)
-      const unlinkRelations = (req, res, next, setterFunctionName) => {
-        source.findByPk(req.params.id).then(sourceInstance => {
-          if (!sourceInstance) return createErrorPromise(404, 'source not found.');
-          return sourceInstance[setterFunctionName](null).then(_ => {
-            return res.replyHandler(next, 204);
-          });
-        }).catch(err => {
-          return res.errorHandler(next, err);
-        });
-      };
-      // TODO: move into own file (maybe with update)
-      const relationshipGet = (postProcess) => {
-        return async (req, res, next) => {
-          try {
-            const sourceInstance = await source.findByPk(req.params.id);
-            if (!sourceInstance) throw createError(404, 'source not found.');
-            const query = queryBuilder.create(req.query).prepare().query;
-            const targetInstance = await sourceInstance[association.accessors.get](query);
-            if (!targetInstance) throw createError(404, 'target not found.');
-            return res.replyHandler(next, 200, postProcess(req, targetInstance));
-          } catch (err) {
-            return res.errorHandler(next, err);
-          }
-        };
-      };
+
+      const associationQueryBuilder = QueryBuilder.from(queryBuilder);
+      associationQueryBuilder.maxLimit = NONE;
+      associationQueryBuilder.defaultLimit = NONE;
+
+      const relationshipGet = rget(associationQueryBuilder, source, association);
+      const unlinkRelations = runlink(source, association);
 
       const baseTargetRouteOpt = `/:id/${targetRoute}`;
       const baseTargetPath = `${openApiBaseName}/{id}/${targetRoute}`;
@@ -451,7 +434,7 @@ module.exports = (models, opts) => {
           }
           if (routeExposureHandler.isRouteExposed('delete', baseTargetRouteOpt)) {
             router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-              unlinkRelations(req, res, next, association.accessors.set);
+              unlinkRelations(req, res, next);
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'delete', openApiHelper.createHasOneOrBelongsToPathSpecification('delete', target, targetRoute)
@@ -622,7 +605,7 @@ module.exports = (models, opts) => {
 
           if (routeExposureHandler.isRouteExposed('delete', baseTargetRouteOpt)) {
             router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-              unlinkRelations(req, res, next, association.accessors.set);
+              unlinkRelations(req, res, next);
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'delete', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute)

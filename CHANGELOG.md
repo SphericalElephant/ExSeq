@@ -6,7 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added `QueryBuilder.from` to enable `QueryBuilder` configuration cloning
 
+### Fixed
+- ExSeq does not assume a default pagination for hasMany and belongsToMany queries any more
+
+### Removed
+- Removed unused dependencies 'mime-types' and 'semver-regex'
+
+### Changed
+- Moved `relationshipGet` into its own file
+- Moved `unlinkRelations` into its own file
 
 ## [3.6.0] - 2021-04-21
 
