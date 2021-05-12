@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.1] - 2021-05-12
+
 ### Added
 - Added `QueryBuilder.from` to enable `QueryBuilder` configuration cloning
 
