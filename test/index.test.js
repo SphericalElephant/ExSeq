@@ -1781,6 +1781,25 @@ module.exports = (Sequelize) => {
                   expect(response.body.result[1].name).to.equal(`${manyRelation.association.associationType}-child2`);
                 });
             });
+            // we are only running this test case for TestModel5 because we are only testing the pagination logic
+            if (manyRelation.source === TestModel4) {
+              it(`${manyRelation.source.name} ${manyRelation.target.name} should return all ${manyRelation.association.associationType} relations of the requested resource if no pagination was specified.`, async () => {
+                const hasManyParent = await TestModel4.create({name: 'HasMany-parent1'});
+                for (let i = 0; i < 11; i++) {
+                  await hasManyParent.addTestModel5(await TestModel5.create({name: `HasMany-child${i}`, value: `HasMany-value-child${i}`}));
+                }
+                await request(app)
+                  .get(`/${manyRelation.source.name}/${hasManyParent.id}/${manyRelation.association.options.name.singular}/`)
+                  .expect(200)
+                  .then(response => {
+                    expect(response.body.result).to.have.lengthOf(11);
+                    for (let i = 0; i < 11; i++) {
+                      console.log(response.body.result[i]);
+                      expect(response.body.result[i].name).to.equal(`${manyRelation.association.associationType}-child${i}`);
+                    }
+                  });
+              });
+            }
             it('should only show attributes that have been specified.', () => {
               return request(app)
                 .get(`/${manyRelation.source.name}/1/${manyRelation.association.options.name.singular}/?a=value`)
