@@ -1,7 +1,7 @@
 'use strict';
 
 const express = require('express');
-const _ = require('lodash');
+const pick = require('lodash.pick');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
 const {QueryBuilder, ERRORS, NONE} = require('./lib/data-mapper/');
@@ -46,10 +46,10 @@ const _filterAttributes = (attributeString, instance) => {
   const attributes = attributeString ? attributeString.split('|') : undefined;
   if (instance instanceof Array) {
     return instance.map(item => {
-      return _.pick(item, attributes);
+      return pick(item, attributes);
     });
   } else {
-    return _.pick(instance, attributes);
+    return pick(instance, attributes);
   }
 };
 

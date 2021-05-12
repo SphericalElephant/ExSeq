@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Moved `relationshipGet` into its own file
 - Moved `unlinkRelations` into its own file
+- Using modular lodash packages now
 
 ## [3.6.0] - 2021-04-21
 
