@@ -1,14 +1,15 @@
 'use strict';
 
 const express = require('express');
-const _ = require('lodash');
+const pick = require('lodash.pick');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
-const {QueryBuilder, ERRORS} = require('./lib/data-mapper/');
+const {QueryBuilder, ERRORS, NONE} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
 const {createReply, errorHandler, replyHandler} = require('./lib/reply');
+const {rget, runlink} = require('./lib/relationship');
 
 const _update = async (model, req, res, next, id, createInput) => {
   const attributes = model.getUpdateableAttributes().map(attribute => attribute.attribute);
@@ -22,7 +23,7 @@ const _update = async (model, req, res, next, id, createInput) => {
   }
 };
 
-// TODO: this method is a mess, we need to clean it up
+// TODO: this method is a mess, we need to clean it up, maybe move it into the lib/relationship package
 const _updateRelation = async (createReplyObject, source, target, association, req, res, next, id, targetId, prepareBody) => {
   try {
     const sourceInstance = await source.findByPk(id);
@@ -45,10 +46,10 @@ const _filterAttributes = (attributeString, instance) => {
   const attributes = attributeString ? attributeString.split('|') : undefined;
   if (instance instanceof Array) {
     return instance.map(item => {
-      return _.pick(item, attributes);
+      return pick(item, attributes);
     });
   } else {
-    return _.pick(instance, attributes);
+    return pick(instance, attributes);
   }
 };
 
@@ -350,31 +351,13 @@ module.exports = (models, opts) => {
       const source = association.source;
       const targetRoute = namingScheme(association.options.name.singular);
       const auth = target.getAuthorizationMiddleWare.bind(target, source);
-      // TODO: move into own file (maybe with update)
-      const unlinkRelations = (req, res, next, setterFunctionName) => {
-        source.findByPk(req.params.id).then(sourceInstance => {
-          if (!sourceInstance) return createErrorPromise(404, 'source not found.');
-          return sourceInstance[setterFunctionName](null).then(_ => {
-            return res.replyHandler(next, 204);
-          });
-        }).catch(err => {
-          return res.errorHandler(next, err);
-        });
-      };
-      // TODO: move into own file (maybe with update)
-      const relationshipGet = (postProcess) => {
-        return (req, res, next) => {
-          source.findByPk(req.params.id).then(sourceInstance => {
-            if (!sourceInstance) return createErrorPromise(404, 'source not found.');
-            return sourceInstance[association.accessors.get]().then(targetInstance => {
-              if (!targetInstance) return createErrorPromise(404, 'target not found.');
-              return res.replyHandler(next, 200, postProcess(req, targetInstance));
-            });
-          }).catch(err => {
-            return res.errorHandler(next, err);
-          });
-        };
-      };
+
+      const associationQueryBuilder = QueryBuilder.from(queryBuilder);
+      associationQueryBuilder.maxLimit = NONE;
+      associationQueryBuilder.defaultLimit = NONE;
+
+      const relationshipGet = rget(associationQueryBuilder, source, association);
+      const unlinkRelations = runlink(source, association);
 
       const baseTargetRouteOpt = `/:id/${targetRoute}`;
       const baseTargetPath = `${openApiBaseName}/{id}/${targetRoute}`;
@@ -454,7 +437,7 @@ module.exports = (models, opts) => {
           }
           if (routeExposureHandler.isRouteExposed('delete', baseTargetRouteOpt)) {
             router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-              unlinkRelations(req, res, next, association.accessors.set);
+              unlinkRelations(req, res, next);
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'delete', openApiHelper.createHasOneOrBelongsToPathSpecification('delete', target, targetRoute)
@@ -625,7 +608,7 @@ module.exports = (models, opts) => {
 
           if (routeExposureHandler.isRouteExposed('delete', baseTargetRouteOpt)) {
             router.delete(`/:id${idRegex}/${targetRoute}`, auth('DELETE'), (req, res, next) => {
-              unlinkRelations(req, res, next, association.accessors.set);
+              unlinkRelations(req, res, next);
             });
             openApiDocument.addOperationAndComponents(
               baseTargetPath, 'delete', openApiHelper.createHasManyOrBelongsToManyPathSpecfication('delete', target, targetRoute)
