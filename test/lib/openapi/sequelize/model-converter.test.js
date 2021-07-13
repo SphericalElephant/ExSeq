@@ -8,7 +8,8 @@ const testModel = require('../../../model/test-model');
 module.exports = (Sequelize) => {
   const database = require('../../../database')(Sequelize);
   const TestModel = testModel(database.sequelize, database.Sequelize);
-  const modelExtension = require('../../../../lib/model')(database.Sequelize);
+  const {enhance} = require('../../../../lib/data-mapper');
+  const modelExtension = enhance(database.Sequelize);
 
   describe('lib/openapi/sequelize/model-converter.js', () => {
     it('should check if a model is provided.', () => {

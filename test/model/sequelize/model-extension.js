@@ -4,7 +4,7 @@
 
 const {expect} = require('chai');
 
-const modelExtensionImport = require('../../../lib/model');
+const {enhance} = require('../../../lib/data-mapper');
 const {alwaysAllowMiddleware} = require('../../../lib/authorization/middleware');
 
 const unauthorizedError = new Error();
@@ -16,7 +16,7 @@ const denyFallThrough = (req, res, next) => next(unauthorizedError);
 
 module.exports = (Sequelize) => {
   const database = require('../../database')(Sequelize);
-  const modelExtension = modelExtensionImport(database.Sequelize);
+  const modelExtension = enhance(database.Sequelize);
 
   describe('Model Extension', () => {
     describe('getAuthorizationMiddleWare', () => {

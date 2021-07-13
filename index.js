@@ -4,7 +4,7 @@ const express = require('express');
 const pick = require('lodash.pick');
 const {OpenApi, OpenApiDocument} = require('./lib/openapi');
 const {EXSEQ_COMPONENTS} = require('./lib/openapi/openapi-exseq');
-const {QueryBuilder, ERRORS, NONE} = require('./lib/data-mapper/');
+const {QueryBuilder, ERRORS, NONE, enhance} = require('./lib/data-mapper/');
 const relationShipMiddlewareFactory = require('./middleware/relationship');
 const {createError, createErrorPromise} = require('./lib/error');
 const {RouteExposureHandler} = require('./lib/route');
@@ -89,7 +89,8 @@ module.exports = (models, opts) => {
   if (!opts.dataMapper) {
     throw new Error('you must pass a data mapper using opts.dataMapper');
   }
-  const modelExtension = require('./lib/model')(opts.dataMapper);
+
+  const modelExtension = enhance(opts.dataMapper);
   opts.rawDataResponse = opts.rawDataResponse === false ? false : opts.rawDataResponse || true;
   const createReplyObject = createReply.bind(null, opts.rawDataResponse);
   opts.middleware = opts.middleware || {};

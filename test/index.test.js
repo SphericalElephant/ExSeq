@@ -19,7 +19,7 @@ const testModel = require('./model/test-model');
 const testModel3 = require('./model/test-model3');
 
 const exseq = require('../index');
-const modelExtensionImport = require('../lib/model');
+const {enhance} = require('../lib/data-mapper/');
 const AssociationInformation = require('../lib/association-information');
 const associationMiddleware = require('../middleware/relationship');
 
@@ -36,7 +36,7 @@ module.exports = (Sequelize) => {
   const app = express();
   const {Op} = Sequelize;
   const database = require('./database')(Sequelize);
-  const modelExtension = modelExtensionImport(database.Sequelize);
+  const modelExtension = enhance(database.Sequelize);
   const TestModelVirtualFields = testModelVirtualFields(database.sequelize, database.Sequelize);
   const TestModel = testModel(database.sequelize, database.Sequelize);
   const TestModel2 = valueString('TestModel2', database.sequelize, database.Sequelize);

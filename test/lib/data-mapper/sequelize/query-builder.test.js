@@ -3,11 +3,11 @@
 'use strict';
 const {expect} = require('chai');
 const {QueryBuilder, NONE} = require('../../../../lib/data-mapper/index');
-const modelExtensionImport = require('../../../../lib/model');
+const {enhance} = require('../../../../lib/data-mapper');
 
 module.exports = (Sequelize) => {
   const database = require('../../../database')(Sequelize);
-  const modelExtension = modelExtensionImport(database.Sequelize);
+  const modelExtension = enhance(database.Sequelize);
   const ModelToParse = database.sequelize.define('ModelToParse', {});
   const AnotherModelToParse = database.sequelize.define('AnotherModelToParse', {field: Sequelize.STRING});
   const models = [
