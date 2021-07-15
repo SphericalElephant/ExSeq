@@ -21,7 +21,6 @@ const testModel3 = require('./model/test-model3');
 const exseq = require('../index');
 const {enhance} = require('../lib/data-mapper/');
 const AssociationInformation = require('../lib/association-information');
-const associationMiddleware = require('../middleware/relationship');
 
 const unauthorizedError = new Error();
 unauthorizedError.status = 401;
@@ -323,24 +322,6 @@ module.exports = (Sequelize) => {
       await database.reset();
     });
 
-    describe('Middleware', () => {
-      describe('associationMiddleware', () => {
-        it('should respect config settings', () => {
-          const middleware = associationMiddleware([TestModel], {
-            fieldName: 'test'
-          });
-          const toTest = {};
-          middleware(toTest, {}, () => { });
-          expect(toTest['test']).to.not.be.null;
-        });
-        it('should use a default name if no fieldName was specified', () => {
-          const middleware = associationMiddleware([TestModel]);
-          const toTest = {};
-          middleware(toTest, {}, () => { });
-          expect(toTest['associationInformation']).to.not.be.null;
-        });
-      });
-    });
     describe('Model', () => {
       describe('getModelAssociations - CAREFUL THESE TEST WILL HANG IF EXPECT FAILS! - CHAI', () => {
         const m = {
