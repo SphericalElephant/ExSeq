@@ -5,11 +5,17 @@ const versions = {};
     versions[version] = require(version);
     console.log('testing sequelize version', versions[version].version);
     require('./index.test')(versions[version]);
+
     require('./model/sequelize/model-extension')(versions[version]);
+
     require('./lib/openapi/sequelize/model-converter.test')(versions[version]);
+
     require('./lib/data-mapper/sequelize/operator-table.test');
     require('./lib/data-mapper/sequelize/query-builder.test')(versions[version]);
+    require('./lib/data-mapper/sequelize/enhancer/enhancements/get-model-associations')(versions[version]);
+
     require('./lib/route/route-exposure-handler.test');
+
     require('./middleware/relationship.test')(versions[version]);
   });
 });
