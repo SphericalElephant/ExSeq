@@ -12,7 +12,7 @@ const versions = {};
 
     require('./lib/data-mapper/sequelize/operator-table.test');
     require('./lib/data-mapper/sequelize/query-builder.test')(versions[version]);
-    require('./lib/data-mapper/sequelize/enhancer/enhancements/get-model-associations')(versions[version]);
+    require('./lib/data-mapper/sequelize/enhancer/enhancements/get-model-associations.test')(versions[version]);
 
     require('./lib/route/route-exposure-handler.test');
 

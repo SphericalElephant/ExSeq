@@ -38,7 +38,7 @@
   "devDependencies": {
     "bluebird": "^3.5.3",
     "body-parser": "^1.18.3",
-    "chai": "^4.2.0",
+    "chai": "^4.3.4",
     "coveralls": "^3.0.2",
     "eslint": "^5.13.0",
     "eslint-config-loopback": "^13.0.0",
