@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Security fixes
 
-## [3.6.1] - 2021-05-12
+## [3.7.1] - 2021-05-12
 
 ### Added
 - Added `QueryBuilder.from` to enable `QueryBuilder` configuration cloning
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved `unlinkRelations` into its own file
 - Using modular lodash packages now
 
-## [3.6.0] - 2021-04-21
+## [3.7.0] - 2021-04-21
 
 ### Added
 - Added proper model extension for Sequelize 6.x.x
